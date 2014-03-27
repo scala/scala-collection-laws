@@ -72,26 +72,31 @@ object Scasm {
     override def visitTypeVariable(s: String) { myType = myType.map(_ + "tn="+s+" ") }
     def result = myType
   }
-  class ExtractReturns extends sig.SignatureVisitor(asm.Opcodes.ASM5) {
+  class ExtractParams extends sig.SignatureVisitor(asm.Opcodes.ASM5) {
     private[this] val throwaway = new sig.SignatureVisitor(asm.Opcodes.ASM5) {}
-    private[this] val keep = new ExtractMyType(throwaway)
+    private[this] val ret = new ExtractMyType(throwaway)
+    private[this] var params: List[ExtractMyType] = Nil
     override def visitArrayType() = throwaway
     override def visitClassBound() = throwaway
     override def visitExceptionType() = throwaway
     override def visitInterface() = throwaway
     override def visitInterfaceBound() = throwaway
-    override def visitParameterType() = throwaway
-    override def visitReturnType() = keep
+    override def visitParameterType() = { val p = new ExtractMyType(throwaway); params = p :: params; p }
+    override def visitReturnType() = ret
     override def visitSuperclass() = throwaway
     override def visitTypeArgument(wc: Char) = throwaway
-    def result = keep.result
+    def result = Spawn(null, ret.result.getOrElse(""), null, params.reverse.map(_.result).flatten.toArray)
   }
   object ExtractParams {
     def apply(s: String) = {
       val sr = new sig.SignatureReader(s)
-      val sv = new ExtractReturns
+      val sv = new ExtractParams
       sr.accept(sv)
       sv.result
+    }
+    def simple(s: String) = {
+      val t = asm.Type.getType(s)
+      Spawn(null, t.getReturnType.getDescriptor, null, t.getArgumentTypes.map(_.getDescriptor))
     }
   }
   
@@ -103,8 +108,8 @@ object Scasm {
     }
     override def visitMethod(access: Int, name: String, desc: String, sigs: String, ex: Array[String]) = {
       val mv = super.visitMethod(access, name, desc, sigs, ex)
-      if (sigs == null) println("Null signature on method "+name)
-      else { println(name); ExtractParams(sigs).foreach{ ret => myMeth = Spawn(name, ret, "", Array()) :: myMeth } }
+      if (sigs == null) myMeth = ExtractParams.simple(desc).copy(name = name) :: myMeth
+      else myMeth = ExtractParams(sigs).copy(name = name) :: myMeth
       mv
     }
     def clear() { myName = None; myMeth = Nil }
