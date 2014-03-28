@@ -57,36 +57,55 @@ object Laws {
   }
   
   val NeedReg = "`[^`]+`".r
-  def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => x.slice(1,x.length-1)).toSet.toSeq.sorted
+  def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => x.slice(1,x.length-1)).toSet
   
-  case class HemiTest(test: String, needs: Seq[String], isPred: Boolean = false, hasZero: Int = 0, hasPF: Boolean = false) {
-    def pred = copy(isPred = true)
-    def nopred = copy(isPred = false)
-    def zero = copy(hasZero = 1)
-    def nozero = copy(hasZero = 0)
-    def anyzero = copy(hasZero = 2)
-    def partial = copy(hasPF = true)
-    def nopartial = copy(hasPF = false)
+  val CallReg = "~\w+".r
+  def readCalls(s: String) = CallReg.findAllIn(s).map(x.tail).toSet
+  def fixCalls(s: String) = CallReg.replaceAllIn(s, _.toString.tail)
+  
+  val ReplReg = "@[A-Z]+".r
+  def fixRepls(s: String, m: Map[String, String]) =
+    ReplReg.replaceAllIn(s, rm => m.get(rm.toString.tail).getOrElse(rm.toString.tail))
+  
+  case class HemiTest(test: String, needs: Set[String], calls: Set[String]) {
+    def fori = calls contains "i"
+    def pred = calls contains "p"
+    def zero = calls contains "z"
+    def samezero = calls contains "a"
+    def partial = calls contains "pf"
   }
-  implicit def testStringToHemiTest(test: String) = HemiTest(test, readNeeds(test))
+  implicit def testStringToHemiTest(test: String) = HemiTest(fixCalls(test), readNeeds(test), readCalls(test))
   
   val lawsWithNeeds = Seq[HemiTest](
-    "x.`exists`(p) == x.`find`(p).isDefined".pred,
-    "x.`forall`(p) implies (x.`isEmpty` || x.`exists`(p))".pred,
-    "var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(p)".pred,
+    "x.`exists`(~p) == x.`find`(p).isDefined",
+    "x.`forall`(~p) implies (x.`isEmpty` || x.`exists`(p))",
+    "var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(~p)",
     "x.`toIterator` theSameAs x",
     "x.`toStream` theSameAs x",
     "x.`toTraversable` theSameAs x",
-    "x.`aggregate`(z)((b,a) => b, (b1,b2) => b1) == z".anyzero,
-    "x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z".anyzero,
-    "x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)".partial,
-    "val b = new collection.immutable.ArrayBuffer[$$A$$]; x.`copyToBuffer`(b); b.result theSameAs x",
-    "x.`count`(p) > 0 == x.`exists`(p)".pred,
-    "(x.`count`(p) == x.`size`) == x.`forall`(p)".pred,
-    "x.`count`(p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }".pred,
-    "x.filter(p).`size` == x.`count`(p)".pred, // Filter is part of MonadOps, so we won't test for it!
-    "x.filter(p).`forall`(p) == true".pred
+    "x.`aggregate`(~z)((b,a) => b, (b1,b2) => b1) == z",
+    "x.`aggregate`(~z)((b,a) => b, (b1,b2) => b2) == z",
+    "x.`collectFirst`(~pf).isDefined == x.`exists`(pf.isDefinedAt)",
+    "val b = new collection.immutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x",
+    "x.`count`(~p) > 0 == x.`exists`(p)",
+    "(x.`count`(~p) == x.`size`) == x.`forall`(p)",
+    "x.`count`(~p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }",
+    "x.filter(~p).`size` == x.`count`(p)", // Filter is part of MonadOps, so we won't test for it!
+    "x.filter(~p).`forall`(p) == true"
   )
+  
+  def explicitGenInt[C[Int] <: TraversableOnce[Int]](ht: HemiTest, factory: String, tname: String, instance: C[Int]): Validated[C[Int]] with Tested[C[Int]] = {
+    val test = fixRepls(ht.test, Map("A" -> tname))
+    val title = test.filter(_.isLetter)
+    if (ht.pred) {
+      GenTest1X(title, factory+"(0,1,2,3)", ht.needs, "def p(_i: Int) = _i < i; "+ht.test, "0 to 4", false, instance)
+    }
+    else {
+      GenTest1(title, factory+"(0,1,2,3)", ht.needs, ht.test, false, instance)
+    }
+  }
+  
+  val testGenerators = lawsWithNeeds.map(ht => explicitGenInt(ht, "List", "Int", List(1)))
   
   /* For consistently orderable collections,
    *   theSame means a.size == b.size and a.foreach(buf += _); i = buf.result.iterator; b.forall(_ == i.next) && !i.hasNext
