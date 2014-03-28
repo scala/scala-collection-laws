@@ -1,10 +1,10 @@
-package invs
+package laws
 
-object Invariants {
+object Laws {
   def theSame[A](xs: TraversableOnce[A], ys: TraversableOnce[A], ordered: Boolean = false) {
     if (ordered) {
       val b = new collection.mutable.ArrayBuffer[A]
-      xs.foreach(a => b += _)
+      xs.foreach(b += _)
       val i = b.result.iterator
       i.corresponds(ys)(_ == _)
     }
@@ -15,17 +15,78 @@ object Invariants {
       hx.size == hy.size && hx.forall{ case (k,n) => hy.get(k).exists(_ == n) }
     }
   }
-  case class GenTest1[C](title: String, pristine: String, needs: Seq[String], test: String, reusable: Boolean, instance: C) {
+  
+  def dedollar(s: String) = s
+  def sanitized(s: String) = s
+  
+  trait Validated[C] {
+    def instance: C
+    def needs: Seq[String]
     lazy val valid = (instance.getClass.getMethods.map(x => dedollar(x.getName)).toSet & needs.toSet) == needs.toSet
-    lazy val code = List(
+  }
+  
+  trait Tested[C] {
+    def title: String
+    def pre = List(
       s"//$title",
       s"@Test",
-      s"def test_${sanitized(title)} {",
-      s"  ${if (reusable) "val" else "def"} x = pristine",
-      s"  assert{ $test }",
+      s"def test_${sanitized(title)} {"
+    )
+    def post = List(
       s"}"
-     ).mkString("\n")
+    )
+    def core: Seq[String]
+    def wrapped(ss: String*) = (pre ++ ss.map("  " + _) ++ post).mkString("\n")
+    lazy val code = wrapped(core: _*)
   }
+    
+  case class GenTest1[C](title: String, pristine: String, needs: Seq[String], test: String, reusable: Boolean, instance: C)
+  extends Validated[C] with Tested[C] {
+    lazy val core = List(
+      s"${if (reusable) "val" else "def"} x = $pristine",
+      s"assert{ $test }"
+    )
+  }
+  
+  case class GenTest1X[C](title: String, pristine: String, needs: Seq[String], test: String, source: String, reusable: Boolean, instance: C)
+  extends Validated[C] with Tested[C] {
+    lazy val core = List(
+      s"${if (reusable) "val" else "def"} x = $pristine",
+      s"($source).foreach{ i => assert({ $test }, i.toString) }"
+    )
+  }
+  
+  val NeedReg = "`[^`]+`".r
+  def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => x.slice(1,x.length-1)).toSet.toSeq.sorted
+  
+  case class HemiTest(test: String, needs: Seq[String], isPred: Boolean = false, hasZero: Int = 0, hasPF: Boolean = false) {
+    def pred = copy(isPred = true)
+    def nopred = copy(isPred = false)
+    def zero = copy(hasZero = 1)
+    def nozero = copy(hasZero = 0)
+    def anyzero = copy(hasZero = 2)
+    def partial = copy(hasPF = true)
+    def nopartial = copy(hasPF = false)
+  }
+  implicit def testStringToHemiTest(test: String) = HemiTest(test, readNeeds(test))
+  
+  val lawsWithNeeds = Seq[HemiTest](
+    "x.`exists`(p) == x.`find`(p).isDefined".pred,
+    "x.`forall`(p) implies (x.`isEmpty` || x.`exists`(p))".pred,
+    "var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(p)".pred,
+    "x.`toIterator` theSameAs x",
+    "x.`toStream` theSameAs x",
+    "x.`toTraversable` theSameAs x",
+    "x.`aggregate`(z)((b,a) => b, (b1,b2) => b1) == z".anyzero,
+    "x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z".anyzero,
+    "x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)".partial,
+    "val b = new collection.immutable.ArrayBuffer[$$A$$]; x.`copyToBuffer`(b); b.result theSameAs x",
+    "x.`count`(p) > 0 == x.`exists`(p)".pred,
+    "(x.`count`(p) == x.`size`) == x.`forall`(p)".pred,
+    "x.`count`(p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }".pred,
+    "x.filter(p).`size` == x.`count`(p)".pred, // Filter is part of MonadOps, so we won't test for it!
+    "x.filter(p).`forall`(p) == true".pred
+  )
   
   /* For consistently orderable collections,
    *   theSame means a.size == b.size and a.foreach(buf += _); i = buf.result.iterator; b.forall(_ == i.next) && !i.hasNext
@@ -142,7 +203,7 @@ object Invariants {
     /* dropWhile(p) theSameAs drop(takeWhile(p).size) */
     /* filterNot like Iterator */
     /* flatten...? */
-    /* 
+    /* ... */
     
   /* Invariant: if you are Iterable and have definite size, your iterator is the same size as you. */
   /* Invariant: if you are TraversableOnce and have definite size, you traverse as many elements as your size. */
