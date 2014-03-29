@@ -1,7 +1,9 @@
 package laws
 
+import scala.util._
+
 object Laws {
-  def theSame[A](xs: TraversableOnce[A], ys: TraversableOnce[A], ordered: Boolean = false) {
+  def theSame[A](xs: TraversableOnce[A], ys: TraversableOnce[A], ordered: Boolean = false) = {
     if (ordered) {
       val b = new collection.mutable.ArrayBuffer[A]
       xs.foreach(b += _)
@@ -13,6 +15,18 @@ object Laws {
       xs.foreach(a => hx(a) = hx.getOrElseUpdate(a,0))
       ys.foreach(a => hy(a) = hy.getOrElseUpdate(a,0))
       hx.size == hy.size && hx.forall{ case (k,n) => hy.get(k).exists(_ == n) }
+    }
+  }
+  def succeedsLike[A](xs: Try[A], ys: Try[A]): Boolean = {
+    xs match {
+      case Success(x) => ys match {
+        case Success(y) => x == y
+        case _ => false
+      }
+      case Failure(_) => ys match {
+        case Failure(_) => true
+        case Success(_) => false
+      }
     }
   }
   
@@ -39,73 +53,187 @@ object Laws {
     def wrapped(ss: String*) = (pre ++ ss.map("  " + _) ++ post).mkString("\n")
     lazy val code = wrapped(core: _*)
   }
-    
-  case class GenTest1[C](title: String, pristine: String, needs: Seq[String], test: String, reusable: Boolean, instance: C)
-  extends Validated[C] with Tested[C] {
-    lazy val core = List(
-      s"${if (reusable) "val" else "def"} x = $pristine",
-      s"assert{ $test }"
-    )
+  
+  trait ValidTest[C] extends Validated[C] with Tested[C] {}
+  
+  sealed trait Pos
+  case object Inner extends Pos
+  case object Outer extends Pos
+  case object Wraps extends Pos
+  
+  case class Code(pre: Seq[String], lwrap: Seq[String], in: Seq[String], rwrap: Seq[String]) {
+    def join = pre ++ lwrap ++ in.map("  "*rwrap.length + _) ++ rwrap
   }
   
-  case class GenTest1X[C](title: String, pristine: String, needs: Seq[String], test: String, source: String, reusable: Boolean, instance: C)
-  extends Validated[C] with Tested[C] {
-    lazy val core = List(
-      s"${if (reusable) "val" else "def"} x = $pristine",
-      s"($source).foreach{ i => assert({ $test }, i.toString) }"
-    )
+  case class Call(name: String, code: String, position: Pos, also: Option[Call] = None) {
+    def satisfy(lines: Code): Code = {
+      val newlines = position match {
+        case Outer => lines.copy(pre = code +: lines.pre)
+        case Inner => lines.copy(in = code +: lines.in)
+        case Wraps => lines.copy(lwrap = code +: lines.lwrap.map("  "+_), rwrap = lines.rwrap.map("  "+_) :+ "}")
+      }
+      also.map(_.satisfy(newlines)).getOrElse(newlines)
+    }
   }
+  val knownCalls = Seq(
+    Call("p", "val p = (_i: @A) => _i < i", Inner, Some(Call("", "for (i <- @CD) {", Wraps))),
+    Call("n", "for (n <- @CN) {", Wraps),
+    Call("m", "for (m <- @CM) {", Wraps),
+    Call("a", "for (a <- @CD) {", Wraps),
+    Call("b", "for (b <- @CE) {", Wraps),
+    Call("x", "val x = @X", Outer),
+    Call("y", "val y = @Y", Outer),
+    Call("pf", "val pf: PartialFunction[@A,@A] = { case _x if _x in @S => _x+1 }", Outer),
+    Call("f", "val f = (_x: Int) = _x+1", Outer),
+    Call("z", "for (z <- @CD) {", Wraps),
+    Call("op", "val op = (a1: @A, a2: @A) => a1 @OP a2", Outer),
+    Call("one", "val one = 1", Outer),
+    Call("zero", "val zero = 0", Outer)
+  )
+  
+  val knownRepls = Seq(
+    Map(
+      "A" -> Set("Int"),
+      "CC" -> Set("List[Int]"),
+      "X" -> Set("0 to 3", "0 until 0", "0 to 20 by 3", "0 to 64").map("List((" + _ + "): _*)"),
+      "Y" -> Set("4 to 8", "0 until 0", "0 to 3", "1 to 20 by 3", "-64 to 0").map("List((" + _ + "): _*)"),
+      "CD" -> Set("List(-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)"),
+      "CE" -> Set("List(-70, -64, -15, -14, -13, -1, 0, 1, 2, 3, 12, 22, 40, 63, 64, 70)"),
+      "CM" -> Set("List(-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)"),
+      "CN" -> Set("List(-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)"),
+      "OP" -> Set("+", "*")
+    )
+  )
   
   val NeedReg = "`[^`]+`".r
   def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => x.slice(1,x.length-1)).toSet
   
-  val CallReg = "~\w+".r
-  def readCalls(s: String) = CallReg.findAllIn(s).map(x.tail).toSet
-  def fixCalls(s: String) = CallReg.replaceAllIn(s, _.toString.tail)
+  def readCalls(s: String) = {
+    val i = s.indexOf("...")
+    if (i >= 0) s.take(i).split(" ").filter(_.length > 0).toSet | Set("x") else Set("x")
+  }
+  def fixCalls(s: String) = {
+    val i = s.indexOf("...")
+    if (i >= 0) s.drop(i+3).dropWhile(_ == ' ') else s
+  }
   
   val ReplReg = "@[A-Z]+".r
   def fixRepls(s: String, m: Map[String, String]) =
     ReplReg.replaceAllIn(s, rm => m.get(rm.toString.tail).getOrElse(rm.toString.tail))
   
-  case class HemiTest(test: String, needs: Set[String], calls: Set[String]) {
-    def fori = calls contains "i"
-    def pred = calls contains "p"
-    def zero = calls contains "z"
-    def samezero = calls contains "a"
-    def partial = calls contains "pf"
-  }
+  case class HemiTest(test: String, needs: Set[String], calls: Set[String])
   implicit def testStringToHemiTest(test: String) = HemiTest(fixCalls(test), readNeeds(test), readCalls(test))
   
   val lawsWithNeeds = Seq[HemiTest](
-    "x.`exists`(~p) == x.`find`(p).isDefined",
-    "x.`forall`(~p) implies (x.`isEmpty` || x.`exists`(p))",
-    "var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(~p)",
+    "p ... x.`exists`(p) == x.`find`(p).isDefined",
+    "p ... x.`forall`(p) implies (x.`isEmpty` || x.`exists`(p))",
+    "p ... var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(p)",
     "x.`toIterator` theSameAs x",
     "x.`toStream` theSameAs x",
     "x.`toTraversable` theSameAs x",
-    "x.`aggregate`(~z)((b,a) => b, (b1,b2) => b1) == z",
-    "x.`aggregate`(~z)((b,a) => b, (b1,b2) => b2) == z",
-    "x.`collectFirst`(~pf).isDefined == x.`exists`(pf.isDefinedAt)",
+    "z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b1) == z",
+    "z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z",
+    "", // copyToArray goes here...need some conditions
+    "pf ... x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)",
     "val b = new collection.immutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x",
-    "x.`count`(~p) > 0 == x.`exists`(p)",
-    "(x.`count`(~p) == x.`size`) == x.`forall`(p)",
-    "x.`count`(~p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }",
-    "x.filter(~p).`size` == x.`count`(p)", // Filter is part of MonadOps, so we won't test for it!
-    "x.filter(~p).`forall`(p) == true"
-  )
+    "p ... x.`count`(p) > 0 == x.`exists`(p)",
+    "p ... (x.`count`(p) == x.`size`) == x.`forall`(p)",
+    "p ... x.`count`(p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }",
+    "p ... x.filter(p).`size` == x.`count`(p)", // Filter is part of MonadOps, so we won't test for it!
+    "p ... x.filter(p).`forall`(p) == true",
+    "", // flatMap goes here, need monad laws
+    """a op ... Set(x.`fold`(a)(op), x.`foldLeft`(a)(op), x.`foldRight`(a)(op), x.`/:`(a)(op), x.`:\`(a)(op)).size == 1""",
+    "", // map goes here, need monad laws
+    "Try{x.`max`}.toOption == Try{x.`reduce`(_ max _)}.toOption",
+    "", // maxBy(f)
+    "Try{x.`min`}.toOption == Try{x.`reduce`(_ min _)}.toOption",
+    "", // minBy(f)
+    "x.`nonEmpty` == x.`exists`(_ => true)",
+    "one ... x.`product` == x.`fold`(one)(_ * _)",
+    "op ... Set(Try{x.`reduce`(op)}.toOption, Try{x.`reduceLeft`(op)}.toOption, Try{x.`reduceRight`(op)}.toOption, x.`reduceLeftOption`(op), x.`reduceRightOption`(op)).size == 1",
+    "x.`size` == x.`count`(_ => true)",
+    "zero ... x.`sum` == x.`fold`(zero)(_ + _)",
+    "x.`to`[@CC] theSameAs x",
+    "x.`toArray` theSameAx x",
+    "x.`toBuffer` theSameAs x",
+    "x.`toIndexedSeq` theSameAs x",
+    "x.`toIterable` theSameAs x",
+    "x.`toList` theSameAs x",
+    "x.`toMap` theSameAs x",
+    "x.`toSeq` theSameAs x",
+    "x.`toSet` theSameAs x",
+    "x.`toVector` theSameAs x",
+    "p ... x.`withFilter`(p) theSameAs x.filter(p)",
+    "x.`hasNext` == x.`nonEmpty`",
+    "x.`hasNext` implies Try{ x.`next` }.isSuccess",
+    "y ... x.`++`(y).`size` == x.size + y.size",
+    "y ... x.`++`(y).`take`(x.`size`) theSameAs x",
+    "y ... x.`++`(y).`drop`(x.`size`) theSameAs y",
+    "x.`buffered` theSameAs x",
+    "pf ... x.`collect`(pf) theSameAs x.`filter`(pf.isDefinedAt).`map`(pf)",
+    "n ... x.`contains`(n) == x.`exists`(_ == n)",
+    "x.`corresponds`(x)(_ == _)",
+    "y ... (x.`size` != y.size) implies !x.`corresponds`(y)(_ == _)",
+    "y ... x.`corresponds`(y)((_,_) => false) implies !x.`nonEmpty` && !y.`nonEmpty`",
+    "n ... x.`drop`(n).`size` == (0 max (x.size-(0 max n)))",
+    "n ... x.`drop`(n) isPartOf x",
+    "p ... val y = x.`dropWhile`(p); !x.`hasNext` || p(x.`next`)",
+    "p ... x.`dropWhile`(p) isPartOf x",
+    "val (x1,x2) = x.`duplicate`; x1.corresponds(x2)(_ == _) && x1.corresponds(x)(_ == _)",
+    "p ... x.`filterNot`(p) theSameAs x.`filter`(xi => !p(xi))",
+    "n ... x.`grouped`((1 max n)).map(_.size).`sum` == x.`size`",
+    "n m ... var y = 0; (x.`grouped`((1 max n)).`drop`(m).take(1).foreach(y = _.`size`); (y < (1 max n)) implies !x.grouped((1 max n)).drop(m+1).`nonEmpty`",
+    "n ... x.`grouped`((1 max n)).flatMap(identity) theSameAs x",
+    "x.`isEmpty` == !x.`nonEmpty`",
+    "x.`length` == x.`size`",
+    "a n ... x.`padTo`(a, n).`size` == (n max x.size)",
+    "a n ... x.`padTo`(a, n).`drop`(x.`size`).`forall`(_ == a)",
+    "a n ... (n <= x.`size`) implies (x.`padTo`(a, n) theSameAs x)",
+    "p ... val (t,f) = x.`partition`(p); (t theSameAs x.`filter`(p)) && (f theSameAs x.`filterNot`(p))",
+    "y n m ... x.`patch`(n, y, m).`take`(n) theSameAs x.take(n)",
+    "y n m ... x.`patch`(n, y, m).`drop`(n).`take`(y.`size`) theSameAs y",
+    "y n m ... x.`patch`(n, y, m).`drop`((0 max n)+y.`size`) theSameAs x.`drop`((0 max n)+(0 max m))",
+    "y ... (x `sameElements` y) == (x theSameAs y)",
+    "", // scanLeft and scanRight go here
+    "n m ... x.`slice`(n, m).`size` == (0 max ((0 max m)-(0 max n)))",
+    "n m ... x.`slice`(n, m) theSameAs x.`drop`(n).`take`((0 max m)-(0 max n))",
+    "p ... x.`span`(p)._1.`forall`(p)",
+    "p ... !x.`span`(p)._2.`take`(1).`exists`(p)",
+    "p ... val (x1, x2) = x.`span`(p); val n = x1.`span`(p)._1.`size`; (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))",
+    "n ... x.`take`(n).`size` == ((0 max n) min x.size)",
+    "n ... x.`take`(n) isPartOf x",
+    "p ... x.`takeWhile`(p).`forall`(p)",
+    "p ... x.`takeWhile`(p) isPartOf x",
+    "p ... x.`takeWhile`(p).`size` + x.`dropWhile`(p).size == x.size",
+    "y ... x.`zip`(y).map(_._1) theSameAs x.take(x.size min y.size)",
+    "y ... x.`zip`(y).map(_._2) theSameAs y.take(x.size min y.size)",
+    "y a b ... x.`zipAll`(y, a, b).map(_._1) theSameAs x.`padTo`(a, x.size max y.size)",
+    "y a b ... x.`zipAll`(y, a, b).map(_._2) theSameAs y.`padTo`(b, x.size max y.size)",
+    "x.`zipWithIndex`.map(_._1) theSameAs x",
+    "x.`zipWithIndex`.map(_._2).`sameElements`(0 until x.`size`)"
+  ).filter(_.test.length > 0)
   
+  val lawsAsCode = lawsWithNeeds.map{ ht =>
+    val code = Code(Seq(), Seq(), Seq("assert{ " + ht.test + " }"), Seq())
+    (code /: ht.calls.toList)((c,x) => 
+      knownCalls.find(_.name == x).map(_.satisfy(c)).getOrElse{ println("Could not find "+x); c }
+    )
+  }
+  
+  /*
   def explicitGenInt[C[Int] <: TraversableOnce[Int]](ht: HemiTest, factory: String, tname: String, instance: C[Int]): Validated[C[Int]] with Tested[C[Int]] = {
     val test = fixRepls(ht.test, Map("A" -> tname))
     val title = test.filter(_.isLetter)
-    if (ht.pred) {
-      GenTest1X(title, factory+"(0,1,2,3)", ht.needs, "def p(_i: Int) = _i < i; "+ht.test, "0 to 4", false, instance)
+    if (ht.calls contains "p") {
+      GenTest1X(title, factory+"(0,1,2,3)", ht.needs.toSeq, "def p(_i: Int) = _i < i; "+ht.test, "0 to 4", false, instance)
     }
     else {
-      GenTest1(title, factory+"(0,1,2,3)", ht.needs, ht.test, false, instance)
+      GenTest1(title, factory+"(0,1,2,3)", ht.needs.toSeq, ht.test, false, instance)
     }
   }
   
   val testGenerators = lawsWithNeeds.map(ht => explicitGenInt(ht, "List", "Int", List(1)))
+  */
   
   /* For consistently orderable collections,
    *   theSame means a.size == b.size and a.foreach(buf += _); i = buf.result.iterator; b.forall(_ == i.next) && !i.hasNext
@@ -114,94 +242,9 @@ object Laws {
    */
   
   /* TraversableOnce */
-    /* exists(p) iff find(p).isDefined */
-    /* forall(p) implies isEmpty || exists(p) */
-    /* foreach(x => y |= p(x)) iff exists(p) */
-    /* toIterator.size == size */
-    /* toIterator.exists(p) iff exists(p) */
-    /* toStream.size == size */
-    /* toStream.exists(p) iff exists(p) */
-    /* toTraversable.size == size */
-    /* toTraversable.exists(p) iff exists(p) */
-    /* aggregate(z)((b,a) => b, (b1, b2) => b1) == z */
-    /* collectFirst(pf).isDefined iff exists(pf.isDefinedAt) */
-    /*! copyToArray docs says will not terminate on inf, but it will because array is finite. */
-    /*! copyToArray is hard to get working right.  Deprecate?  Or return an Int? */
-    /* b.clear; copyToBuffer(b); b.result.size == size */
-    /* b.clear; copyToBuffer(b); b.exists(p) iff exists(p) */
-    /* count(p) > 0 iff exists(p) */
-    /* count(p) == size iff forall(p) */
-    /* count(p) == { var y=0; foreach(x => if (p(x)) y += 1); y } */
-    /* filter(p).size == count(p) */
-    /* filter(p).forall(p) == true */
     /*! Why isn't MonadOps a value class? */
-    /* flatMap--monad laws */
-    /* fold(z)(_ op _) == foldLeft(z)(_ op _) == foldRight(z)(_ op _) for z: A and commutative op */
-    /* map--monad laws */
-    /* max == reduce(_ max _) */
-    /* maxBy(f) is in the set of x s.t. f(x) is maximal */
-    /* min == reduce(_ min _) */
-    /* minBy(f) is in the set of x s.t. f(x) is minimal */
-    /* nonEmpty iff exists(_ => true) */
-    /* product == fold(1)(_ * _) */
-    /* reduce(_ op _) == reduceLeft(_ op _) == reduceRight(_ op _) for commutative op */
-    /* reduceLeftOption.isDefined iff nonEmpty */
-    /* reduceRightOption.isDefined iff nonEmpty */
-    /* reduce(_ op _) == reduceLeftOption(_ op _).get == reduceRightOption(_ op _).get for nonEmpty && commutative op */
-    /* size == count(_ => true) */
-    /* sum == fold(0)(_ + _) */
-    /* to[C[A]].exists(p) iff exists(p) */
-    /* toArray.size == size */
-    /* toArray.exists(p) iff exists(p) */
-    /* toBuffer -- same deal, size && exists */
-    /* toIndexedSeq -- same deal */
-    /* toIterable -- same deal */
-    /* toList -- same deal */
-    /* toMap -- exists only */
-    /* toSeq -- size && exists */
-    /* toSet -- exists only */
-    /* toVector -- size && exists */
-    /* withFilter(p).size == filter(p).size */
-    /* withFilter(p).exists(q) iff filter(p).exists(q) */
     
   /* Iterator */
-    /* hasNext iff nonEmpty */
-    /* hasNext => Try{ next }.isSuccess */
-    /* (i ++ j).size == i.size + j.size */
-    /* (i ++ j).exists(p) iff i.exists(p) || j.exists(p) */
-    /* CountedSet((i ++ j) next i.size times) == CountedSet(i) */
-    /* k = i++j; k.next i.size times; CountedSet(k next j.size times) == CountedSet(j) */
-    /* buffered -- size && exists */
-    /* collect(pf) has same size && exists as filter(pf.isDefinedAt).map(pf) */
-    /* contains(x) iff exists(_ == x) */
-    /* corresponds(copy-of-self)(identity) == true */
-    /* j.size != i.size => i.corresponds(j)(_ => true) == false */
-    /* i.corresponds(j)((_, _) => false) iff i.nonEmpty == j.nonEmpty == false */
-    /* drop(n).size == 0 max (size-n) */
-    /* p(dropWhile(p).next) == false or dropWhile(p).hasNext == false */
-    /* (i,j) = duplicate => i.corresponds(j)(identity) */
-    /* filterNot(p) size && exists as filter(!p) */
-    /* grouped(n).map(_.size).sum == size */
-    /* grouped(n).drop(m).size < n => grouped(n).drop(m+1).hasNext == false */
-    /*! indexOf only makes sense on Iterators from a source with stable order */
-    /*! indexWhere only makes sense on Iterators from a source with stable order */
-    /* isEmpty iff !nonEmpty iff hasNext = false */
-    /* length == size */
-    /* padTo(a, n).corresponds(i.take(n))(identity) if n < size */
-    /* padTo(a, n).drop(size).next == a while hasNext */
-    /* padTo(a, n).size == n */
-    /* (i,j) = partition(p); i.corresponds(filter(p))(identity) && j.corresponds(filterNot(p))(identity) */
-    /* patch(n, j, m).take(n).corresponds(take(n))(identity) */
-    /* patch(n, j, m).drop(n).take(j.size).corresponds(j)(identity) */
-    /* patch(n, j, m).drop(n+j.size).corresponds(i.drop(n+m))(identity) */
-    /* i.sameElements(j) iff i.corresponds(j)(identity) */
-    /*! Test implementation of scanLeft and scanRight */
-    /* slice(n,m).size = 0 max (m-n) */
-    /* slice(n,m).corresponds(drop(n).take(m-n))(identity) */
-    /* span(p)._1.forall(p) == true */
-    /* span(p)._2.take(1).exists(p) == false */
-    /* (i,j) = span(p); i.corresponds(take(i.size))(identity) && j.corresponds(drop(i.size))(identity) */
-    /* take(n).size = (size min n) */
     /* takeWhile(p).forall(p) == true */
     /* takeWhile(p).size + dropWhile(p).size == size */
     /* i.zip(j).size == i.size min j.size */
