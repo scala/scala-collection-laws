@@ -83,7 +83,7 @@ object Laws {
     Call("b", "for (b <- @CE) {", Wraps),
     Call("x", "val x = @X", Outer),
     Call("y", "val y = @Y", Outer),
-    Call("pf", "val pf: PartialFunction[@A,@A] = { case _x if _x in @S => _x+1 }", Outer),
+    Call("pf", "val pf: PartialFunction[@A,@A] = { case _i if _i < i => _i+1 }", Outer, Some(Call("", "for (i <- @CD) {", Wraps))),
     Call("f", "val f = (_x: Int) = _x+1", Outer),
     Call("z", "for (z <- @CD) {", Wraps),
     Call("op", "val op = (a1: @A, a2: @A) => a1 @OP a2", Outer),
@@ -118,8 +118,22 @@ object Laws {
   }
   
   val ReplReg = "@[A-Z]+".r
-  def fixRepls(s: String, m: Map[String, String]) =
-    ReplReg.replaceAllIn(s, rm => m.get(rm.toString.tail).getOrElse(rm.toString.tail))
+  def fixRepls(ss: Seq[String], mm: Map[String, Set[String]]): Seq[Seq[String]] = {
+    val wildcards = ss.flatMap(s => ReplReg.findAllIn(s).map(_.tail)).toSet
+    var maps = Seq(Map[String,String]())
+    wildcards.map(s => s -> mm(s)).foreach{ wc =>
+      val (k,vs) = wc
+      val us = vs.toList
+      val old = maps
+      maps = maps.map(m => (m + (k -> us.head)))
+      if (us.tail.nonEmpty) {
+        maps = maps ++ us.tail.flatMap(u => old.map(m => (m + (k -> u))))
+      }
+    }
+    maps = maps.filter(_.size > 0)
+    if (maps.isEmpty) Seq(ss)
+    else maps.map(m => ss.map(s => ReplReg.replaceAllIn(s, rm => m(rm.toString.tail))))
+  }
   
   case class HemiTest(test: String, needs: Set[String], calls: Set[String])
   implicit def testStringToHemiTest(test: String) = HemiTest(fixCalls(test), readNeeds(test), readCalls(test))
@@ -213,11 +227,15 @@ object Laws {
     "x.`zipWithIndex`.map(_._2).`sameElements`(0 until x.`size`)"
   ).filter(_.test.length > 0)
   
-  val lawsAsCode = lawsWithNeeds.map{ ht =>
+  val lawsAsWildCode = lawsWithNeeds.map{ ht =>
     val code = Code(Seq(), Seq(), Seq("assert{ " + ht.test + " }"), Seq())
     (code /: ht.calls.toList)((c,x) => 
       knownCalls.find(_.name == x).map(_.satisfy(c)).getOrElse{ println("Could not find "+x); c }
     )
+  }
+  
+  val lawsAsCode = lawsAsWildCode.map{ code =>
+    fixRepls(code.join, knownRepls.head)
   }
   
   /*
