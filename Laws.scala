@@ -82,7 +82,7 @@ object Laws {
     Call("a", "for (a <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
     Call("b", "for (b <- cb) {", Wraps, Some(Call("","val cb = @CB",Outer))),
     Call("x", "val x = @X", Outer),
-    Call("y", "val ys = @Y", Outer, Some(Call("", "for (y <- ys) {", Wraps))),
+    Call("y", "val ys = @YS", Outer, Some(Call("", "for (y <- ys) {", Wraps))),
     Call("pf", "for (i <- ca; pf = { case _i if _i < i => _i+1 }: PartialFunction[@A,@A]) {", Wraps, Some(Call("", "val cd = @CA", Outer))),
     Call("f", "val f = (_x: Int) = _x+1", Outer),
     Call("z", "for (z <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
@@ -91,19 +91,41 @@ object Laws {
     Call("zero", "val zero = @ZERO", Outer)
   )
   
-  val knownRepls = Seq(
+  def groupDblLineBreak[A](ls: Seq[A], soFar: List[Seq[A]] = Nil)(f: A => String): List[Seq[A]] = {
+    val blank = (a: A) => f(a).isEmpty
+    if (ls.isEmpty)
+      soFar.map(_.dropWhile(blank).reverse.dropWhile(blank).reverse).filter(_.nonEmpty)
+    else {
+      val i = ls.sliding(2).takeWhile(!_.forall(a => f(a).isEmpty)).size
+      val (good, bad) = ls.splitAt(i+1)
+      groupDblLineBreak(bad, good :: soFar)(f)
+    }
+  }
+
+  def readReplacementsFile(fname: String) = {
+    def splitAtLeast(n: Int, sn: (String, Int)) = {
+      val parts = sn._1.split("\\s+")
+      if (parts.length <= n) throw new IllegalArgumentException(s"Need at least $n tokens on line ${sn._2}: ${sn._1}")
+      parts
+    }
+    val src = scala.io.Source.fromFile(fname)
+    val lines = try {
+      src.getLines().toVector.zipWithIndex.filter(_._1.startsWith("//")).map(_.trim)
+    } finally { src.close }
+    val groups = groupDblLineBreak(lines).groupBy(x => splitAtLeast(1, x.head))
+    val wildGroups = groups.map{ case (k,v) =>
+      val (wild, tame) = v.partition(x => splitAtLeast(2,x.head)(1) == "*")
+      if (wild.length > 1)
+        throw new IllegalArgumentException(s"Conflicting wildcards for $k on lines ${wild.map(_._2).mkString(" ")}")
+      k -> (wild.headOption -> tame)
+    }
+  }
+  
+  val knownRepls = readReplacementsFile("replacements.tests")
+  Seq(
     Map(
       "A" -> Set("Int"),
       "CC" -> Set("List[Int]"),
-      "X" -> Set("0 to 3", "0 until 0", "0 to 20 by 3", "0 to 64").map("List((" + _ + "): _*)"),
-      "Y" -> Set("List(4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => @CC(y: _*))"),
-      "CA" -> Set("List(-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)"),
-      "CB" -> Set("List(-70, -64, -15, -14, -13, -1, 0, 1, 2, 3, 12, 22, 40, 63, 64, 70)"),
-      "CM" -> Set("List(-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)"),
-      "CN" -> Set("List(-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)"),
-      "OP" -> Set("+", "*"),
-      "ONE" -> Set("1"),
-      "ZERO" -> Set("0")
     )
   )
   
