@@ -76,16 +76,16 @@ object Laws {
     }
   }
   val knownCalls = Seq(
-    Call("p", "val p = (_i: @A) => _i < i", Inner, Some(Call("", "for (i <- @CD) {", Wraps))),
-    Call("n", "for (n <- @CN) {", Wraps),
-    Call("m", "for (m <- @CM) {", Wraps),
-    Call("a", "for (a <- @CD) {", Wraps),
-    Call("b", "for (b <- @CE) {", Wraps),
+    Call("p", "val p = (_i: @A) => _i < i", Inner, Some(Call("", "for (i <- ca) {", Wraps, Some(Call("", "val ca = @CA", Outer))))),
+    Call("n", "for (n <- cn) {", Wraps, Some(Call("","val cn = @CN",Outer))),
+    Call("m", "for (m <- cm) {", Wraps, Some(Call("","val cm = @CM",Outer))),
+    Call("a", "for (a <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
+    Call("b", "for (b <- cb) {", Wraps, Some(Call("","val cb = @CB",Outer))),
     Call("x", "val x = @X", Outer),
     Call("y", "val y = @Y", Outer),
-    Call("pf", "val pf: PartialFunction[@A,@A] = { case _i if _i < i => _i+1 }", Outer, Some(Call("", "for (i <- @CD) {", Wraps))),
+    Call("pf", "val pf: PartialFunction[@A,@A] = { case _i if _i < i => _i+1 }", Inner, Some(Call("", "for (i <- ca) {", Wraps, Some(Call("", "val cd = @CA", Outer))))),
     Call("f", "val f = (_x: Int) = _x+1", Outer),
-    Call("z", "for (z <- @CD) {", Wraps),
+    Call("z", "for (z <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
     Call("op", "val op = (a1: @A, a2: @A) => a1 @OP a2", Outer),
     Call("one", "val one = 1", Outer),
     Call("zero", "val zero = 0", Outer)
@@ -97,8 +97,8 @@ object Laws {
       "CC" -> Set("List[Int]"),
       "X" -> Set("0 to 3", "0 until 0", "0 to 20 by 3", "0 to 64").map("List((" + _ + "): _*)"),
       "Y" -> Set("4 to 8", "0 until 0", "0 to 3", "1 to 20 by 3", "-64 to 0").map("List((" + _ + "): _*)"),
-      "CD" -> Set("List(-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)"),
-      "CE" -> Set("List(-70, -64, -15, -14, -13, -1, 0, 1, 2, 3, 12, 22, 40, 63, 64, 70)"),
+      "CA" -> Set("List(-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)"),
+      "CB" -> Set("List(-70, -64, -15, -14, -13, -1, 0, 1, 2, 3, 12, 22, 40, 63, 64, 70)"),
       "CM" -> Set("List(-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)"),
       "CN" -> Set("List(-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)"),
       "OP" -> Set("+", "*")
@@ -224,7 +224,42 @@ object Laws {
     "y a b ... x.`zipAll`(y, a, b).map(_._1) theSameAs x.`padTo`(a, x.size max y.size)",
     "y a b ... x.`zipAll`(y, a, b).map(_._2) theSameAs y.`padTo`(b, x.size max y.size)",
     "x.`zipWithIndex`.map(_._1) theSameAs x",
-    "x.`zipWithIndex`.map(_._2).`sameElements`(0 until x.`size`)"
+    "x.`zipWithIndex`.map(_._2).`sameElements`(0 until x.`size`)",
+    "x.`productArity` == x.`size`",
+    "y ... x.`++`(y) theSameAs x.`:++`(y)",
+    "y ... x.`++`(y) theSameAs y.`++:`(x)",
+    "a ... x.`::`(a).`size` == x.size+1",
+    "a ... x.`+:`(a).`size` == x.size+1",
+    "a ... x.`:+`(a).`size` == x.size+1",
+    "a ... val s = x.`+`(a).`size` - x.size; 0 <= s && s <= 1",
+    "a ... x.`::`(a).`head` == a",
+    "a ... x.`+:`(a).`head` == a",
+    "a ... x.`:+`(a).`last` == a",
+    "a ... x.`+`(a).`contains`(a)",
+    "y ... x.`:::`(y) theSameAs y.`++`(x)",
+    "n ... val k = n min x.`size`-1; (k < 0) || x.`apply`(k) == x.`productElement`(k)",
+    "n ... val k = n min x.`size`-1; (k < 0) || (x match { case _: scala.collection.Seq[_] => Seq(x.`apply`(k)) theSameAs x.`drop`(n).`tail`(1); case _ => true })",
+    "", // combinations goes here
+    "", // containsSlice goes here
+    "y ... val List(g,h) = List(x,y).`groupBy`(identity).mapValues(_._2.length).toMap; x.`diff`(y).`groupBy`(identity).mapValues(_._2.length).forall{ case (k,v) => v == (0 max g(k)-h.get(k).getOrElse(0)) }",
+    "val s = x.`toSet`; x.`distinct`.`size` == s.size && x.forall(s)",
+    "n ... x.`dropRight`(n) theSameAs x.`reverse`.`drop`(n).reverse",
+    "", // endsWith goes here
+    "", // groupBy goes here
+    "!x.`nonEmpty` || (x match { case _: scala.collection.Seq[_] => Seq(x.`head`) theSameAs x.`take`(1); case _ => true })",
+    "x.`headOption` == Try{ x.`head` }.toOption",
+    "n a ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => n+k.size == x.size; case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }",
+    "a ... x.`indexOf`(a) == x.`indexOf`(a,0)",
+    "", // indexOfSlice goes here
+    "p n ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`indexWhere`(p,n) match { case -1 => n+k.size == x.size; case kk => n+k.size == kk && p(x.`drop`(kk).`head`) } }",
+    "p ... x.`indexWhere`(p) == x.`indexWhere`(p,0)",
+    "x.`indices` == (0 until x.`size`)",
+    "x.`init` == x.`dropRight`(1)",
+    "x.`inits` theSameAs Iterator.iterate(x.`toSeq`.iterator)(_.dropRight(1)).takeWhile(_.nonEmpty) :+ x.toSeq.dropRight(x.`size`)",
+    "y ... x.`intersect`(y).`toSet` == (x.toSet & y.toSet)",  // Need to improve this one
+    "x.`iterator` theSameAs x",
+    "Seq(x.`last`) theSameAs x.`takeRight`(1)"
+    // At "lastBlahBlah
   ).filter(_.test.length > 0)
   
   val lawsAsWildCode = lawsWithNeeds.map{ ht =>
@@ -234,8 +269,11 @@ object Laws {
     )
   }
   
-  val lawsAsCode = lawsAsWildCode.map{ code =>
-    fixRepls(code.join, knownRepls.head)
+  val lawsAsCode = lawsAsWildCode.groupBy(_.pre).toList.map{ case (pre, codes) =>
+    val lines = codes.groupBy(_.lwrap).toList.flatMap{ case (lwrap, somecodes) =>
+      somecodes.head.lwrap ++ somecodes.flatMap(c => c.join.drop(c.pre.length + c.lwrap.length).dropRight(c.rwrap.length)) ++ somecodes.head.rwrap
+    }
+    fixRepls(pre ++ lines, knownRepls.head)
   }
   
   /*
