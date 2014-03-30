@@ -82,7 +82,7 @@ object Laws {
     Call("a", "for (a <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
     Call("b", "for (b <- cb) {", Wraps, Some(Call("","val cb = @CB",Outer))),
     Call("x", "val x = @X", Outer),
-    Call("y", "val y = @Y", Outer),
+    Call("y", "val ys = @Y", Outer, Some(Call("", "for (y <- ys) {", Wraps))),
     Call("pf", "for (i <- ca; pf = { case _i if _i < i => _i+1 }: PartialFunction[@A,@A]) {", Wraps, Some(Call("", "val cd = @CA", Outer))),
     Call("f", "val f = (_x: Int) = _x+1", Outer),
     Call("z", "for (z <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
@@ -96,7 +96,7 @@ object Laws {
       "A" -> Set("Int"),
       "CC" -> Set("List[Int]"),
       "X" -> Set("0 to 3", "0 until 0", "0 to 20 by 3", "0 to 64").map("List((" + _ + "): _*)"),
-      "Y" -> Set("4 to 8", "0 until 0", "0 to 3", "1 to 20 by 3", "-64 to 0", "2 to 3", "0 to 1").map("List((" + _ + "): _*)"),
+      "Y" -> Set("List(4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => @CC(y: _*))"),
       "CA" -> Set("List(-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)"),
       "CB" -> Set("List(-70, -64, -15, -14, -13, -1, 0, 1, 2, 3, 12, 22, 40, 63, 64, 70)"),
       "CM" -> Set("List(-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)"),
@@ -112,7 +112,11 @@ object Laws {
   
   def readCalls(s: String) = {
     val i = s.indexOf("...")
-    if (i >= 0) s.take(i).split(" ").filter(_.length > 0).toSet | Set("x") else Set("x")
+    if (i >= 0) s.take(i).split(" ").filter(! _.last.isUpper).filter(_.length > 0).toSet | Set("x") else Set("x")
+  }
+  def readFlags(s: String) = {
+    val i = s.indexOf("...")
+    if (i >= 0) s.take(i).split(" ").filter(_.last.isUpper).filter(_.length > 0).toSet else Set()
   }
   def fixCalls(s: String) = {
     val i = s.indexOf("...")
@@ -121,7 +125,7 @@ object Laws {
   
   val ReplReg = "@[A-Z]+".r
   def fixRepls(ss: Seq[String], mm: Map[String, Set[String]]): Seq[Seq[String]] = {
-    val wildcards = ss.flatMap(s => ReplReg.findAllIn(s).map(_.tail)).toSet
+    val wildcards = ss.flatMap(s => ReplReg.findAllIn(s).map(_.tail)).toSet | Set("A", "CC", "ONE", "ZERO")
     var maps = Seq(Map[String,String]())
     wildcards.map(s => s -> mm(s)).foreach{ wc =>
       val (k,vs) = wc
@@ -134,7 +138,10 @@ object Laws {
     }
     maps = maps.filter(_.size > 0)
     if (maps.isEmpty) Seq(ss)
-    else maps.map(m => ss.map(s => ReplReg.replaceAllIn(s, rm => m(rm.toString.tail))))
+    else maps.map(m => ss.map{ s => 
+      val t = ReplReg.replaceAllIn(s, rm => m(rm.toString.tail))
+      if (t contains '@') ReplReg.replaceAllIn(t, rm => m(rm.toString.tail)) else t
+    })
   }
   
   case class HemiTest(test: String, needs: Set[String], calls: Set[String])
