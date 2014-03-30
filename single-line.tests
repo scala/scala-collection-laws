@@ -118,4 +118,33 @@ x.`inits` theSameAs Iterator.iterate(x.`toSeq`.iterator)(_.dropRight(1)).takeWhi
 y ... x.`intersect`(y).`toSet` == (x.toSet & y.toSet)  // Need to improve this one
 x.`iterator` theSameAs x
 Seq(x.`last`) theSameAs x.`takeRight`(1)"
-// At "lastBlahBlah"
+a n ... n < 0 || { x.`lastIndexOf`(a,n) match { case -1 => x.`take`(n+1).`indexOf`(a) == -1; case k => k == n+1 - x.take(n+1).reverse.indexOf(a) } }
+a ... x.`lastIndexOf`(a) == x.lastIndexOf(a,x.`size`-1)
+p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexOf`(a) == -1; case k => k == n+1 - x.take(n+1).reverse.indexWhere(p) } }
+p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,n)
+x.`lastOption` == Try{ x.`last` }.toOption
+n ... x.`lengthCompare`(n) == (x.`size` compare n)
+// mapConserve goes here
+// permutations goes here
+p ... x.`prefixLength`(p) == x.`takeWhile`(p).`size`
+x.`productIterator` theSameAs x
+val ix = x.`toIndexedSeq`; val k = x.`size`; var ki = 0; x.`forall`{ xi => ki += 1; xi == ix(k - ki) }
+x.`reverseIterator` theSameAs x.`reverse`
+f ... x.`reverseMap`(f) theSameAs x.`reverse`.map(f)
+f ... x.`reverseMap`(f) theSameAs x.map(f).`reverse`
+y ... x.`reverse_:::`(y) theSameAs x.`:::`(y.`reverse`)
+// segmentLength goes here
+// sliding goes here
+// sortBy goes here
+// sortWith goes here
+x.`sorted` theSameAs x.`toArray`.sorted // Need to add a custom ordering here
+n ... val (x1,x2) = x.`splitAt`(n); (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
+n y ... n < 0 || { x.`startsWith`(y,n) == (x.`drop`(n).`take`(y.`size`) theSameAs y) }
+y ... x.`startsWith`(y) == x.startsWith(y,0)
+x.`size` < 1 || { x.`tail` theSameAs x.`drop`(1) }
+x.`tails` theSameAs x.`reverse`.`inits`.map(_.reverse)
+n ... x.`takeRight`(n) == x.`reverse`.`take`(n).reverse
+// transpose goes here
+y ... x.`union`(y).`toSet` == (x.toSet union y.toSet)
+// unzip goes here
+// view would go here, but should be its own set of creators
