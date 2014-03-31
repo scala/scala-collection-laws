@@ -14,22 +14,22 @@ ZERO --> 0
 
 
 Int List[Int]
-$NEW --> List[Int]($ _: *)
+$NEW --> List[Int]( $ : _*)
 
 
 Int Vector[Int]
-$NEW --> Vector[Int]($ _: *)
+$NEW --> Vector[Int]( $ : _*)
 
 
 Int Set[Int]
 flags --> S
-$NEW --> (Set[Int]() ++ $)
+$NEW --> (Set[Int]() ++ $ )
 
 
 Int Iterator[Int]
 flags --> I
-$NEW --> ($).iterator
+$NEW --> ( $ ).iterator
 
 
 Int Array[Int]
-$NEW --> Array[Int]( $ _: *)
+$NEW --> Array[Int]( $ : _*)

@@ -104,7 +104,7 @@ object Laws {
   }
 
   case class DollarSubst(key: String, lhs: String, rhs: String) {
-    def sub(s: String, prefix: String = ""): String = if (s.isEmpty) prefix else {
+    def sub(s: String, prefix: String): String = if (s.isEmpty) prefix else {
       val i = s.indexOfSlice(key)
       if (i < 0) prefix + s
       else {
@@ -117,13 +117,14 @@ object Laws {
         }
       }
     }
+    def sub(s: String): String = sub(s,"")
   }
   object DollarSubst {
     def from(key: String, subst: String) = {
-      val i = subst.indexOfSlice(" _ ")
-      if (i < 0) throw new IllegalArgumentException("Could not find \" _ \" in " + subst)
-      val j = subst.indexOfSlice(" _ ",i+3)
-      if (j >= 0) throw new IllegalArgumentException("Found more than one \" _ \" in " + subst)
+      val i = subst.indexOfSlice(" $ ")
+      if (i < 0) throw new IllegalArgumentException("Could not find \" $ \" in " + subst)
+      val j = subst.indexOfSlice(" $ ",i+3)
+      if (j >= 0) throw new IllegalArgumentException("Found more than one \" $ \" in " + subst)
       new DollarSubst(key, subst.substring(0,i), subst.substring(i+3))
     }
     val paired = "()[]{}<>".grouped(2).map(x => x(0) -> x(1)).toMap
@@ -147,28 +148,55 @@ object Laws {
       }
     }
   }
-          
+  
+  def smartSplit(s: String, from: Int = 0, found: collection.mutable.Builder[String,Vector[String]] = Vector.newBuilder[String]): Seq[String] = {
+    var i = from
+    while (i < s.length && s(i).isWhitespace) i += 1
+    if (i >= s.length) found.result
+    else {
+      var j = i
+      while (j < s.length && !s(j).isWhitespace) {
+        if (DollarSubst.paired.contains(s(j)) || s(j) == '"' || s(j) == '\'') {
+          var k = j+1
+          val cl = s(j)
+          val cr = DollarSubst.paired.get(s(j)).getOrElse(cl)
+          var depth = 1
+          while (k < s.length && depth > 0) {
+            val c = s(k)
+            if (c==cr) depth -= 1
+            else if (c==cl) depth += 1
+            k += 1
+          }
+          j = k
+        }
+        else j += 1
+      }
+      found += s.substring(i,j)
+      smartSplit(s, j, found)
+    }
+  }
+  
   def readReplacementsFile(fname: String) = {
     def splitAtLeast(n: Int, sn: (String, Int)) = {
       val parts = sn._1.split("\\s+")
-      if (parts.length <= n) throw new IllegalArgumentException(s"Need at least $n tokens on line ${sn._2}: ${sn._1}")
+      if (parts.length < n) throw new IllegalArgumentException(s"Need at least $n tokens on line ${sn._2}: ${sn._1}")
       parts
     }
-    def splitArrow(s: String, n: Int) = {
+    def splitArrow(s: String, n: Int): (String, String) = {
       val i = s.indexOf("-->")
       if (i < 0) throw new IllegalArgumentException(s"No substitution (-->) found on line $n: $s")
       s.take(i).trim -> s.drop(i+3).trim
     }
-    def splitArrow(si: (String,Int)) = splitArrow(si._1, si._2)
+    def splitArrow2(si: (String,Int)): (String, String) = splitArrow(si._1, si._2)
     val src = scala.io.Source.fromFile(fname)
     val lines = try {
-      src.getLines().toVector.zipWithIndex.filter(_._1.startsWith("//")).map(_.trim)
+      src.getLines().toVector.zipWithIndex.filterNot(_._1.startsWith("//")).map(x => (x._1.trim, x._2))
     } finally { src.close }
-    val groups = groupDblLineBreak(lines).groupBy(x => splitAtLeast(1, x.head))
+    val groups = groupDblLineBreak(lines)(_._1).groupBy(x => splitAtLeast(1, x.head)(0))
     val wildGroups = groups.map{ case (k,v) =>
       val (wild, tame) = v.partition(x => splitAtLeast(2,x.head)(1) == "*")
       if (wild.length > 1)
-        throw new IllegalArgumentException(s"Conflicting wildcards for $k on lines ${wild.map(_._2).mkString(" ")}")
+        throw new IllegalArgumentException(s"Conflicting wildcards for $k on lines ${wild.map(_.head._2).mkString(" ")}")
       k -> (wild.headOption.map(_.tail) -> tame)
     }
     val substReady = wildGroups.mapValues{ case (wild, tames) => wild -> tames.map{ tame =>
@@ -182,23 +210,19 @@ object Laws {
       (a, cc, substs, subbee) 
     }}
     val wildInserted = substReady.mapValues{ case (wild, tames) =>
-      val wildMap = wild.map(_.map{ splitArrow }.toMap).getOrElse(Map.empty[String,String])
+      val wildMap = wild.map(_.map{ splitArrow2 }.toMap).getOrElse(Map.empty[String,String])
       tames.map{ case (a, cc, substs, subbee) =>
-        val tame = subbee.map{ splitArrow } + ("A" -> a) + ("CC" -> cc)
-        (tame ++ wild.filterKeys(k => !tame.contains(k)), substs)
+        val tame = subbee.map{ splitArrow2 }.toMap + ("A" -> a) + ("CC" -> cc)
+        (tame ++ wildMap.filterKeys(k => !tame.contains(k)), substs)
       }
     }
-    wildInserted.mapValues(_.map{ case (tame, substs) => (tame /: subts)((t,s) => s.sub(t)) })
+    val elaborated = wildInserted.mapValues(_.map{ case (tame, substs) => (tame /: substs)((t,s) => t.mapValues(s.sub)).toMap })
+    elaborated.mapValues(_.map(_.mapValues(s => smartSplit(s).toSet)))
   }
   
   val knownRepls = readReplacementsFile("replacements.tests")
-  Seq(
-    Map(
-      "A" -> Set("Int"),
-      "CC" -> Set("List[Int]"),
-    )
-  )
   
+  /*
   val NeedReg = "`[^`]+`".r
   def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => x.slice(1,x.length-1)).toSet
   
@@ -262,4 +286,5 @@ object Laws {
     }
     fixRepls(pre ++ lines, knownRepls.head)
   }
+  */
 }
