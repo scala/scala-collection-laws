@@ -93,8 +93,9 @@ object Laws {
   
   def groupDblLineBreak[A](ls: Seq[A], soFar: List[Seq[A]] = Nil)(f: A => String): List[Seq[A]] = {
     val blank = (a: A) => f(a).isEmpty
-    if (ls.isEmpty)
+    if (ls.isEmpty) {
       soFar.map(_.dropWhile(blank).reverse.dropWhile(blank).reverse).filter(_.nonEmpty)
+    }
     else {
       val i = ls.sliding(2).takeWhile(!_.forall(a => f(a).isEmpty)).size
       val (good, bad) = ls.splitAt(i+1)
@@ -102,6 +103,49 @@ object Laws {
     }
   }
 
+  case class DollarSubst(key: String, lhs: String, rhs: String) {
+    def sub(s: String, prefix: String = ""): String = if (s.isEmpty) prefix else {
+      val i = s.indexOfSlice(key)
+      if (i < 0) prefix + s
+      DollarSubst.matchingIndexOf(s, i+key.length) match {
+        case None => throw new IllegalArgumentException(s"Could not match $key in $s")
+        case Some((il, ir)) =>
+          if (ir < 0) throw new IllegalArgumentException(s"Could not find right limit of parameter for $key in $s")
+          val (i0,i1) = if (DollarSubst.paired contains s(il)) (il+1,ir) else (il,ir+1)
+          sub(s.drop(ir+1), prefix + s.substring(0,i) + lhs + s.slice(i0,i1) + rhs)
+      }
+    }
+  }
+  object DollarSubst {
+    def from(key: String, subst: String) = {
+      val i = subst.indexOfSlice(" _ ")
+      if (i < 0) throw new IllegalArgumentException("Could not find \" _ \" in " + subst)
+      val j = subst.indexOfSlice(" _ ",i+3)
+      if (j >= 0) throw new IllegalArgumentException("Found more than one \" _ \" in " + subst)
+      new DollarSubst(key, subst.substring(0,i), subst.substring(i+3))
+    }
+    val paired = "()[]{}<>".grouped(2).map(x => x(0) -> x(1)).toMap
+    def matchingIndexOf(s: String, i: Int = 0): Option[(Int,Int)] = {
+      if (i >= s.length) None
+      else paired.get(s(i)) match {
+        case None => 
+          if (s(i).isWhitespace) matchingIndexOf(s, i+1)
+          else Some((i, s.indexWhere(_.isWhitespace, i+1)-1))
+        case Some(r) =>
+          val l = s(i)
+          var depth = 1
+          var j = i+1
+          while (j < s.length && depth > 0) {
+            val c = s(j)
+            if (c==r) depth -= 1
+            else if (c==l) depth += 1
+            j += 1
+          }
+          if (depth==0) Some((i,j-1)) else None
+      }
+    }
+  }
+          
   def readReplacementsFile(fname: String) = {
     def splitAtLeast(n: Int, sn: (String, Int)) = {
       val parts = sn._1.split("\\s+")
@@ -119,6 +163,7 @@ object Laws {
         throw new IllegalArgumentException(s"Conflicting wildcards for $k on lines ${wild.map(_._2).mkString(" ")}")
       k -> (wild.headOption -> tame)
     }
+    val 
   }
   
   val knownRepls = readReplacementsFile("replacements.tests")
