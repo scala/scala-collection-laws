@@ -3,7 +3,14 @@ package laws
 import scala.util._
 
 object Laws {
-  def theSame[A](xs: TraversableOnce[A], ys: TraversableOnce[A], ordered: Boolean = false) = {
+  object Implicits {
+    implicit class MoreLogic(val underlying: Boolean) extends AnyVal {
+      @inline def implies(b: => Boolean) = !underlying || b
+      @inline def impliedBy(b: => Boolean) = !b || underlying
+    }
+  }
+  type Once[A] = TraversableOnce[A]
+  def countedSetForall[A](xs: Once[A], ys: Once[A], ordered: Boolean = false)(p: (Int,Int) => Boolean) = {
     if (ordered) {
       val b = new collection.mutable.ArrayBuffer[A]
       xs.foreach(b += _)
@@ -14,9 +21,11 @@ object Laws {
       val hx, hy = new collection.mutable.HashMap[A, Int]
       xs.foreach(a => hx(a) = hx.getOrElseUpdate(a,0))
       ys.foreach(a => hy(a) = hy.getOrElseUpdate(a,0))
-      hx.size == hy.size && hx.forall{ case (k,n) => hy.get(k).exists(_ == n) }
+      hx.size == hy.size && hx.forall{ case (k,n) => p(n, hy.get(k).getOrElse(0)) }
     }
   }
+  def theSame[A](xs: Once[A], ys: Once[A], ordered: Boolean = false) = countedSetForall(xs, ys, ordered)(_ == _)
+  def isPartOf[A](xs: Once[A], ys: Once[A], ordered: Boolean = false) = countedSetForall(xs, ys, ordered)(_ <= _)
   def succeedsLike[A](xs: Try[A], ys: Try[A]): Boolean = {
     xs match {
       case Success(x) => ys match {
@@ -29,6 +38,16 @@ object Laws {
       }
     }
   }
+  
+  val universalHeader = """
+package scala.collection
+
+import org.junit.runner.RunWith
+import org.junit.runners.JUnit4
+import org.junit.Test
+import laws.Laws.Implicits._
+import laws.Laws.{theSame, isPartOf}
+  """
   
   def dedollar(s: String) = s
   def sanitized(s: String) = s
@@ -221,6 +240,27 @@ object Laws {
   }
   
   val knownRepls = readReplacementsFile("replacements.tests")
+  
+  val existingInstanceCode = {
+    Try {
+      val src = scala.io.Source.fromFile("Instances.scala")
+      val contents = Try{ src.getLines().toVector }
+      src.close
+      contents.toOption.getOrElse(Vector.empty[String])
+    }.toOption.getOrElse(Vector.empty[String])
+  }
+  
+  val instanceCode = Vector("package laws","object Instances { val all = Map(") ++
+    knownRepls.toVector.flatMap{ case (_,vs) =>
+      vs.map{ mm => "\"" + mm("CC").head + "\" -> (" + mm("instance").head + ")," }
+    }.sorted ++
+    Vector("  \"\" -> null)", "}")
+    
+  if (instanceCode != existingInstanceCode) {
+    val pw = new java.io.PrintWriter("Instances.scala")
+    try { instanceCode.foreach(pw.println) } finally { pw.close }
+    throw new Exception("Instance code not up to date.  Regenerated; please recompile Instances.scala.")
+  }
   
   val NeedReg = "`[^`]+`".r
   def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => x.slice(1,x.length-1)).toSet

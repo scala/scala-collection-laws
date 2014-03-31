@@ -2,7 +2,7 @@
 
 
 Int *
-X  --> $NEW(0 to 3) $NEW(0 until 0) $NEW(0 to 20 by 3) $NEW(0 to 64)
+X  --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64))
 F --> (_i: Int)=>(i+1)
 PF --> ({ case _i if _i < i => i+1}: PartialFunction[@A,@A])
 YS --> List(4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => $NEW(y))
@@ -13,6 +13,7 @@ CN --> List(-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
 OP --> + *
 ONE --> 1
 ZERO --> 0
+instance --> $NEW((0 to 0))
 
 
 // Immutable types
@@ -48,11 +49,11 @@ $NEW --> (collection.immutable.ListSet.empty[Int] ++ $ )
 
 
 Int collection.immutable.PagedSeq[Int]
-$NEW --> ({ val temp = $ ; new PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; k-i }) })
+$NEW --> ({ val temp = $ ; new collection.immutable.PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; k-i }) })
 
 
 Int collection.immutable.Queue[Int]
-$NEW --> Queue( $ : _*)
+$NEW --> collection.immutable.Queue( $ : _*)
 
 
 Int collection.immutable.Range
@@ -199,7 +200,7 @@ $NEW --> collection.mutable.UnrolledBuffer[Int]( $ : _*)
 
 
 Int collection.mutable.WrappedArray[Int]
-$NEW --> collection.mutable.WrappedArray[Int]( $ : _*)
+$NEW --> (Array[Int]( $ : _*): collection.mutable.WrappedArray[Int])
 
 
 
