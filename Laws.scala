@@ -222,7 +222,6 @@ object Laws {
   
   val knownRepls = readReplacementsFile("replacements.tests")
   
-  /*
   val NeedReg = "`[^`]+`".r
   def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => x.slice(1,x.length-1)).toSet
   
@@ -280,11 +279,12 @@ object Laws {
     )
   }
   
-  val lawsAsCode = lawsAsWildCode.groupBy(_.pre).toList.map{ case (pre, codes) =>
-    val lines = codes.groupBy(_.lwrap).toList.flatMap{ case (lwrap, somecodes) =>
-      somecodes.head.lwrap ++ somecodes.flatMap(c => c.join.drop(c.pre.length + c.lwrap.length).dropRight(c.rwrap.length)) ++ somecodes.head.rwrap
+  val lawsAsCode = knownRepls.mapValues(_.map{ rep =>
+    lawsAsWildCode.groupBy(_.pre).toList.map{ case (pre, codes) =>
+      val lines = codes.groupBy(_.lwrap).toList.flatMap{ case (lwrap, somecodes) =>
+        somecodes.head.lwrap ++ somecodes.flatMap(c => c.join.drop(c.pre.length + c.lwrap.length).dropRight(c.rwrap.length)) ++ somecodes.head.rwrap
+      }
+      fixRepls(pre ++ lines, rep)
     }
-    fixRepls(pre ++ lines, knownRepls.head)
   }
-  */
 }
