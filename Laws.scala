@@ -154,6 +154,12 @@ object Laws {
       if (parts.length <= n) throw new IllegalArgumentException(s"Need at least $n tokens on line ${sn._2}: ${sn._1}")
       parts
     }
+    def splitArrow(s: String, n: Int) = {
+      val i = s.indexOf("-->")
+      if (i < 0) throw new IllegalArgumentException(s"No substitution (-->) found on line $n: $s")
+      s.take(i).trim -> s.drop(i+3).trim
+    }
+    def splitArrow(si: (String,Int)) = splitArrow(si._1, si._2)
     val src = scala.io.Source.fromFile(fname)
     val lines = try {
       src.getLines().toVector.zipWithIndex.filter(_._1.startsWith("//")).map(_.trim)
@@ -163,9 +169,26 @@ object Laws {
       val (wild, tame) = v.partition(x => splitAtLeast(2,x.head)(1) == "*")
       if (wild.length > 1)
         throw new IllegalArgumentException(s"Conflicting wildcards for $k on lines ${wild.map(_._2).mkString(" ")}")
-      k -> (wild.headOption -> tame)
+      k -> (wild.headOption.map(_.tail) -> tame)
     }
-    val 
+    val substReady = wildGroups.mapValues{ case (wild, tames) => wild -> tames.map{ tame =>
+      val Array(a,cc) = splitAtLeast(2,tame.head).take(2)
+      val (subber, subbee) = tame.tail.partition(_._1.trim.startsWith("$"))
+      val substs = subber.map{ case (s,n) =>
+        val i = s.indexOf("-->")
+        if (i < 0) throw new IllegalArgumentException(s"No replacement pattern found on line $n: $s")
+        DollarSubst.from(s.take(i-1).trim, s.drop(i+3).trim)
+      }
+      (a, cc, substs, subbee) 
+    }}
+    val wildInserted = substReady.mapValues{ case (wild, tames) =>
+      val wildMap = wild.map(_.map{ splitArrow }.toMap).getOrElse(Map.empty[String,String])
+      tames.map{ case (a, cc, substs, subbee) =>
+        val tame = subbee.map{ splitArrow } + ("A" -> a) + ("CC" -> cc)
+        (tame ++ wild.filterKeys(k => !tame.contains(k)), substs)
+      }
+    }
+    wildInserted.mapValues(_.map{ case (tame, substs) => (tame /: subts)((t,s) => s.sub(t)) })
   }
   
   val knownRepls = readReplacementsFile("replacements.tests")
