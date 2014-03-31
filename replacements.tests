@@ -3,6 +3,8 @@
 
 Int *
 X  --> $NEW(0 to 3) $NEW(0 until 0) $NEW(0 to 20 by 3) $NEW(0 to 64)
+F --> (_i: Int)=>(i+1)
+PF --> ({ case _i if _i < i => i+1}: PartialFunction[@A,@A])
 YS --> List(4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => $NEW(y))
 CA --> List(-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
 CB --> List(-70, -64, -15, -14, -13, -1, 0, 1, 2, 3, 12, 22, 40, 63, 64, 70)
@@ -13,23 +15,235 @@ ONE --> 1
 ZERO --> 0
 
 
-Int List[Int]
-$NEW --> List[Int]( $ : _*)
+// Immutable types
 
 
-Int Vector[Int]
-$NEW --> Vector[Int]( $ : _*)
+Int collection.immutable.BitSet
+$NEW --> collection.immutable.BitSet( $ : _*)
 
 
-Int Set[Int]
+Int collection.immutable.HashSet[Int]
+$NEW --> (collection.immutable.HashSet.empty[Int] ++ $ )
+
+
+Int collection.immutable.IndexedSeq[Int]
+$NEW --> collection.immutable.IndexedSeq[Int]( $ : _*)
+
+
+Int collection.immutable.Iterable[Int]
+$NEW --> collection.immutable.Iterable[Int]( $ : _*)
+
+
+Int collection.immutable.LinearSeq[Int]
+$NEW --> collection.immutable.LinearSeq[Int]( $ : _*)
+
+
+Int collection.immutable.List[Int]
+$NEW --> collection.immutable.List[Int]( $ : _*)
+
+
+Int collection.immutable.ListSet[Int]
 flags --> S
-$NEW --> (Set[Int]() ++ $ )
+$NEW --> (collection.immutable.ListSet.empty[Int] ++ $ )
 
 
-Int Iterator[Int]
-flags --> I
-$NEW --> ( $ ).iterator
+Int collection.immutable.PagedSeq[Int]
+$NEW --> ({ val temp = $ ; new PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; k-i }) })
+
+
+Int collection.immutable.Queue[Int]
+$NEW --> Queue( $ : _*)
+
+
+Int collection.immutable.Range
+$NEW --> ( $ )
+
+
+Int collection.immutable.Seq[Int]
+$NEW --> collection.immutable.Seq( $ : _*)
+
+
+Int collection.immutable.Set[Int]
+flags --> S
+$NEW --> (collection.immutable.Set.empty[Int] ++ $ )
+
+
+Int collection.immutable.SortedSet[Int]
+flags --> S
+$NEW --> (collection.immutable.SortedSet.empty[Int] ++ $ )
+
+
+Int collection.immutable.Stack[Int]
+$NEW --> collection.immutable.Stack( $ : _*)
+
+
+Int collection.immutable.Stream[Int]
+$NEW --> ( $ ).toStream
+
+
+Int collection.immutable.Traversable[Int]
+$NEW --> collection.immutable.Traversable( $ : _*)
+
+
+Int collection.immutable.Vector[Int]
+$NEW --> collection.immutable.Vector[Int]( $ : _*)
+
+
+
+
+// Mutable types
 
 
 Int Array[Int]
 $NEW --> Array[Int]( $ : _*)
+
+
+Int collection.mutable.ArrayBuffer[Int]
+$NEW --> collection.mutable.ArrayBuffer[Int]( $ : _*)
+
+
+Int collection.mutable.ArraySeq[Int]
+$NEW --> collection.mutable.ArraySeq[Int]( $ : _*)
+
+
+Int collection.mutable.ArrayStack[Int]
+$NEW --> collection.mutable.ArrayStack[Int]( $ : _*)
+
+
+Int collection.mutable.BitSet
+$NEW --> (collection.mutable.BitSet.empty ++ $ )
+
+
+Int collection.mutable.Buffer[Int]
+$NEW --> collection.mutable.Buffer[Int]( $ : _*)
+
+
+Int collection.mutable.DoubleLinkedList[Int]
+$NEW --> collection.mutable.DoubleLinkedList[Int]( $ : _*)
+
+
+Int collection.mutable.HashSet[Int]
+flags --> S
+$NEW --> (collection.mutable.HashSet.empty[Int] ++ $ )
+
+
+Int collection.mutable.IndexedSeq[Int]
+$NEW --> collection.mutable.IndexedSeq[Int]( $ : _*)
+
+
+Int collection.mutable.Iterable[Int]
+$NEW --> collection.mutable.Iterable[Int]( $ : _*)
+
+
+Int collection.mutable.LinearSeq[Int]
+$NEW --> collection.mutable.LinearSeq[Int]( $ : _*)
+
+
+Int collection.mutable.LinkedHashSet[Int]
+flags --> S
+$NEW --> (collection.mutable.LinkedHashSet.empty[Int] ++ $ )
+
+
+Int collection.mutable.LinkedList[Int]
+$NEW --> collection.mutable.LinkedList[Int]( $ : _*)
+
+
+Int collection.mutable.ListBuffer[Int]
+$NEW --> collection.mutable.ListBuffer[Int]( $ : _*)
+
+
+Int collection.mutable.MutableList[Int]
+$NEW --> collection.mutable.MutableList[Int]( $ : _*)
+
+
+Int collection.mutable.PriorityQueue[Int]
+$NEW --> collection.mutable.PriorityQueue[Int]( $ : _*)
+
+
+Int collection.mutable.Queue[Int]
+$NEW --> collection.mutable.Queue[Int]( $ : _*)
+
+
+Int collection.mutable.ResizableArray[Int]
+$NEW --> collection.mutable.ResizableArray[Int]( $ : _*)
+
+
+Int collection.mutable.Seq[Int]
+$NEW --> collection.mutable.Seq[Int]( $ : _*)
+
+
+Int collection.mutable.Set[Int]
+flags --> S
+$NEW --> (collection.mutable.Set.empty[Int] ++ $ )
+
+
+Int collection.mutable.SortedSet[Int]
+flags --> S
+$NEW --> (collection.mutable.SortedSet.empty[Int] ++ $ )
+
+
+Int collection.mutable.Stack[Int]
+$NEW --> collection.mutable.Stack[Int]( $ : _*)
+
+
+Int collection.mutable.Traversable[Int]
+$NEW --> collection.mutable.Traversable[Int]( $ : _*)
+
+
+Int collection.mutable.TreeSet[Int]
+$NEW --> (collection.mutable.TreeSet.empty[Int] ++ $ )
+
+
+Int collection.mutable.UnrolledBuffer[Int]
+$NEW --> collection.mutable.UnrolledBuffer[Int]( $ : _*)
+
+
+Int collection.mutable.WrappedArray[Int]
+$NEW --> collection.mutable.WrappedArray[Int]( $ : _*)
+
+
+
+
+// Non-leaf types (not already covered in Immutable & Mutable)
+
+
+Int collection.IndexedSeq[Int]
+$NEW --> collection.IndexedSeq[Int]( $ : _*)
+
+
+Int collection.Iterable[Int]
+$NEW --> collection.Iterable[Int]( $ : _*)
+
+
+Int collection.Iterator[Int]
+flags --> I
+$NEW --> ( $ ).iterator
+
+
+Int collection.LinearSeq[Int]
+$NEW --> collection.LinearSeq[Int]( $ : _*)
+
+
+Int collection.Seq[Int]
+$NEW --> collection.Seq[Int]( $ : _*)
+
+
+Int collection.Set[Int]
+flags --> S
+$NEW --> (collection.Set.empty[Int] ++ $ )
+
+
+Int collection.SortedSet[Int]
+flags --> S
+$NEW --> (collection.SortedSet.empty[Int] ++ $ )
+
+
+Int collection.Traversable[Int]
+$NEW --> collection.Traversable[Int]( $ : _*)
+
+
+Int collection.TraversableOnce[Int]
+flags --> I
+$NEW --> (( $ ).iterator: collection.TraversableOnce[Int])
+
+

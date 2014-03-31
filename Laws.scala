@@ -83,8 +83,8 @@ object Laws {
     Call("b", "for (b <- cb) {", Wraps, Some(Call("","val cb = @CB",Outer))),
     Call("x", "val x = @X", Outer),
     Call("y", "val ys = @YS", Outer, Some(Call("", "for (y <- ys) {", Wraps))),
-    Call("pf", "for (i <- ca; pf = { case _i if _i < i => _i+1 }: PartialFunction[@A,@A]) {", Wraps, Some(Call("", "val cd = @CA", Outer))),
-    Call("f", "val f = (_x: Int) = _x+1", Outer),
+    Call("pf", "for (i <- ca; pf = @PF) {", Wraps, Some(Call("", "val ca = @CA", Outer))),
+    Call("f", "val f = @F", Outer),
     Call("z", "for (z <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
     Call("op", "val op = (a1: @A, a2: @A) => a1 @OP a2", Outer),
     Call("one", "val one = @ONE", Outer),
@@ -286,5 +286,5 @@ object Laws {
       }
       fixRepls(pre ++ lines, rep)
     }
-  }
+  })
 }
