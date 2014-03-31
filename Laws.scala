@@ -107,12 +107,14 @@ object Laws {
     def sub(s: String, prefix: String = ""): String = if (s.isEmpty) prefix else {
       val i = s.indexOfSlice(key)
       if (i < 0) prefix + s
-      DollarSubst.matchingIndexOf(s, i+key.length) match {
-        case None => throw new IllegalArgumentException(s"Could not match $key in $s")
-        case Some((il, ir)) =>
-          if (ir < 0) throw new IllegalArgumentException(s"Could not find right limit of parameter for $key in $s")
-          val (i0,i1) = if (DollarSubst.paired contains s(il)) (il+1,ir) else (il,ir+1)
-          sub(s.drop(ir+1), prefix + s.substring(0,i) + lhs + s.slice(i0,i1) + rhs)
+      else {
+        DollarSubst.matchingIndexOf(s, i+key.length) match {
+          case None => throw new IllegalArgumentException(s"Could not match $key in $s")
+          case Some((il, ir)) =>
+            if (ir < 0) throw new IllegalArgumentException(s"Could not find right limit of parameter for $key in $s")
+            val (i0,i1) = if (DollarSubst.paired contains s(il)) (il+1,ir) else (il,ir+1)
+            sub(s.drop(ir+1), prefix + s.substring(0,i) + lhs + s.slice(i0,i1) + rhs)
+        }
       }
     }
   }
