@@ -91,7 +91,7 @@ import laws.Laws.{theSame, isPartOf}
   case object Outer extends Pos
   case object Wraps extends Pos
   
-  case class Code(pre: Seq[String], lwrap: Seq[String], in: Seq[String], rwrap: Seq[String]) {
+  case class Code(pre: Seq[String], lwrap: Seq[String], in: Seq[String], rwrap: Seq[String], flags: Set[String]) {
     private[this] var covernames = List.empty[String]
     def cover(name: String): this.type = { covernames = name :: covernames; this }
     def covered = covernames.nonEmpty
@@ -105,10 +105,11 @@ import laws.Laws.{theSame, isPartOf}
     )
     def core = in.map("  "*rwrap.length + _)
     def join = pre ++ lwrap ++ msg ++ core ++ rwrap
-    def canRunOn[C](cc: C): Boolean = {
+    def canRunOn[C](cc: C, cflags: Set[String]): Boolean = {
       val available = cc.getClass.getMethods.map(x => dedollar(x.getName)).toSet
       val needs = join.flatMap(readNeeds).toSet
-      needs subsetOf available
+      val (nflags, yflags) = cflags.partition(_.startsWith("!"))
+      (needs subsetOf available) && yflags.subsetOf(flags) && (nflags.map(_.drop(1))&flags).isEmpty
     }
   }
   
@@ -128,8 +129,8 @@ import laws.Laws.{theSame, isPartOf}
     Call("m", "for (m <- cm) {", Wraps, Some(Call("","val cm = @CM",Outer))),
     Call("a", "for (a <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
     Call("b", "for (b <- cb) {", Wraps, Some(Call("","val cb = @CB",Outer))),
-    Call("x", "val x = @X", Outer),
-    Call("y", "val ys = @YS", Outer, Some(Call("", "for (y <- ys) {", Wraps))),
+    Call("x", "@LET x = @X", Outer),
+    Call("y", "val ys = @YS", Outer, Some(Call("", "for (y_i <- ys) { @LET y = y_i()", Wraps))),
     Call("pf", "for (i <- ca; pf = @PF) {", Wraps, Some(Call("", "val ca = @CA", Outer))),
     Call("f", "val f = @F", Outer),
     Call("z", "for (z <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
@@ -305,7 +306,7 @@ import laws.Laws.{theSame, isPartOf}
     val i = s.indexOf("...")
     if (i >= 0) s.take(i).split(" ").filter(! _.last.isUpper).filter(_.length > 0).toSet | Set("x") else Set("x")
   }
-  def readFlags(s: String) = {
+  def readFlags(s: String): Set[String] = {
     val i = s.indexOf("...")
     if (i >= 0) s.take(i).split(" ").filter(_.last.isUpper).filter(_.length > 0).toSet else Set()
   }
@@ -335,8 +336,8 @@ import laws.Laws.{theSame, isPartOf}
     })
   }
   
-  case class HemiTest(test: String, needs: Set[String], calls: Set[String])
-  implicit def testStringToHemiTest(test: String) = HemiTest(fixCalls(test), readNeeds(test), readCalls(test))
+  case class HemiTest(test: String, calls: Set[String], flags: Set[String])
+  implicit def testStringToHemiTest(test: String) = HemiTest(fixCalls(test), readCalls(test), readFlags(test))
   
   val lawsWithNeeds = {
     val src = scala.io.Source.fromFile("single-line.tests")
@@ -349,7 +350,7 @@ import laws.Laws.{theSame, isPartOf}
   }
   
   val lawsAsWildCode = lawsWithNeeds.map{ ht =>
-    val code = Code(Seq(), Seq(), Seq("assert{ {" + ht.test + "}, message }"), Seq())
+    val code = Code(Seq(), Seq(), Seq("assert({" + ht.test + "}, message)"), Seq(), ht.flags)
     (code /: ht.calls.toList)((c,x) => 
       knownCalls.find(_.name == x).map(_.satisfy(c)).getOrElse{ println("Could not find "+x); c }
     )
@@ -357,16 +358,51 @@ import laws.Laws.{theSame, isPartOf}
   
   val lawsAsCode = knownRepls.mapValues(_.map{ rep =>
     val coll = rep("CC").head
+    val collname: String = coll.map{ case x if x.isLetter => x; case _ => '_' }
+    val flags = rep.getOrElse("flags", Set.empty[String])
     val instance = Instances.all.getOrElse(coll, throw new IllegalArgumentException("Can't find instance "+coll))
-    lawsAsWildCode.filter(_.canRunOn(instance)).map(_.cover(coll)).groupBy(_.pre).toList.map{ case (pre, codes) =>
+    val valid = lawsAsWildCode.filter(_.canRunOn(instance, flags)).map(_.cover(coll))
+    val methods = valid.groupBy(_.pre).toList.map{ case (pre, codes) =>
       val lines = codes.groupBy(_.lwrap).toList.flatMap{ case (lwrap, somecodes) =>
         somecodes.head.lwrap ++ somecodes.head.msg ++ somecodes.flatMap(c => c.core) ++ somecodes.head.rwrap
       }
-      fixRepls(pre ++ lines, rep)
+      val fixed = fixRepls(pre ++ lines, rep)
+      val desc: String = "test_" + fixed.head.take(pre.length).map{
+        case x if x.startsWith("val ") => x.drop(3).dropWhile(_.isWhitespace).takeWhile(_.isLetter)
+        case x if x.startsWith("def ") => x.drop(3).dropWhile(_.isWhitespace).takeWhile(_.isLetter)
+        case x => x.filter(_.isLetter)
+      }.mkString("_")
+      fixed.indices.map(desc + "_" + _) zip fixed
     }
+    collname -> methods
   }).toList
   
   lawsAsWildCode.filterNot(_.covered).foreach{ code =>
     println("Test not used by any collection: "+code.core.mkString("; "))
+  }
+
+  val lawsAsMethods = lawsAsCode.flatMap(_._2).map{ case (fname, methods) => fname -> {
+    methods.flatten.map{ case (mname, lines) => Vector("@Test", s"def $mname() {") ++ lines.map("  "+_) :+ "}" }
+  }}
+  
+  def main(args: Array[String]) {
+    lawsAsMethods.foreach{ case (fname, methods) =>
+      println(s"Writing $fname")
+      val dirname = "generated-tests"
+      val testf = new java.io.File(dirname)
+      if (!testf.exists) testf.mkdir
+      val pw = new java.io.PrintWriter(s"$dirname/$fname.scala")
+      try {
+        pw.println(universalHeader)
+        pw.println(s"@RunWith(classOf[JUnit4])")
+        pw.println(s"class $fname {")
+        pw.println
+        methods.foreach{ m =>
+          m.foreach{ line => pw.println("  "+line) }
+          pw.println
+        }
+        pw.println("}")
+      } finally { pw.close }
+    }
   }
 }
