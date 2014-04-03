@@ -8,14 +8,14 @@ z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b1) == z
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z
 // copyToArray goes here...need some conditions
 pf ... x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)
-val b = new collection.immutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x
+val b = new collection.mutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x
 p ... x.`count`(p) > 0 == x.`exists`(p)
 p ... (x.`count`(p) == x.`size`) == x.`forall`(p)
 p ... x.`count`(p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }
 p ... x.filter(p).`size` == x.`count`(p) // Filter is part of MonadOps, so we won't test for it!
 p ... x.filter(p).`forall`(p) == true
 // flatMap goes here, need monad laws
-a op ... Set(x.`fold`(a)(op), x.`foldLeft`(a)(op), x.`foldRight`(a)(op), x.`/:`(a)(op), x.`:\`(a)(op)).size == 1""
+a op ... Set(x.`fold`(a)(op), x.`foldLeft`(a)(op), x.`foldRight`(a)(op), x.`/:`(a)(op), x.`:\\`(a)(op)).size == 1""
 // map goes here, need monad laws
 Try{x.`max`}.toOption == Try{x.`reduce`(_ max _)}.toOption
 // maxBy(f)
@@ -26,17 +26,16 @@ one ... x.`product` == x.`fold`(one)(_ * _)
 op ... Set(Try{x.`reduce`(op)}.toOption, Try{x.`reduceLeft`(op)}.toOption, Try{x.`reduceRight`(op)}.toOption, x.`reduceLeftOption`(op), x.`reduceRightOption`(op)).size == 1
 x.`size` == x.`count`(_ => true)
 zero ... x.`sum` == x.`fold`(zero)(_ + _)
-x.`to`[@CC] theSameAs x
-x.`toArray` theSameAx x
+!N ... x.`to`[@CCN] theSameAs x
+x.`toArray` theSameAs x
 x.`toBuffer` theSameAs x
 x.`toIndexedSeq` theSameAs x
 x.`toIterable` theSameAs x
 x.`toList` theSameAs x
-x.`toMap` theSameAs x
 x.`toSeq` theSameAs x
 x.`toSet` theSameAs x
 x.`toVector` theSameAs x
-p ... x.`withFilter`(p) theSameAs x.filter(p)
+p ... val y = new collection.mutable.ArrayBuffer[@A]; x.`withFilter`(p).foreach(y += _); y theSameAs x.filter(p)
 x.`hasNext` == x.`nonEmpty`
 x.`hasNext` implies Try{ x.`next` }.isSuccess
 y ... x.`++`(y).`size` == x.size + y.size
@@ -54,8 +53,8 @@ p ... val y = x.`dropWhile`(p); !x.`hasNext` || p(x.`next`)
 p ... x.`dropWhile`(p) isPartOf x
 val (x1,x2) = x.`duplicate`; x1.corresponds(x2)(_ == _) && x1.corresponds(x)(_ == _)
 p ... x.`filterNot`(p) theSameAs x.`filter`(xi => !p(xi))
-n ... x.`grouped`((1 max n)).map(_.size).`sum` == x.`size`
-n m ... var y = 0; (x.`grouped`((1 max n)).`drop`(m).take(1).foreach(y = _.`size`); (y < (1 max n)) implies !x.grouped((1 max n)).drop(m+1).`nonEmpty`
+n ... n <= 0 || x.`grouped`(n).map(_.size).`sum` == x.`size`
+n m ... n <= 0 || m < 0 || { var y = 0; x.`grouped`(n).`drop`(m).take(1).map(_.`size`).foreach(y = _); (y < n) implies !x.grouped(n).drop(m+1).`nonEmpty` }
 n ... x.`grouped`((1 max n)).flatMap(identity) theSameAs x
 x.`isEmpty` == !x.`nonEmpty`
 x.`length` == x.`size`
@@ -97,10 +96,10 @@ a ... x.`:+`(a).`last` == a
 a ... x.`+`(a).`contains`(a)
 y ... x.`:::`(y) theSameAs y.`++`(x)
 n ... val k = n min x.`size`-1; (k < 0) || x.`apply`(k) == x.`productElement`(k)
-n ... val k = n min x.`size`-1; (k < 0) || (x match { case _: scala.collection.Seq[_] => Seq(x.`apply`(k)) theSameAs x.`drop`(n).`tail`(1); case _ => true })
+n ... val k = n min x.`size`-1; (k < 0) || (x match { case _: scala.collection.Seq[_] => Seq(x.`apply`(k)) theSameAs x.`drop`(n).`take`(1); case _ => true })
 // combinations goes here
 // containsSlice goes here
-y ... val List(g,h) = List(x,y).`groupBy`(identity).mapValues(_._2.length).toMap; x.`diff`(y).`groupBy`(identity).mapValues(_._2.length).forall{ case (k,v) => v == (0 max g(k)-h.get(k).getOrElse(0)) }
+// diff goes here, this is broken: y ... val List(g,h) = List(x,y).`groupBy`(identity).mapValues(_.length).toMap; x.`diff`(y).`groupBy`(identity).mapValues(_.length).forall{ case (k,v) => v == (0 max g(k)-h.get(k).getOrElse(0)) }
 val s = x.`toSet`; x.`distinct`.`size` == s.size && x.forall(s)
 n ... x.`dropRight`(n) theSameAs x.`reverse`.`drop`(n).reverse
 // endsWith goes here
@@ -117,11 +116,11 @@ x.`init` == x.`dropRight`(1)
 x.`inits` theSameAs Iterator.iterate(x.`toSeq`.iterator)(_.dropRight(1)).takeWhile(_.nonEmpty) :+ x.toSeq.dropRight(x.`size`)
 y ... x.`intersect`(y).`toSet` == (x.toSet & y.toSet)  // Need to improve this one
 x.`iterator` theSameAs x
-Seq(x.`last`) theSameAs x.`takeRight`(1)"
+Seq(x.`last`) theSameAs x.`takeRight`(1)
 a n ... n < 0 || { x.`lastIndexOf`(a,n) match { case -1 => x.`take`(n+1).`indexOf`(a) == -1; case k => k == n+1 - x.take(n+1).reverse.indexOf(a) } }
 a ... x.`lastIndexOf`(a) == x.lastIndexOf(a,x.`size`-1)
-p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexOf`(a) == -1; case k => k == n+1 - x.take(n+1).reverse.indexWhere(p) } }
-p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,n)
+p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexWhere`(p) == -1; case k => k == n+1 - x.take(n+1).reverse.indexWhere(p) } }
+p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,0)
 x.`lastOption` == Try{ x.`last` }.toOption
 n ... x.`lengthCompare`(n) == (x.`size` compare n)
 // mapConserve goes here
@@ -171,7 +170,7 @@ f ... val x0 = x; x0.`transform`(f); x0 theSameAs x.map(f)
 n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`trimEnd`(n); x0 theSameAs x.`dropRight`(n) }
 n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`trimStart`(n); x0 theSameAs x.`drop`(n) }
 n a ... n < 0 || n >= x.`size` || { x.`updated`(n,a) theSameAs (x.`take`(n).`:+`(a).`++`(x.`drop`(n+1))) }
-n a ... n < 0 || n >= x.`size` || { val x0 = x; x0.update(n, a); x0 theSameAs x.`updated`(n,a) }
+n a ... n < 0 || n >= x.`size` || { val x0 = x; x0.`update`(n, a); x0 theSameAs x.`updated`(n,a) }
 y ... x.`&`(y) isPartOf x
 y ... x.`forall`(xi => y.`contains`(xi) == x.`&`(y).contains(xi))
 y ... x.`&~`(y) isPartOf x

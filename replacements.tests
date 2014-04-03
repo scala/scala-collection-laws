@@ -3,7 +3,7 @@
 
 Int *
 X  --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64))
-F --> (_i: Int)=>(i+1)
+F --> (_i: Int)=>(_i+1)
 PF --> ({ case _i if _i < i => i+1}: PartialFunction[@A,@A])
 YS --> List(4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => () => $NEW(y))
 CA --> List(-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
@@ -21,6 +21,7 @@ instance --> $NEW((0 to 0))
 
 
 Int collection.immutable.BitSet
+flags --> N
 LET --> val
 $NEW --> collection.immutable.BitSet( $ : _*)
 
@@ -130,6 +131,7 @@ $NEW --> collection.mutable.ArrayStack[Int]( $ : _*)
 
 
 Int collection.mutable.BitSet
+flags --> N
 $NEW --> (collection.mutable.BitSet.empty ++ $ )
 
 

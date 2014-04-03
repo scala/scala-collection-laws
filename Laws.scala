@@ -3,13 +3,22 @@ package laws
 import scala.util._
 
 object Laws {
+  type Once[A] = TraversableOnce[A]
+  
   object Implicits {
     implicit class MoreLogic(val underlying: Boolean) extends AnyVal {
       @inline def implies(b: => Boolean) = !underlying || b
       @inline def impliedBy(b: => Boolean) = !b || underlying
     }
+    implicit class MoreComparisons[A](val underlying: Once[A]) {
+      @inline def theSameAs[B](cb: Once[B]) = theSame(underlying, cb, false)
+      @inline def isPartOf[B](cb: Once[B]) = isPart(underlying, cb, false)
+    }
+    implicit class ArrayComparisons[A](val underlying: Array[A]) {
+      @inline def theSameAs[B](cb: Once[B]) = theSame(underlying, cb, false)
+      @inline def isPartOf[B](cb: Once[B]) = isPart(underlying, cb, false)
+    }      
   }
-  type Once[A] = TraversableOnce[A]
   def countedSetForall[A](xs: Once[A], ys: Once[A], ordered: Boolean = false)(p: (Int,Int) => Boolean) = {
     if (ordered) {
       val b = new collection.mutable.ArrayBuffer[A]
@@ -25,7 +34,7 @@ object Laws {
     }
   }
   def theSame[A](xs: Once[A], ys: Once[A], ordered: Boolean = false) = countedSetForall(xs, ys, ordered)(_ == _)
-  def isPartOf[A](xs: Once[A], ys: Once[A], ordered: Boolean = false) = countedSetForall(xs, ys, ordered)(_ <= _)
+  def isPart[A](xs: Once[A], ys: Once[A], ordered: Boolean = false) = countedSetForall(xs, ys, ordered)(_ <= _)
   def succeedsLike[A](xs: Try[A], ys: Try[A]): Boolean = {
     xs match {
       case Success(x) => ys match {
@@ -46,8 +55,8 @@ package scala.collection
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 import org.junit.Test
+import scala.util.Try
 import laws.Laws.Implicits._
-import laws.Laws.{theSame, isPartOf}
   """
   
   val knownDollars = 
@@ -260,7 +269,7 @@ import laws.Laws.{theSame, isPartOf}
     val wildInserted = substReady.mapValues{ case (wild, tames) =>
       val wildMap = wild.map(_.map{ splitArrow2 }.toMap).getOrElse(Map.empty[String,String])
       tames.map{ case (a, cc, substs, subbee) =>
-        val tame = subbee.map{ splitArrow2 }.toMap + ("A" -> a) + ("CC" -> cc)
+        val tame = subbee.map{ splitArrow2 }.toMap + ("A" -> a) + ("CC" -> cc) + ("CCN" -> cc.takeWhile(_ != '['))
         (tame ++ wildMap.filterKeys(k => !tame.contains(k)), substs)
       }
     }
