@@ -67,8 +67,8 @@ y n m ... x.`patch`(n, y, m).`drop`(n).`take`(y.`size`) theSameAs y
 y n m ... x.`patch`(n, y, m).`drop`((0 max n)+y.`size`) theSameAs x.`drop`((0 max n)+(0 max m))
 y ... (x `sameElements` y) == (x theSameAs y)
 // scanLeft and scanRight go here
-n m ... x.`slice`(n, m).`size` == (0 max ((0 max m)-(0 max n)))
-n m ... x.`slice`(n, m) theSameAs x.`drop`(n).`take`((0 max m)-(0 max n))
+n m ... n < 0 || m >= x.size || { x.`slice`(n, m).`size` == (0 max ((0 max m)-n)) }
+n m ... n < 0 || m >= x.size || { x.`slice`(n, m) theSameAs x.`drop`(n).`take`((0 max m)-n) }
 p ... x.`span`(p)._1.`forall`(p)
 p ... !x.`span`(p)._2.`take`(1).`exists`(p)
 p ... val (x1, x2) = x.`span`(p); val n = x1.`span`(p)._1.`size`; (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
@@ -95,8 +95,8 @@ a ... x.`+:`(a).`head` == a
 a ... x.`:+`(a).`last` == a
 a ... x.`+`(a).`contains`(a)
 y ... x.`:::`(y) theSameAs y.`++`(x)
-n ... val k = n min x.`size`-1; (k < 0) || x.`apply`(k) == x.`productElement`(k)
-n ... val k = n min x.`size`-1; (k < 0) || (x match { case _: scala.collection.Seq[_] => Seq(x.`apply`(k)) theSameAs x.`drop`(n).`take`(1); case _ => true })
+n ... (n < 0) || (n >= x.`size`) || x.`apply`(n) == x.`productElement`(n)
+n ... (n < 0) || (n >= x.`size`) || (x match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
 // combinations goes here
 // containsSlice goes here
 // diff goes here, this is broken: y ... val List(g,h) = List(x,y).`groupBy`(identity).mapValues(_.length).toMap; x.`diff`(y).`groupBy`(identity).mapValues(_.length).forall{ case (k,v) => v == (0 max g(k)-h.get(k).getOrElse(0)) }
@@ -106,28 +106,28 @@ n ... x.`dropRight`(n) theSameAs x.`reverse`.`drop`(n).reverse
 // groupBy goes here
 !x.`nonEmpty` || (x match { case _: scala.collection.Seq[_] => Seq(x.`head`) theSameAs x.`take`(1); case _ => true })
 x.`headOption` == Try{ x.`head` }.toOption
-n a ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => n+k.size == x.size; case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }
+n a ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }
 a ... x.`indexOf`(a) == x.`indexOf`(a,0)
 // indexOfSlice goes here
-p n ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`indexWhere`(p,n) match { case -1 => n+k.size == x.size; case kk => n+k.size == kk && p(x.`drop`(kk).`head`) } }
+p n ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`indexWhere`(p,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && p(x.`drop`(kk).`head`) } }
 p ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
 x.`indices` == (0 until x.`size`)
-x.`init` == x.`dropRight`(1)
-x.`inits` theSameAs Iterator.iterate(x.`toSeq`.iterator)(_.dropRight(1)).takeWhile(_.nonEmpty) :+ x.toSeq.dropRight(x.`size`)
+x.`size` == 0 || x.`init` == x.`dropRight`(1)
+// inits goes here, this doesn't work: x.`inits` theSameAs Iterator.iterate(x.`toSeq`.iterator)(_.`dropRight(1)).takeWhile(_.nonEmpty) :+ x.toSeq.dropRight(x.`size`)
 y ... x.`intersect`(y).`toSet` == (x.toSet & y.toSet)  // Need to improve this one
 x.`iterator` theSameAs x
-Seq(x.`last`) theSameAs x.`takeRight`(1)
+x.`size` == 0 || { Seq(x.`last`) theSameAs x.`takeRight`(1) }
 a n ... n < 0 || { x.`lastIndexOf`(a,n) match { case -1 => x.`take`(n+1).`indexOf`(a) == -1; case k => k == n+1 - x.take(n+1).reverse.indexOf(a) } }
 a ... x.`lastIndexOf`(a) == x.lastIndexOf(a,x.`size`-1)
 p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexWhere`(p) == -1; case k => k == n+1 - x.take(n+1).reverse.indexWhere(p) } }
-p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,0)
+p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)
 x.`lastOption` == Try{ x.`last` }.toOption
 n ... x.`lengthCompare`(n) == (x.`size` compare n)
 // mapConserve goes here
 // permutations goes here
 p ... x.`prefixLength`(p) == x.`takeWhile`(p).`size`
 x.`productIterator` theSameAs x
-val ix = x.`toIndexedSeq`; val k = x.`size`; var ki = 0; x.`forall`{ xi => ki += 1; xi == ix(k - ki) }
+val ix = x.`toIndexedSeq`; val k = x.`size`; var ki = 0; x.`reverse`.`forall`{ xi => ki += 1; xi == ix(k - ki) }
 x.`reverseIterator` theSameAs x.`reverse`
 f ... x.`reverseMap`(f) theSameAs x.`reverse`.map(f)
 f ... x.`reverseMap`(f) theSameAs x.map(f).`reverse`

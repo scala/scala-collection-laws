@@ -2,8 +2,196 @@ package laws
 
 import scala.util._
 
+class Laws(junit: Boolean) {
+  import Laws._
+  
+  val universalHeader = autoComment + "\n\n" + {
+"""
+package scala.collection
+
+import org.junit.runner.RunWith
+import org.junit.runners.JUnit4
+import org.junit.Test
+import scala.util.Try
+import laws.Laws.Implicits._
+""" |> { x => if (junit) x else x.split('\n').filter(! _.contains("junit")).mkString("\n") }
+  }
+  
+  val knownCalls = Seq(
+    Call("p", "for (i <- ca; p = (_i: @A) => _i < i) {", Wraps, Some(Call("", "val ca = @CA", Outer))),
+    Call("n", "for (n <- cn) {", Wraps, Some(Call("","val cn = @CN",Outer))),
+    Call("m", "for (m <- cm) {", Wraps, Some(Call("","val cm = @CM",Outer))),
+    Call("a", "for (a <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
+    Call("b", "for (b <- cb) {", Wraps, Some(Call("","val cb = @CB",Outer))),
+    Call("x", "@LET x = @X", Outer),
+    Call("y", "val ys = @YS", Outer, Some(Call("", "for (y_i <- ys) { @LET y = y_i()", Wraps))),
+    Call("pf", "for (i <- ca; pf = @PF) {", Wraps, Some(Call("", "val ca = @CA", Outer))),
+    Call("f", "val f = @F", Outer),
+    Call("z", "for (z <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
+    Call("op", "val op = (a1: @A, a2: @A) => a1 @OP a2", Outer),
+    Call("one", "val one = @ONE", Outer),
+    Call("zero", "val zero = @ZERO", Outer)
+  )
+    
+  def readReplacementsFile(fname: String) = {
+    def splitAtLeast(n: Int, sn: (String, Int)) = {
+      val parts = sn._1.split("\\s+")
+      if (parts.length < n) throw new IllegalArgumentException(s"Need at least $n tokens on line ${sn._2}: ${sn._1}")
+      parts
+    }
+    def splitArrow(s: String, n: Int): (String, String) = {
+      val i = s.indexOf("-->")
+      if (i < 0) throw new IllegalArgumentException(s"No substitution (-->) found on line $n: $s")
+      s.take(i).trim -> s.drop(i+3).trim
+    }
+    def splitArrow2(si: (String,Int)): (String, String) = splitArrow(si._1, si._2)
+    val src = scala.io.Source.fromFile(fname)
+    val lines = try {
+      src.getLines().toVector.zipWithIndex.filterNot(_._1.startsWith("//")).map(x => (x._1.trim, x._2))
+    } finally { src.close }
+    val groups = groupDblLineBreak(lines)(_._1).groupBy(x => splitAtLeast(1, x.head)(0))
+    val wildGroups = groups.map{ case (k,v) =>
+      val (wild, tame) = v.partition(x => splitAtLeast(2,x.head)(1) == "*")
+      if (wild.length > 1)
+        throw new IllegalArgumentException(s"Conflicting wildcards for $k on lines ${wild.map(_.head._2).mkString(" ")}")
+      k -> (wild.headOption.map(_.tail) -> tame)
+    }
+    val substReady = wildGroups.mapValues{ case (wild, tames) => wild -> tames.map{ tame =>
+      val Array(a,cc) = splitAtLeast(2,tame.head).take(2)
+      val (subber, subbee) = tame.tail.partition(_._1.trim.startsWith("$"))
+      val substs = subber.map{ case (s,n) =>
+        val i = s.indexOf("-->")
+        if (i < 0) throw new IllegalArgumentException(s"No replacement pattern found on line $n: $s")
+        DollarSubst.from(s.take(i-1).trim, s.drop(i+3).trim)
+      }
+      (a, cc, substs, subbee) 
+    }}
+    val wildInserted = substReady.mapValues{ case (wild, tames) =>
+      val wildMap = wild.map(_.map{ splitArrow2 }.toMap).getOrElse(Map.empty[String,String])
+      tames.map{ case (a, cc, substs, subbee) =>
+        val tame = subbee.map{ splitArrow2 }.toMap + ("A" -> a) + ("CC" -> cc) + ("CCN" -> cc.takeWhile(_ != '['))
+        (tame ++ wildMap.filterKeys(k => !tame.contains(k)), substs)
+      }
+    }
+    val elaborated = wildInserted.mapValues(_.map{ case (tame, substs) => (tame /: substs)((t,s) => t.mapValues(s.sub)).toMap })
+    elaborated.mapValues(_.map(_.mapValues(s => smartSplit(s).toSet)))
+  }
+  
+  val knownRepls = readReplacementsFile("replacements.tests")
+  
+  knownRepls.values.toVector.flatten.groupBy(_("CC").head).map{ case (_,v) =>
+    if (v.length > 1) s"${v.length} duplicates of ${v.head}" else ""
+  }.filter(_.nonEmpty).mkString(" ") match {
+    case "" =>
+    case s => throw new Exception("Found duplicated collections (not allowed): "+s)
+  }
+  
+  val existingInstanceCode = {
+    Try {
+      val src = scala.io.Source.fromFile("Instances.scala")
+      val contents = Try{ src.getLines().toVector }
+      src.close
+      contents.toOption.getOrElse(Vector.empty[String])
+    }.toOption.getOrElse(Vector.empty[String])
+  }
+  
+  val instanceCode =
+    Vector(autoComment,"package laws","object Instances { val all = Map(") ++
+    knownRepls.toVector.flatMap{ case (_,vs) =>
+      vs.map{ mm => "\"" + mm("CC").head + "\" -> (" + mm("instance").head + ", classOf[" + mm("CC").head + "])," }
+    }.sorted ++
+    Vector("  \"\" -> null)", "}")
+    
+  if (instanceCode != existingInstanceCode) {
+    val pw = new java.io.PrintWriter("Instances.scala")
+    try { instanceCode.foreach(pw.println) } finally { pw.close }
+    throw new Exception("Instance code not up to date.  Regenerated; please recompile Instances.scala.")
+  }
+  
+  val lawsWithNeeds = {
+    val src = scala.io.Source.fromFile("single-line.tests")
+    try { 
+      src.getLines.map(_.trim).filter(_.length > 0).
+        filterNot(_ startsWith "//").map(_.split("//").head).
+        map(line => (line : HemiTest)).toVector 
+    }
+    finally { src.close }
+  }
+  
+  val lawsAsWildCode = lawsWithNeeds.map{ ht =>
+    val code = Code(Seq(), Seq(), Seq("assert({" + ht.test + "}, message)"), Seq(), ht.flags)
+    (code /: ht.calls.toList)((c,x) => 
+      knownCalls.find(_.name == x).map(_.satisfy(c)).getOrElse{ println("Could not find "+x); c }
+    )
+  }
+  
+  val lawsAsCode = knownRepls.mapValues(_.map{ rep =>
+    val coll = rep("CC").head
+    val collname: String = coll.map{ case x if x.isLetter => x; case _ => '_' }
+    val flags = rep.getOrElse("flags", Set.empty[String])
+    val instance = Instances.all.getOrElse(coll, throw new IllegalArgumentException("Can't find instance "+coll))
+    val valid = lawsAsWildCode.filter(_.canRunOn(instance, flags)).map(_.cover(coll))
+    val methods = valid.groupBy(_.pre).toList.map{ case (pre, codes) =>
+      val lines = codes.groupBy(_.lwrap).toList.flatMap{ case (lwrap, somecodes) =>
+        somecodes.head.lwrap ++ somecodes.head.msg ++ somecodes.flatMap(c => c.core) ++ somecodes.head.rwrap
+      }
+      val fixed = fixRepls(pre ++ lines, rep)
+      val desc: String = "test_" + fixed.head.take(pre.length).map{
+        case x if x.startsWith("val ") => x.drop(3).dropWhile(_.isWhitespace).takeWhile(_.isLetter)
+        case x if x.startsWith("def ") => x.drop(3).dropWhile(_.isWhitespace).takeWhile(_.isLetter)
+        case x => x.filter(_.isLetter)
+      }.mkString("_")
+      fixed.indices.map(desc + "_" + _) zip fixed
+    }
+    collname -> methods
+  }).toList
+  
+  lawsAsWildCode.filterNot(_.covered).foreach{ code =>
+    println("Test not used by any collection: "+code.core.mkString("; "))
+  }
+
+  val lawsAsMethods = lawsAsCode.flatMap(_._2).map{ case (fname, methods) => fname -> {
+    methods.flatten.map{ case (mname, lines) => 
+      Vector(if (junit) "@Test" else "", s"def $mname() {") ++ lines.map("  "+_) :+ "}" 
+    }
+  }}
+
+  def writeAllTests() {
+    lawsAsMethods.foreach{ case (fname, methods) =>
+      println(s"Writing $fname")
+      val dirname = "generated-tests"
+      val testf = new java.io.File(dirname)
+      if (!testf.exists) testf.mkdir
+      val pw = new java.io.PrintWriter(s"$dirname/$fname.scala")
+      try {
+        pw.println(universalHeader)
+        pw.println
+        if (junit) pw.println(s"@RunWith(classOf[JUnit4])")
+        pw.println(s"class $fname {")
+        pw.println
+        methods.foreach{ m =>
+          m.foreach{ line => pw.println("  "+line) }
+          pw.println
+        }
+        pw.println("}")
+        if (!junit) {
+          pw.println
+          pw.println(s"object $fname { def main(args: Array[String]) {")
+          pw.println(s"  val tester = new $fname")
+          methods.foreach{ m => pw.println("  tester."+m.dropWhile(! _.startsWith("def ")).head.split(' ').tail.head) }
+          pw.println("}}")
+        }
+      } finally { pw.close }
+    }
+  }
+}
+  
 object Laws {
   type Once[A] = TraversableOnce[A]
+  
+  implicit class PipeEverythingForCryingOutLoud[A](val underlying: A) extends AnyVal {
+    def |>[B](f: A => B): B = f(underlying)
+  }
   
   object Implicits {
     implicit class MoreLogic(val underlying: Boolean) extends AnyVal {
@@ -19,6 +207,7 @@ object Laws {
       @inline def isPartOf[B](cb: Once[B]) = isPart(underlying, cb, false)
     }      
   }
+  
   def countedSetForall[A](xs: Once[A], ys: Once[A], ordered: Boolean = false)(p: (Int,Int) => Boolean) = {
     if (ordered) {
       val b = new collection.mutable.ArrayBuffer[A]
@@ -28,9 +217,9 @@ object Laws {
     }
     else {
       val hx, hy = new collection.mutable.HashMap[A, Int]
-      xs.foreach(a => hx(a) = hx.getOrElseUpdate(a,0))
-      ys.foreach(a => hy(a) = hy.getOrElseUpdate(a,0))
-      hx.size == hy.size && hx.forall{ case (k,n) => p(n, hy.get(k).getOrElse(0)) }
+      xs.foreach(a => hx(a) = hx.getOrElse(a,0) + 1)
+      ys.foreach(a => hy(a) = hy.getOrElse(a,0) + 1)
+      p(hx.size, hy.size) && hx.forall{ case (k,n) => p(n, hy.get(k).getOrElse(0)) }
     }
   }
   def theSame[A](xs: Once[A], ys: Once[A], ordered: Boolean = false) = countedSetForall(xs, ys, ordered)(_ == _)
@@ -49,15 +238,6 @@ object Laws {
   }
   
   val autoComment = "// THIS FILE IS AUTO-GENERATED BY Laws.scala, DO NOT EDIT DIRECTLY"
-  val universalHeader = autoComment + "\n\n" + """
-package scala.collection
-
-import org.junit.runner.RunWith
-import org.junit.runners.JUnit4
-import org.junit.Test
-import scala.util.Try
-import laws.Laws.Implicits._
-  """
   
   val knownDollars = 
     Seq("plus +", "minus -", "times *", "div /", "bslash \\", "colon :", "eq =", "amp &", "tilde ~", "bar |").
@@ -70,31 +250,7 @@ import laws.Laws.Implicits._
       case None => dedollar(s, i+1, prefix + s.substring(from, i+1))
     }
   }
-  def sanitized(s: String) = s
-  
-  trait Validated[C] {
-    def instance: C
-    def needs: Seq[String]
-    lazy val valid = (instance.getClass.getMethods.map(x => dedollar(x.getName)).toSet & needs.toSet) == needs.toSet
-  }
-  
-  trait Tested[C] {
-    def title: String
-    def pre = List(
-      s"//$title",
-      s"@Test",
-      s"def test_${sanitized(title)} {"
-    )
-    def post = List(
-      s"}"
-    )
-    def core: Seq[String]
-    def wrapped(ss: String*) = (pre ++ ss.map("  " + _) ++ post).mkString("\n")
-    lazy val code = wrapped(core: _*)
-  }
-  
-  trait ValidTest[C] extends Validated[C] with Tested[C] {}
-  
+
   sealed trait Pos
   case object Inner extends Pos
   case object Outer extends Pos
@@ -109,13 +265,13 @@ import laws.Laws.Implicits._
       ("  "*rwrap.length) +
       "val message = \"\"" + 
       lwrap.map(_.trim).filter(_.startsWith("for (")).map(_.drop(5).
-        takeWhile(_.isLetter)).filter(_.length > 0).map(x => """+"%s="+%s.toString""".format(x,x)).
+        takeWhile(_.isLetter)).filter(_.length > 0).map(x => """+"%s="+%s.toString """.format(x,x)).
         mkString
     )
     def core = in.map("  "*rwrap.length + _)
     def join = pre ++ lwrap ++ msg ++ core ++ rwrap
-    def canRunOn[C](cc: C, cflags: Set[String]): Boolean = {
-      val available = cc.getClass.getMethods.map(x => dedollar(x.getName)).toSet
+    def canRunOn[C,_](cc: (C, Class[_]), cflags: Set[String]): Boolean = {
+      val available = cc._2.getMethods.map(x => dedollar(x.getName)).toSet
       val needs = join.flatMap(readNeeds).toSet
       val (nflags, yflags) = cflags.partition(_.startsWith("!"))
       (needs subsetOf available) && yflags.subsetOf(flags) && (nflags.map(_.drop(1))&flags).isEmpty
@@ -132,21 +288,6 @@ import laws.Laws.Implicits._
       also.map(_.satisfy(newlines)).getOrElse(newlines)
     }
   }
-  val knownCalls = Seq(
-    Call("p", "for (i <- ca; p = (_i: @A) => _i < i) {", Wraps, Some(Call("", "val ca = @CA", Outer))),
-    Call("n", "for (n <- cn) {", Wraps, Some(Call("","val cn = @CN",Outer))),
-    Call("m", "for (m <- cm) {", Wraps, Some(Call("","val cm = @CM",Outer))),
-    Call("a", "for (a <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
-    Call("b", "for (b <- cb) {", Wraps, Some(Call("","val cb = @CB",Outer))),
-    Call("x", "@LET x = @X", Outer),
-    Call("y", "val ys = @YS", Outer, Some(Call("", "for (y_i <- ys) { @LET y = y_i()", Wraps))),
-    Call("pf", "for (i <- ca; pf = @PF) {", Wraps, Some(Call("", "val ca = @CA", Outer))),
-    Call("f", "val f = @F", Outer),
-    Call("z", "for (z <- ca) {", Wraps, Some(Call("","val ca = @CA",Outer))),
-    Call("op", "val op = (a1: @A, a2: @A) => a1 @OP a2", Outer),
-    Call("one", "val one = @ONE", Outer),
-    Call("zero", "val zero = @ZERO", Outer)
-  )
   
   def groupDblLineBreak[A](ls: Seq[A], soFar: List[Seq[A]] = Nil)(f: A => String): List[Seq[A]] = {
     val blank = (a: A) => f(a).isEmpty
@@ -232,82 +373,7 @@ import laws.Laws.Implicits._
       smartSplit(s, j, found)
     }
   }
-  
-  def readReplacementsFile(fname: String) = {
-    def splitAtLeast(n: Int, sn: (String, Int)) = {
-      val parts = sn._1.split("\\s+")
-      if (parts.length < n) throw new IllegalArgumentException(s"Need at least $n tokens on line ${sn._2}: ${sn._1}")
-      parts
-    }
-    def splitArrow(s: String, n: Int): (String, String) = {
-      val i = s.indexOf("-->")
-      if (i < 0) throw new IllegalArgumentException(s"No substitution (-->) found on line $n: $s")
-      s.take(i).trim -> s.drop(i+3).trim
-    }
-    def splitArrow2(si: (String,Int)): (String, String) = splitArrow(si._1, si._2)
-    val src = scala.io.Source.fromFile(fname)
-    val lines = try {
-      src.getLines().toVector.zipWithIndex.filterNot(_._1.startsWith("//")).map(x => (x._1.trim, x._2))
-    } finally { src.close }
-    val groups = groupDblLineBreak(lines)(_._1).groupBy(x => splitAtLeast(1, x.head)(0))
-    val wildGroups = groups.map{ case (k,v) =>
-      val (wild, tame) = v.partition(x => splitAtLeast(2,x.head)(1) == "*")
-      if (wild.length > 1)
-        throw new IllegalArgumentException(s"Conflicting wildcards for $k on lines ${wild.map(_.head._2).mkString(" ")}")
-      k -> (wild.headOption.map(_.tail) -> tame)
-    }
-    val substReady = wildGroups.mapValues{ case (wild, tames) => wild -> tames.map{ tame =>
-      val Array(a,cc) = splitAtLeast(2,tame.head).take(2)
-      val (subber, subbee) = tame.tail.partition(_._1.trim.startsWith("$"))
-      val substs = subber.map{ case (s,n) =>
-        val i = s.indexOf("-->")
-        if (i < 0) throw new IllegalArgumentException(s"No replacement pattern found on line $n: $s")
-        DollarSubst.from(s.take(i-1).trim, s.drop(i+3).trim)
-      }
-      (a, cc, substs, subbee) 
-    }}
-    val wildInserted = substReady.mapValues{ case (wild, tames) =>
-      val wildMap = wild.map(_.map{ splitArrow2 }.toMap).getOrElse(Map.empty[String,String])
-      tames.map{ case (a, cc, substs, subbee) =>
-        val tame = subbee.map{ splitArrow2 }.toMap + ("A" -> a) + ("CC" -> cc) + ("CCN" -> cc.takeWhile(_ != '['))
-        (tame ++ wildMap.filterKeys(k => !tame.contains(k)), substs)
-      }
-    }
-    val elaborated = wildInserted.mapValues(_.map{ case (tame, substs) => (tame /: substs)((t,s) => t.mapValues(s.sub)).toMap })
-    elaborated.mapValues(_.map(_.mapValues(s => smartSplit(s).toSet)))
-  }
-  
-  val knownRepls = readReplacementsFile("replacements.tests")
-  
-  knownRepls.values.toVector.flatten.groupBy(_("CC").head).map{ case (_,v) =>
-    if (v.length > 1) s"${v.length} duplicates of ${v.head}" else ""
-  }.filter(_.nonEmpty).mkString(" ") match {
-    case "" =>
-    case s => throw new Exception("Found duplicated collections (not allowed): "+s)
-  }
-  
-  val existingInstanceCode = {
-    Try {
-      val src = scala.io.Source.fromFile("Instances.scala")
-      val contents = Try{ src.getLines().toVector }
-      src.close
-      contents.toOption.getOrElse(Vector.empty[String])
-    }.toOption.getOrElse(Vector.empty[String])
-  }
-  
-  val instanceCode =
-    Vector(autoComment,"package laws","object Instances { val all = Map(") ++
-    knownRepls.toVector.flatMap{ case (_,vs) =>
-      vs.map{ mm => "\"" + mm("CC").head + "\" -> (" + mm("instance").head + ")," }
-    }.sorted ++
-    Vector("  \"\" -> null)", "}")
-    
-  if (instanceCode != existingInstanceCode) {
-    val pw = new java.io.PrintWriter("Instances.scala")
-    try { instanceCode.foreach(pw.println) } finally { pw.close }
-    throw new Exception("Instance code not up to date.  Regenerated; please recompile Instances.scala.")
-  }
-  
+
   val NeedReg = "`[^`]+`".r
   def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => x.slice(1,x.length-1)).toSet
   
@@ -346,72 +412,11 @@ import laws.Laws.Implicits._
   }
   
   case class HemiTest(test: String, calls: Set[String], flags: Set[String])
-  implicit def testStringToHemiTest(test: String) = HemiTest(fixCalls(test), readCalls(test), readFlags(test))
+  implicit def testStringToHemiTest(test: String): HemiTest = HemiTest(fixCalls(test), readCalls(test), readFlags(test))
   
-  val lawsWithNeeds = {
-    val src = scala.io.Source.fromFile("single-line.tests")
-    try { 
-      src.getLines.map(_.trim).filter(_.length > 0).
-        filterNot(_ startsWith "//").map(_.split("//").head).
-        map(line => (line : HemiTest)).toVector 
-    }
-    finally { src.close }
-  }
-  
-  val lawsAsWildCode = lawsWithNeeds.map{ ht =>
-    val code = Code(Seq(), Seq(), Seq("assert({" + ht.test + "}, message)"), Seq(), ht.flags)
-    (code /: ht.calls.toList)((c,x) => 
-      knownCalls.find(_.name == x).map(_.satisfy(c)).getOrElse{ println("Could not find "+x); c }
-    )
-  }
-  
-  val lawsAsCode = knownRepls.mapValues(_.map{ rep =>
-    val coll = rep("CC").head
-    val collname: String = coll.map{ case x if x.isLetter => x; case _ => '_' }
-    val flags = rep.getOrElse("flags", Set.empty[String])
-    val instance = Instances.all.getOrElse(coll, throw new IllegalArgumentException("Can't find instance "+coll))
-    val valid = lawsAsWildCode.filter(_.canRunOn(instance, flags)).map(_.cover(coll))
-    val methods = valid.groupBy(_.pre).toList.map{ case (pre, codes) =>
-      val lines = codes.groupBy(_.lwrap).toList.flatMap{ case (lwrap, somecodes) =>
-        somecodes.head.lwrap ++ somecodes.head.msg ++ somecodes.flatMap(c => c.core) ++ somecodes.head.rwrap
-      }
-      val fixed = fixRepls(pre ++ lines, rep)
-      val desc: String = "test_" + fixed.head.take(pre.length).map{
-        case x if x.startsWith("val ") => x.drop(3).dropWhile(_.isWhitespace).takeWhile(_.isLetter)
-        case x if x.startsWith("def ") => x.drop(3).dropWhile(_.isWhitespace).takeWhile(_.isLetter)
-        case x => x.filter(_.isLetter)
-      }.mkString("_")
-      fixed.indices.map(desc + "_" + _) zip fixed
-    }
-    collname -> methods
-  }).toList
-  
-  lawsAsWildCode.filterNot(_.covered).foreach{ code =>
-    println("Test not used by any collection: "+code.core.mkString("; "))
-  }
-
-  val lawsAsMethods = lawsAsCode.flatMap(_._2).map{ case (fname, methods) => fname -> {
-    methods.flatten.map{ case (mname, lines) => Vector("@Test", s"def $mname() {") ++ lines.map("  "+_) :+ "}" }
-  }}
   
   def main(args: Array[String]) {
-    lawsAsMethods.foreach{ case (fname, methods) =>
-      println(s"Writing $fname")
-      val dirname = "generated-tests"
-      val testf = new java.io.File(dirname)
-      if (!testf.exists) testf.mkdir
-      val pw = new java.io.PrintWriter(s"$dirname/$fname.scala")
-      try {
-        pw.println(universalHeader)
-        pw.println(s"@RunWith(classOf[JUnit4])")
-        pw.println(s"class $fname {")
-        pw.println
-        methods.foreach{ m =>
-          m.foreach{ line => pw.println("  "+line) }
-          pw.println
-        }
-        pw.println("}")
-      } finally { pw.close }
-    }
+    val laws = new Laws(args contains ("--junit"))
+    laws.writeAllTests
   }
 }
