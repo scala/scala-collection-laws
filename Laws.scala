@@ -265,7 +265,7 @@ object Laws {
       ("  "*rwrap.length) +
       "val message = \"\"" + 
       lwrap.map(_.trim).filter(_.startsWith("for (")).map(_.drop(5).
-        takeWhile(_.isLetter)).filter(_.length > 0).map(x => """+"%s="+%s.toString """.format(x,x)).
+        takeWhile(_.isLetter)).filter(_.length > 0).map(x => """+" %s="+%s.toString""".format(x,x)).
         mkString
     )
     def core = in.map("  "*rwrap.length + _)

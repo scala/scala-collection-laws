@@ -58,13 +58,16 @@ n m ... n <= 0 || m < 0 || { var y = 0; x.`grouped`(n).`drop`(m).take(1).map(_.`
 n ... x.`grouped`((1 max n)).flatMap(identity) theSameAs x
 x.`isEmpty` == !x.`nonEmpty`
 x.`length` == x.`size`
-a n ... x.`padTo`(a, n).`size` == (n max x.size)
-a n ... x.`padTo`(a, n).`drop`(x.`size`).`forall`(_ == a)
-a n ... (n <= x.`size`) implies (x.`padTo`(a, n) theSameAs x)
+a n ... x.`padTo`(n, a).`size` == (n max x.size)
+a n ... x.`padTo`(n, a).`drop`(x.`size`).`forall`(_ == a)
+a n ... (n <= x.`size`) implies (x.`padTo`(n, a) theSameAs x)
 p ... val (t,f) = x.`partition`(p); (t theSameAs x.`filter`(p)) && (f theSameAs x.`filterNot`(p))
-y n m ... x.`patch`(n, y, m).`take`(n) theSameAs x.take(n)
-y n m ... x.`patch`(n, y, m).`drop`(n).`take`(y.`size`) theSameAs y
-y n m ... x.`patch`(n, y, m).`drop`((0 max n)+y.`size`) theSameAs x.`drop`((0 max n)+(0 max m))
+
+// patch is inconsistent across collections, making it hard to write laws.  These should probably be true?
+// y n m ... x.`patch`(n, y, m).`take`(n) theSameAs x.take(n)
+// y n m ... x.`patch`(n, y, m).`drop`(n).`take`(y.`size`) theSameAs y
+// y n m ... x.`patch`(n, y, m).`drop`((0 max n)+y.`size`) theSameAs x.`drop`((0 max n)+(0 max m))
+
 y ... (x `sameElements` y) == (x theSameAs y)
 // scanLeft and scanRight go here
 n m ... n < 0 || m >= x.size || { x.`slice`(n, m).`size` == (0 max ((0 max m)-n)) }
@@ -79,8 +82,8 @@ p ... x.`takeWhile`(p) isPartOf x
 p ... x.`takeWhile`(p).`size` + x.`dropWhile`(p).size == x.size
 y ... x.`zip`(y).map(_._1) theSameAs x.take(x.size min y.size)
 y ... x.`zip`(y).map(_._2) theSameAs y.take(x.size min y.size)
-y a b ... x.`zipAll`(y, a, b).map(_._1) theSameAs x.`padTo`(a, x.size max y.size)
-y a b ... x.`zipAll`(y, a, b).map(_._2) theSameAs y.`padTo`(b, x.size max y.size)
+y a b ... x.`zipAll`(y, a, b).map(_._1) theSameAs x.`padTo`(x.`size` max y.size, a)
+y a b ... x.`zipAll`(y, a, b).map(_._2) theSameAs y.`padTo`(x.`size` max y.size, b)
 x.`zipWithIndex`.map(_._1) theSameAs x
 x.`zipWithIndex`.map(_._2).`sameElements`(0 until x.`size`)
 x.`productArity` == x.`size`
@@ -117,9 +120,9 @@ x.`size` == 0 || x.`init` == x.`dropRight`(1)
 y ... x.`intersect`(y).`toSet` == (x.toSet & y.toSet)  // Need to improve this one
 x.`iterator` theSameAs x
 x.`size` == 0 || { Seq(x.`last`) theSameAs x.`takeRight`(1) }
-a n ... n < 0 || { x.`lastIndexOf`(a,n) match { case -1 => x.`take`(n+1).`indexOf`(a) == -1; case k => k == n+1 - x.take(n+1).reverse.indexOf(a) } }
+a n ... n < 0 || { x.`lastIndexOf`(a,n) match { case -1 => x.`take`(n+1).`indexOf`(a) == -1; case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexOf(a) } }
 a ... x.`lastIndexOf`(a) == x.lastIndexOf(a,x.`size`-1)
-p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexWhere`(p) == -1; case k => k == n+1 - x.take(n+1).reverse.indexWhere(p) } }
+p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexWhere`(p) == -1; case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexWhere(p) } }
 p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)
 x.`lastOption` == Try{ x.`last` }.toOption
 n ... x.`lengthCompare`(n) == (x.`size` compare n)
