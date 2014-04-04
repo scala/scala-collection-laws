@@ -1,6 +1,47 @@
-// Format: blocks of different data for various collections.
+// **********************************************
+// This file defines wildcard replacements for tests, on a class-by-class basis.
+
+// Each collection is a block separated by TWO newlines.
+// Whitespace is important!
+
+// The block starts with a contained type name (e.g. Int) followed by the
+// name of the collection parameterized by that type (e.g. Array[Int]).
+// No imports are assumed, so qualify names adequately.
+
+// The block continues with a list of mappings of one of three forms.
+//   Generic substitutions are of the form CAPS --> code_to_substitite
+//     These will replace instances of @CAPS in the code written in single-line.tests.
+//   Parameterized substitutions are of the form $CAP --> before_parameter $ after_parmeter
+//     Whitespace is important!  " $ " must appear.
+//     Parameterized substitutions can be applied to generic substitutions
+//   Informational mappings are of the form lowercase --> custom stuff
+//     flags --> F declares a collection type to have flag F (flags are never assumed, you must declare any that exist)
+//     instance --> new X declares how to create a new instance of this type
+//       (required to create the Instances.scala file; methods will be taken from here)
+
+// A generic set of substitutions can be created by naming the collection *
+// Specific collections that hold the same type will inherit all those mappings
+// Mappings in the specific collections will replace those of the generic collection
+
+// Any generic substitution can be a _set_ from which one element will be picked.
+// Simply list the options separated by whitespace.
+// The parser is delimiter-aware, so you can use matched () or {} or <> or [] to
+// keep functionality together.
+
+// As set up presently, every collection must define a parameterized substitution $NEW that generates a
+// new collection of the desired type given a collection of some other type.
+
+// There are four special generic substitutions:
+//   A --> this is automatically set to the data type held by the collection (cannot be overridden)
+//   CC --> this is automatically set to the collection type (with type parameter; cannot be overridden)
+//   CCN --> this is automatically set to the collection type without type parameter (cannot be overridden)
+//   CCM --> this is used to determine which methods are available; it is the same as CC unless overridden
+
+// **********************************************
 
 
+
+// The generic data supplied for collections that contain Ints
 Int *
 X  --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64))
 F --> (_i: Int)=>(_i+1)
@@ -115,6 +156,7 @@ $NEW --> collection.immutable.Vector[Int]( $ : _*)
 
 
 Int Array[Int]
+CCM --> collection.mutable.WrappedArray[Int]
 $NEW --> Array[Int]( $ : _*)
 
 

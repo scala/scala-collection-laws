@@ -1,3 +1,47 @@
+// ********************************************************
+// This file contains tests for collections in the form of a bunch of reasonably simple laws.
+// Each test must fit on one line to encourage simplicity of the laws.
+
+// Variables needed are lower case, listed on the left of "..."
+//   x is the collection being tested.  It's assumed; if it's all you need, omit the "..."
+//   a is an element of the same type as held by x
+//   f is a function that maps from one value to another of the type held by x
+//   m is a number of a size suitable for indexing into the collection.  May be negative.  Use n first if you only need one.
+//   n is a number of a size suitable for indexing into the collection.  May be negative.
+//   one is the value one (if it can be supplied by the type held by x)
+//   op is a commutative two-argument function (e.g. +)
+//   p is a predicate that on types held by x (returns true/false)
+//   pf is a partial function on types held by x.  It is not guaranteed that it match p or f.
+//   y is another collection of the type being tested.
+//   z is an element of the same type as held by x (for now--was supposed to be generic zero for folds)
+//   zero is the value zero (if it can be supplied by the type held by x)
+
+// Flags describing the test are upper case, also listed on the left of "..."
+//    N means "no free type parameters" (i.e. x cannot hold a different type)
+//    S means "set-like" in that duplicates are not required to be stored
+//    U means "unordered" so indexing, dropping, etc. will not necessarily agree with each other
+// Flags can either be positive or negative
+//    a positive flag is just the name of the flag; to run this test a collection must also have this flag
+//    a negative flag is the name prefixed by !; to run this test a collection must not have this flag
+
+// On the right of ... is the test (if there is no ..., the whole line is the test).
+
+// Methods that are required must be wrapped in backwards ticks ``.  These will be removed in the actual source code.
+// You do not need to use backwards ticks more than once per method name.
+
+// It is customary to write the more derived operation on the left side of an equality test.
+
+// Four special relations are supplied to aid testing:
+//   theSameAs checks whether the LHS and RHS supply the same elements in the same number
+//     if the test is ordered, it additionally tests whether they're in the same order
+//   isPartOf checks whether the LHS is a subset of the RHS
+//   implies is true when the LHS is false, or when both LHS and RHS are true
+//   impliedBy is the opposite of implies (i.e. a implies b is the same as b impliedBy a)
+
+// A double slash indicates a comment.  These will be stripped off of the end of any source code.
+// ********************************************************
+
+
 p ... x.`exists`(p) == x.`find`(p).isDefined
 p ... x.`forall`(p) implies (x.`isEmpty` || x.`exists`(p))
 p ... var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(p)
@@ -125,7 +169,7 @@ a ... x.`lastIndexOf`(a) == x.lastIndexOf(a,x.`size`-1)
 p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexWhere`(p) == -1; case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexWhere(p) } }
 p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)
 x.`lastOption` == Try{ x.`last` }.toOption
-n ... x.`lengthCompare`(n) == (x.`size` compare n)
+n ... x.`lengthCompare`(n).signum == (x.`size` compare n).signum
 // mapConserve goes here
 // permutations goes here
 p ... x.`prefixLength`(p) == x.`takeWhile`(p).`size`
@@ -145,7 +189,7 @@ n y ... n < 0 || { x.`startsWith`(y,n) == (x.`drop`(n).`take`(y.`size`) theSameA
 y ... x.`startsWith`(y) == x.startsWith(y,0)
 x.`size` < 1 || { x.`tail` theSameAs x.`drop`(1) }
 x.`tails` theSameAs x.`reverse`.`inits`.map(_.reverse)
-n ... x.`takeRight`(n) == x.`reverse`.`take`(n).reverse
+n ... x.`takeRight`(n) theSameAs x.`reverse`.`take`(n).reverse
 // transpose goes here
 y ... x.`union`(y).`toSet` == (x.toSet union y.toSet)
 // unzip goes here

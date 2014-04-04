@@ -69,7 +69,9 @@ import laws.Laws.Implicits._
     val wildInserted = substReady.mapValues{ case (wild, tames) =>
       val wildMap = wild.map(_.map{ splitArrow2 }.toMap).getOrElse(Map.empty[String,String])
       tames.map{ case (a, cc, substs, subbee) =>
-        val tame = subbee.map{ splitArrow2 }.toMap + ("A" -> a) + ("CC" -> cc) + ("CCN" -> cc.takeWhile(_ != '['))
+        val tame = (subbee.map{ splitArrow2 }.toMap + ("A" -> a) + ("CC" -> cc) + ("CCN" -> cc.takeWhile(_ != '['))) |> { t =>
+          if (!(t contains "CCM")) t + ("CCM" -> cc) else t
+        }
         (tame ++ wildMap.filterKeys(k => !tame.contains(k)), substs)
       }
     }
@@ -98,7 +100,7 @@ import laws.Laws.Implicits._
   val instanceCode =
     Vector(autoComment,"package laws","object Instances { val all = Map(") ++
     knownRepls.toVector.flatMap{ case (_,vs) =>
-      vs.map{ mm => "\"" + mm("CC").head + "\" -> (" + mm("instance").head + ", classOf[" + mm("CC").head + "])," }
+      vs.map{ mm => "\"" + mm("CC").head + "\" -> (" + mm("instance").head + ", classOf[" + mm("CCM").head + "])," }
     }.sorted ++
     Vector("  \"\" -> null)", "}")
     
@@ -111,15 +113,14 @@ import laws.Laws.Implicits._
   val lawsWithNeeds = {
     val src = scala.io.Source.fromFile("single-line.tests")
     try { 
-      src.getLines.map(_.trim).filter(_.length > 0).
-        filterNot(_ startsWith "//").map(_.split("//").head).
-        map(line => (line : HemiTest)).toVector 
+      src.getLines.map(_.trim).zipWithIndex.filter(_._1.length > 0).filterNot(_._1 startsWith "//").
+        map(li => li.copy(_1 = li._1.split("//").head : HemiTest)).toVector
     }
     finally { src.close }
   }
   
-  val lawsAsWildCode = lawsWithNeeds.map{ ht =>
-    val code = Code(Seq(), Seq(), Seq("assert({" + ht.test + "}, message)"), Seq(), ht.flags)
+  val lawsAsWildCode = lawsWithNeeds.map{ case (ht,i) =>
+    val code = Code(Seq(), Seq(), Seq("assert({" + ht.test + "}, message(" + (i+1) + "))"), Seq(), ht.flags)
     (code /: ht.calls.toList)((c,x) => 
       knownCalls.find(_.name == x).map(_.satisfy(c)).getOrElse{ println("Could not find "+x); c }
     )
@@ -263,7 +264,7 @@ object Laws {
     def coverage = covernames.reverse.toVector
     def msg = Seq(
       ("  "*rwrap.length) +
-      "val message = \"\"" + 
+      "val message = (lnum: Int) => \"Law line %d;\".format(lnum)" + 
       lwrap.map(_.trim).filter(_.startsWith("for (")).map(_.drop(5).
         takeWhile(_.isLetter)).filter(_.length > 0).map(x => """+" %s="+%s.toString""".format(x,x)).
         mkString
@@ -271,7 +272,9 @@ object Laws {
     def core = in.map("  "*rwrap.length + _)
     def join = pre ++ lwrap ++ msg ++ core ++ rwrap
     def canRunOn[C,_](cc: (C, Class[_]), cflags: Set[String]): Boolean = {
-      val available = cc._2.getMethods.map(x => dedollar(x.getName)).toSet
+      val available = cc._2.getMethods.
+        filterNot(x => java.lang.reflect.Modifier.isStatic(x.getModifiers)).
+        map(x => dedollar(x.getName)).toSet
       val needs = join.flatMap(readNeeds).toSet
       val (nflags, yflags) = cflags.partition(_.startsWith("!"))
       (needs subsetOf available) && yflags.subsetOf(flags) && (nflags.map(_.drop(1))&flags).isEmpty
