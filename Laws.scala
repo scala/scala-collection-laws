@@ -161,12 +161,19 @@ import laws.Laws.Implicits._
   }}
 
   def writeAllTests() {
+    val script = if (junit) None else Try{ new java.io.PrintWriter("compile_tests.sh") }.toOption
+    val dirname = "generated-tests"
     lawsAsMethods.foreach{ case (fname, methods) =>
+      val source = s"$dirname/$fname.scala"
+      script.foreach{ pw => Try{ 
+        pw.println(s"echo 'Compiling $source'")
+        pw.println(s"time scalac $source") 
+        pw.println
+      } }
       println(s"Writing $fname")
-      val dirname = "generated-tests"
       val testf = new java.io.File(dirname)
       if (!testf.exists) testf.mkdir
-      val pw = new java.io.PrintWriter(s"$dirname/$fname.scala")
+      val pw = new java.io.PrintWriter(source)
       try {
         pw.println(universalHeader)
         pw.println
@@ -187,6 +194,7 @@ import laws.Laws.Implicits._
         }
       } finally { pw.close }
     }
+    script.foreach{ pw => Try{ pw.close } }
   }
 }
   

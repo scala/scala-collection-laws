@@ -17,6 +17,7 @@
 //   zero is the value zero (if it can be supplied by the type held by x)
 
 // Flags describing the test are upper case, also listed on the left of "..."
+//    A means "array-like" in that it isn't actually a subclass of TraversableOnce
 //    N means "no free type parameters" (i.e. x cannot hold a different type)
 //    S means "set-like" in that duplicates are not required to be stored
 //    U means "unordered" so indexing, dropping, etc. will not necessarily agree with each other
@@ -70,7 +71,7 @@ one ... x.`product` == x.`fold`(one)(_ * _)
 op ... Set(Try{x.`reduce`(op)}.toOption, Try{x.`reduceLeft`(op)}.toOption, Try{x.`reduceRight`(op)}.toOption, x.`reduceLeftOption`(op), x.`reduceRightOption`(op)).size == 1
 x.`size` == x.`count`(_ => true)
 zero ... x.`sum` == x.`fold`(zero)(_ + _)
-!N ... x.`to`[@CCN] theSameAs x
+!A !N ... x.`to`[@CCN] theSameAs x
 x.`toArray` theSameAs x
 x.`toBuffer` theSameAs x
 x.`toIndexedSeq` theSameAs x
@@ -99,7 +100,7 @@ val (x1,x2) = x.`duplicate`; x1.corresponds(x2)(_ == _) && x1.corresponds(x)(_ =
 p ... x.`filterNot`(p) theSameAs x.`filter`(xi => !p(xi))
 n ... n <= 0 || x.`grouped`(n).map(_.size).`sum` == x.`size`
 n m ... n <= 0 || m < 0 || { var y = 0; x.`grouped`(n).`drop`(m).take(1).map(_.`size`).foreach(y = _); (y < n) implies !x.grouped(n).drop(m+1).`nonEmpty` }
-n ... x.`grouped`((1 max n)).flatMap(identity) theSameAs x
+n ... x.`grouped`((1 max n)).flatMap(xi => xi) theSameAs x
 x.`isEmpty` == !x.`nonEmpty`
 x.`length` == x.`size`
 a n ... x.`padTo`(n, a).`size` == (n max x.size)
@@ -143,7 +144,7 @@ a ... x.`:+`(a).`last` == a
 a ... x.`+`(a).`contains`(a)
 y ... x.`:::`(y) theSameAs y.`++`(x)
 n ... (n < 0) || (n >= x.`size`) || x.`apply`(n) == x.`productElement`(n)
-n ... (n < 0) || (n >= x.`size`) || (x match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
+n ... (n < 0) || (n >= x.`size`) || ((x: Any) match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
 // combinations goes here
 // containsSlice goes here
 // diff goes here, this is broken: y ... val List(g,h) = List(x,y).`groupBy`(identity).mapValues(_.length).toMap; x.`diff`(y).`groupBy`(identity).mapValues(_.length).forall{ case (k,v) => v == (0 max g(k)-h.get(k).getOrElse(0)) }
@@ -202,7 +203,7 @@ a ... (x.`-`(a)).`count`(_ == a) == (0 max x.count(_ == a) - 1)
 a ... (x.`-`(a)).`size` == x.size - (if (x.`contains`(a)) 1 else 0)
 a ... (x.`-`(a)) isPartOf x
 a ... val x0 = x; x0.`-=`(a) theSameAs x.`-`(a)
-y ... val x0 = x; x0.`--=`(y); val x1 = x; y.foreach(yi => x.`-=`(a)); x0 theSameAs x1
+y ... val x0 = x; x0.`--=`(y); val x1 = x; y.foreach(yi => x.`-=`(yi)); x0 theSameAs x1
 a ... x.`append`(a) == x.`+=`(a)
 y ... x.`appendAll`(y) == x.`++=`(y)
 a ... x.`prepend`(a) == x.`+=:`(a)
@@ -221,12 +222,18 @@ n a ... n < 0 || n >= x.`size` || { val x0 = x; x0.`update`(n, a); x0 theSameAs 
 y ... x.`&`(y) isPartOf x
 y ... x.`forall`(xi => y.`contains`(xi) == x.`&`(y).contains(xi))
 y ... x.`&~`(y) isPartOf x
-y ... x.`forall`(xi => y.`contains`(yi) != x.`&~`(y).contains(xi))
-a ... x isPartOf x.`add`(a)
-a ... val k = x.`add`(a).`size` - x.`size`; 0 <= k && k <= 1
-a ... x.`add`(a).`contains`(a)
+y ... x.`forall`(xi => y.`contains`(xi) != x.`&~`(y).contains(xi))
+
+// Add works differently for sets and regular collections
+a !S ... x isPartOf x.`add`(a)
+a !S ... val k = x.`add`(a).`size` - x.`size`; 0 <= k && k <= 1
+a !S... x.`add`(a).`contains`(a)
+a S ... x.`add`(a) == !x.`contains`(a)
+a S ... (if (x.`contains`(a)) 0 else 1) == { val x0 = x; x0.`add`(a); x0.`size` - x.`size` }
+a S ... val x0 = x; x0.`add`(a); x0.`contains`(a)
+
 a S ... val x0 = x; x0.`remove`(a); x0 isPartOf x
-a S ... val x0 = x; x0.`remove`(a); val k = x.`size` - x0.size; 0 <= k <= 1
+a S ... val x0 = x; x0.`remove`(a); val k = x.`size` - x0.size; 0 <= k && k <= 1
 a S ... val x0 = x; x0.`remove`(a); !x.`contains`(a)
 p S ... val x0 = x; x0.`retain`(p); x0 theSameAs x.filter(p)
 a S ... val x0 = x; x0.`update`(a,true); x0 theSameAs x0.`+`(a)
