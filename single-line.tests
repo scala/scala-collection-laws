@@ -130,7 +130,7 @@ y ... x.`zip`(y).map(_._2) theSameAs y.take(x.size min y.size)
 y a b ... x.`zipAll`(y, a, b).map(_._1) theSameAs x.`padTo`(x.`size` max y.size, a)
 y a b ... x.`zipAll`(y, a, b).map(_._2) theSameAs y.`padTo`(x.`size` max y.size, b)
 x.`zipWithIndex`.map(_._1) theSameAs x
-x.`zipWithIndex`.map(_._2).`sameElements`(0 until x.`size`)
+x.`zipWithIndex`.map(_._2) theSameAs (0 until x.`size`)
 x.`productArity` == x.`size`
 y ... x.`++`(y) theSameAs x.`:++`(y)
 y ... x.`++`(y) theSameAs y.`++:`(x)
@@ -157,8 +157,9 @@ x.`headOption` == Try{ x.`head` }.toOption
 n a ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }
 a ... x.`indexOf`(a) == x.`indexOf`(a,0)
 // indexOfSlice goes here
-p n ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`indexWhere`(p,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && p(x.`drop`(kk).`head`) } }
-p ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
+p n !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`indexWhere`(p,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && p(x.`drop`(kk).`head`) } }
+p !ITERATOR ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
+p ITERATOR ... val k = x.`takeWhile`(xi => !p(xi)).`size`; x.`indexWhere`(p) match { case -1 => k == x.`size`; case q => q == k }
 x.`indices` == (0 until x.`size`)
 x.`size` == 0 || x.`init` == x.`dropRight`(1)
 // inits goes here, this doesn't work: x.`inits` theSameAs Iterator.iterate(x.`toSeq`.iterator)(_.`dropRight(1)).takeWhile(_.nonEmpty) :+ x.toSeq.dropRight(x.`size`)
@@ -210,9 +211,9 @@ a ... x.`prepend`(a) == x.`+=:`(a)
 y ... x.`prependAll`(y) == x.`++=:`(y)
 n ... n < 0 || { val x0 = x; x0.`reduceToSize`(n); x0.`size` == n }
 n ... n < 0 || { val x0 = x; x0.`reduceToSize`(n); x0 theSameAs x.take(n) }
-n m !S ... n < 0 || n >= x.`size` || { val x0 = x; x0.`remove`(n,m); x0 theSameAs (x.`take`(n).`++`(x.`drop`(n+(0 max m)))) }
-n !S ... n < 0 || n >= x.`size` || { val x0 = x; val a0 = x0.`remove`(n); x0.`size` == x.`size`-1 && x.`apply`(n) == a0 }
-n !S ... n < 0 || n >= x.`size` || { val x0, x1 = x; x0.`remove`(n); x1.`remove`(1); x0 theSameAs x1 }
+n m !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; x0.`remove`(n,m); x0 theSameAs (x.`take`(n).`++`(x.`drop`(n+(0 max m)))) }
+n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; val a0 = x0.`remove`(n); x0.`size` == x.`size`-1 && x.`apply`(n) == a0 }
+n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0, x1 = x; x0.`remove`(n); x1.`remove`(1); x0 theSameAs x1 }
 x.`result` theSameAs x
 f ... val x0 = x; x0.`transform`(f); x0 theSameAs x.map(f)
 n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`trimEnd`(n); x0 theSameAs x.`dropRight`(n) }

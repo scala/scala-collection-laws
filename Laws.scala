@@ -147,6 +147,8 @@ import laws.Laws.Implicits._
       }.mkString("_")
       fixed.indices.map(desc + "_" + _) zip fixed
     }
+    if (collname contains "Buffer") println(s"$coll flags $flags")
+    if (collname contains "Set") println(s"$coll flags $flags")
     collname -> methods
   }).toList
   

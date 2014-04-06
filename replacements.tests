@@ -62,7 +62,7 @@ instance --> $NEW((0 to 0))
 
 
 Int collection.immutable.BitSet
-flags --> N
+flags --> N S
 LET --> val
 $NEW --> collection.immutable.BitSet( $ : _*)
 
@@ -176,7 +176,7 @@ $NEW --> collection.mutable.ArrayStack[Int]( $ : _*)
 
 
 Int collection.mutable.BitSet
-flags --> N
+flags --> N S
 $NEW --> (collection.mutable.BitSet.empty ++ $ )
 
 
@@ -185,6 +185,7 @@ $NEW --> collection.mutable.Buffer[Int]( $ : _*)
 
 
 Int collection.mutable.DoubleLinkedList[Int]
+flags --> DOUBLL
 $NEW --> collection.mutable.DoubleLinkedList[Int]( $ : _*)
 
 
@@ -257,6 +258,7 @@ $NEW --> collection.mutable.Traversable[Int]( $ : _*)
 
 
 Int collection.mutable.TreeSet[Int]
+flags --> S
 $NEW --> (collection.mutable.TreeSet.empty[Int] ++ $ )
 
 
@@ -282,6 +284,7 @@ $NEW --> collection.Iterable[Int]( $ : _*)
 
 
 Int collection.Iterator[Int]
+flags --> ITERATOR
 $NEW --> ( $ ).iterator
 
 

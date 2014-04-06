@@ -34,11 +34,12 @@ case class Code(pre: Seq[String], wrap: Seq[String], tests: Seq[(String, Int)], 
   
   // Tests whether named methods are supported by the set of classes given.
   // (It's a set to allow for implicit conversion to another class).
+  lazy val yflags = flags.filterNot(_.startsWith("!"))
+  lazy val nflags = flags.filter(_.startsWith("!")).map(_.drop(1))
   def canRunOn[C <: Class[_]](klasses: Set[C], cflags: Set[String]): Boolean = {
     val available = klasses.flatMap(_.getMethods.filterNot(isStatic)).map(x => dedollar(x.getName))
     val needs = all.flatMap(Parsing.readNeeds).toSet
-    val (nflags, yflags) = cflags.partition(_.startsWith("!"))
-    (needs subsetOf available) && yflags.subsetOf(flags) && (nflags.map(_.drop(1))&flags).isEmpty
+    (needs subsetOf available) && yflags.subsetOf(cflags) && (nflags & cflags).isEmpty
   }
   def canRunOn[C <: Class[_]](klass: C, cflags: Set[String]): Boolean = canRunOn(Set(klass), cflags)
 }
