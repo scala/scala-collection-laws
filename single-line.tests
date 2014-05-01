@@ -43,6 +43,10 @@
 // ********************************************************
 
 
+f !S ... x.map(f) theSameAs { val y = collection.mutable.ArrayBuffer[@A](); x.foreach(y += _); y.map(f) }
+f S ... x.map(f) theSameAs { val y = collection.mutable.HashSet[@A](); x.foreach(y += _); y.map(f) }
+y !S ... x.flatMap(xi => y.toList.take(xi)) theSameAs { val z = collection.mutable.ArrayBuffer[@A](); x.foreach(xi => z ++= y.toList.take(xi)); z }
+y S ... x.flatMap(xi => y.toList.take(xi)) theSameAs { val z = collection.mutable.HashSet[@A](); x.foreach(xi => z ++= y.toList.take(xi)); z }
 p ... x.`exists`(p) == x.`find`(p).isDefined
 p ... x.`forall`(p) implies (x.`isEmpty` || x.`exists`(p))
 p ... var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(p)
@@ -80,12 +84,15 @@ x.`toList` theSameAs x
 x.`toSeq` theSameAs x
 x.`toSet` theSameAs x
 x.`toVector` theSameAs x
-p ... val y = new collection.mutable.ArrayBuffer[@A]; x.`withFilter`(p).foreach(y += _); y theSameAs x.filter(p)
+p !S ... val y = new collection.mutable.ArrayBuffer[@A]; x.`withFilter`(p).foreach(y += _); y theSameAs x.filter(p)
+p S ... val y = new collection.mutable.HashSet[@A]; x.`withFilter`(p).foreach(y += _); y theSameAs x.filter(p)
 x.`hasNext` == x.`nonEmpty`
 x.`hasNext` implies Try{ x.`next` }.isSuccess
-y ... x.`++`(y).`size` == x.size + y.size
-y ... x.`++`(y).`take`(x.`size`) theSameAs x
-y ... x.`++`(y).`drop`(x.`size`) theSameAs y
+y !S ... x.`++`(y).`size` == x.size + y.size
+y S ... x.`++`(y).`size` <= x.size + y.size
+y S ... x.`++`(y).`size` == x.size + y.filter(yi => !x.`contains`(yi)).size
+y !S ... (x.`++`(y)).`take`(x.`size`) theSameAs x
+y !S ... (x.`++`(y)).`drop`(x.`size`) theSameAs y
 x.`buffered` theSameAs x
 pf ... x.`collect`(pf) theSameAs x.`filter`(pf.isDefinedAt).`map`(pf)
 n ... x.`contains`(n) == x.`exists`(_ == n)
@@ -116,7 +123,7 @@ p ... val (t,f) = x.`partition`(p); (t theSameAs x.`filter`(p)) && (f theSameAs 
 y ... (x `sameElements` y) == (x theSameAs y)
 // scanLeft and scanRight go here
 n m ... n < 0 || m >= x.size || { x.`slice`(n, m).`size` == (0 max ((0 max m)-n)) }
-n m ... n < 0 || m >= x.size || { x.`slice`(n, m) theSameAs x.`drop`(n).`take`((0 max m)-n) }
+n m !S ... n < 0 || m >= x.size || { x.`slice`(n, m) theSameAs x.`drop`(n).`take`((0 max m)-n) }
 p ... x.`span`(p)._1.`forall`(p)
 p ... !x.`span`(p)._2.`take`(1).`exists`(p)
 p ... val (x1, x2) = x.`span`(p); val n = x1.`span`(p)._1.`size`; (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
@@ -205,15 +212,15 @@ a ... (x.`-`(a)).`size` == x.size - (if (x.`contains`(a)) 1 else 0)
 a ... (x.`-`(a)) isPartOf x
 a ... val x0 = x; x0.`-=`(a) theSameAs x.`-`(a)
 y ... val x0 = x; x0.`--=`(y); val x1 = x; y.foreach(yi => x.`-=`(yi)); x0 theSameAs x1
-a ... x.`append`(a) == x.`+=`(a)
-y ... x.`appendAll`(y) == x.`++=`(y)
-a ... x.`prepend`(a) == x.`+=:`(a)
-y ... x.`prependAll`(y) == x.`++=:`(y)
-n ... n < 0 || { val x0 = x; x0.`reduceToSize`(n); x0.`size` == n }
-n ... n < 0 || { val x0 = x; x0.`reduceToSize`(n); x0 theSameAs x.take(n) }
+a ... { val z = x; z.`append`(a); z } == x.`+=`(a)
+y ... { val z = x; z.`appendAll`(y); z } == x.`++=`(y)
+a ... { val z = x; z.`prepend`(a); z } == x.`+=:`(a)
+y ... { val z = x; z.`prependAll`(y); z } == x.`++=:`(y)
+n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`reduceToSize`(n); x0.`size` == n }
+// n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`reduceToSize`(n); x0 theSameAs x.`take`(n) }
 n m !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; x0.`remove`(n,m); x0 theSameAs (x.`take`(n).`++`(x.`drop`(n+(0 max m)))) }
 n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; val a0 = x0.`remove`(n); x0.`size` == x.`size`-1 && x.`apply`(n) == a0 }
-n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0, x1 = x; x0.`remove`(n); x1.`remove`(1); x0 theSameAs x1 }
+n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0, x1 = x; x0.`remove`(n); x1.`remove`(n,1); x0 theSameAs x1 }
 x.`result` theSameAs x
 f ... val x0 = x; x0.`transform`(f); x0 theSameAs x.map(f)
 n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`trimEnd`(n); x0 theSameAs x.`dropRight`(n) }
@@ -235,7 +242,7 @@ a S ... val x0 = x; x0.`add`(a); x0.`contains`(a)
 
 a S ... val x0 = x; x0.`remove`(a); x0 isPartOf x
 a S ... val x0 = x; x0.`remove`(a); val k = x.`size` - x0.size; 0 <= k && k <= 1
-a S ... val x0 = x; x0.`remove`(a); !x.`contains`(a)
+a S ... val x0 = x; x0.`remove`(a); !x0.`contains`(a)
 p S ... val x0 = x; x0.`retain`(p); x0 theSameAs x.filter(p)
 a S ... val x0 = x; x0.`update`(a,true); x0 theSameAs x0.`+`(a)
 a S ... val x0 = x; x0.`update`(a,false); x0 theSameAs x0.`-`(a)

@@ -8,9 +8,11 @@ import Sup._
 class Laws(junit: Boolean) {
   import Laws._
   
+  val containingPackage = "scala.collection"
+  
   val universalHeader = autoComment + "\n\n" + {
 """
-package scala.collection
+package """ + containingPackage + """
 
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
@@ -163,13 +165,20 @@ import laws.Laws.Implicits._
   }}
 
   def writeAllTests() {
-    val script = if (junit) None else Try{ new java.io.PrintWriter("compile_tests.sh") }.toOption
+    val compile = if (junit) None else Try{ new java.io.PrintWriter("compile_tests.sh") }.toOption
+    val run = if (junit) None else Try{ new java.io.PrintWriter("run_tests.sh") }.toOption
     val dirname = "generated-tests"
     lawsAsMethods.foreach{ case (fname, methods) =>
       val source = s"$dirname/$fname.scala"
-      script.foreach{ pw => Try{ 
+      compile.foreach{ pw => Try{ 
         pw.println(s"echo 'Compiling $source'")
         pw.println(s"time scalac $source") 
+        pw.println
+      } }
+      run.foreach{ pw => Try {
+        val target = s"$containingPackage.$fname" 
+        pw.println(s"echo 'Running $target'")
+        pw.println(s"time scala $target")
         pw.println
       } }
       println(s"Writing $fname")
@@ -192,11 +201,13 @@ import laws.Laws.Implicits._
           pw.println(s"object $fname { def main(args: Array[String]) {")
           pw.println(s"  val tester = new $fname")
           methods.foreach{ m => pw.println("  tester."+m.dropWhile(! _.startsWith("def ")).head.split(' ').tail.head) }
+          pw.println("""println("All tests passed for """+fname+"""")""")
           pw.println("}}")
         }
       } finally { pw.close }
     }
-    script.foreach{ pw => Try{ pw.close } }
+    compile.foreach{ pw => Try{ pw.close } }
+    run.foreach{ pw => Try { pw.close } }
   }
 }
   
