@@ -1,5 +1,8 @@
 package scasm
 
+import java.io._
+import java.util.zip._
+import scala.util._
 import org.objectweb.asm
 import asm.{signature => sig}
 
@@ -21,8 +24,8 @@ object Scasm {
     cr.accept(visitor, 0)
     visitor.result
   }
-  def visit[A](f: java.io.File, newVisitor: => (asm.ClassVisitor with Resulting[A])): A = {
-    val fis = new java.io.FileInputStream(f)
+  def visit[A](f: File, newVisitor: => (asm.ClassVisitor with Resulting[A])): A = {
+    val fis = new FileInputStream(f)
     try {
       val cr = new asm.ClassReader(fis)
       val visitor = newVisitor
@@ -48,7 +51,43 @@ object Scasm {
   
   def family(name: String) = visit(name, new FamilyVisitor)
   def family(bytes: Array[Byte]) = visit(bytes, new FamilyVisitor)
-  def family(f: java.io.File) = visit(f, new FamilyVisitor)
+  def family(f: File) = visit(f, new FamilyVisitor)
+  
+  class AnnotationPeeker(p: String => Boolean) extends asm.ClassVisitor(asm.Opcodes.ASM5) with Resulting[Option[String]] {
+    private[this] var myName: Option[String] = None
+    private[this] var hasNamedAnnotation: Boolean = false
+    override def visit(version: Int, access: Int, name: String, sigs: String, sup: String, face: Array[String]) {
+      myName = Some(name)
+    }
+    override def visitAnnotation(desc: String, visible: Boolean) = {
+      if (p(desc)) hasNamedAnnotation = true
+      null
+    }
+    def clear() { myName = None; hasNamedAnnotation = false }
+    def result() = {
+      val ans = myName.filter(_ => hasNamedAnnotation)
+      clear()
+      ans
+    }
+  }
+  
+  class FieldPeeker(p: String => Boolean) extends asm.ClassVisitor(asm.Opcodes.ASM5) with Resulting[Option[String]] {
+    private[this] var myName: Option[String] = None
+    private[this] var hasNamedField: Boolean = false
+    override def visit(version: Int, access: Int, name: String, sigs: String, sup: String, face: Array[String]) {
+      myName = Some(name)
+    }
+    override def visitField(access: Int, name: String, desc: String, sig: String, value: Object) = {
+      if (p(name)) hasNamedField = true
+      null
+    }
+    def clear() { myName = None; hasNamedField = false }
+    def result() = {
+      val ans = myName.filter(_ => hasNamedField)
+      clear()
+      ans
+    }
+  }
   
   case class Spawn(name: String, ret: String, from: String, params: Array[String])
   
@@ -122,5 +161,129 @@ object Scasm {
   
   def methods(name: String) = visit(name, new ExtractMethods)
   def methods(bytes: Array[Byte]) = visit(bytes, new ExtractMethods)
-  def methods(f: java.io.File) = visit(f, new ExtractMethods)
+  def methods(f: File) = visit(f, new ExtractMethods)
+  
+  def findField(name: String, bytes: Array[Byte], pr: String => Unit) {
+    val fp = new FieldPeeker(_ == name)
+    visit(bytes, fp) match {
+      case Some(who) => pr(who)
+      case _ =>
+    }
+  }
+  
+  def classBytes(as: Array[String]) = new Iterator[Array[Byte]] {
+    private var i = 0
+    private var myData: Array[Byte] = null
+    private var resource: Either[(Array[File], Int), (ZipFile,java.util.Enumeration[ZipEntry])] = null
+
+    private def check[A](t: Try[A]): Try[A] = {
+      if (t.isFailure) i += 1
+      t
+    }
+    private def rdFile(f: File) = Try {
+      val fis = new FileInputStream(f)
+      try {
+        val bb = java.nio.ByteBuffer.allocate( (f.length min (Int.MaxValue-1)).toInt )
+        fis.getChannel.read(bb)
+        val data = new Array[Byte](bb.remaining)
+        val n = bb.get(data)
+        myData = data  // Make sure we actually read it all before we assign
+      }
+      finally { fis.close }
+    }
+
+    @annotation.tailrec def hasNext: Boolean = {
+      if (myData != null) true
+      else if (i >= as.length) false
+      else resource match {
+        case null =>
+          val f = new File(as(i))
+          if (!f.exists) { i += 1; hasNext }
+          else if (as(i).endsWith(".class")) {
+            rdFile(f)
+            i += 1
+            hasNext
+          }
+          else if (as(i).endsWith(".jar")) {
+            check(Try {
+              val zf = new ZipFile(f)
+              try {
+                val e = zf.entries().asInstanceOf[java.util.Enumeration[ZipEntry]]
+                resource = Right((zf,e))
+              }
+              finally { if (resource == null) zf.close }
+            })
+            hasNext
+          }
+          else if (f.isDirectory) {
+            check(Try {
+              val fs = f.listFiles.filter(_.getName.endsWith(".class"))
+              Left((fs,0))
+            })
+            hasNext
+          }
+          else { i += 1; hasNext }
+        case Left((af,j)) =>
+          if (j >= af.length) { resource = null; i += 1; hasNext }
+          else {
+            resource = Left((af,j+1))
+            rdFile(af(j))
+            hasNext
+          }
+        case Right((zf,e)) =>
+          var ze: ZipEntry = null
+          def good = (ze != null && ze.getName.endsWith(".class"))
+          while (e.hasMoreElements && !good) ze = e.nextElement
+          if (!good) { zf.close; resource = null; i += 1; hasNext }
+          else {
+            Try {
+              val zis = zf.getInputStream(ze)
+              try {
+                val data = new Array[Byte]((ze.getSize min (Int.MaxValue-1)).toInt)
+                var n, m = 0
+                while (n < data.length && m != -1) {
+                  m = zis.read(data, n, data.length-n)
+                  if (m >= 0) n += m
+                }
+                if (n == data.length) myData = data
+              }
+              finally { zis.close }
+            }
+            hasNext
+          }
+      }
+    }
+    
+    def next = if (!hasNext) throw new NoSuchElementException("Next on empty iterator") else {
+      val data = myData
+      myData = null
+      data
+    }
+  }
+
+  def main(argsAndOps: Array[String]) {
+    val ops = argsAndOps.takeWhile(_ != "--").filter(_.startsWith("--")).map{s =>
+      val i = s.indexOf('=');
+      if (i < 0) s.drop(2) -> ""
+      else s.substring(2,i) -> s.substring(i+1)
+    }.toMap
+    val args = argsAndOps.takeWhile(_ != "--").filter(! _.startsWith("--")) ++ argsAndOps.dropWhile(_ != "--").drop(1)
+    
+    val output = ops.get("output")
+    def writeWith[A](f: (String => Unit) => A): Try[A] = output match {
+      case None => Success(f((s: String) => println(s)))
+      case Some(s) => Try {
+        val fos = new FileOutputStream(s)
+        try {
+          val pw = new PrintWriter(fos)
+          try { f((s: String) => pw.println(s)) } finally { pw.close }
+        }
+        finally (fos.close)
+      }
+    }
+    
+    ops.get("hasField").foreach{ field =>
+      if (field.length > 0) writeWith(wr => classBytes(args).foreach(bs => findField(field, bs, wr)))
+    }
+  }
 }
