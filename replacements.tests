@@ -68,6 +68,7 @@ $NEW --> collection.immutable.BitSet( $ : _*)
 
 
 Int collection.immutable.HashSet[Int]
+flags --> S
 LET --> val
 $NEW --> (collection.immutable.HashSet.empty[Int] ++ $ )
 
@@ -101,7 +102,7 @@ $NEW --> (collection.immutable.ListSet.empty[Int] ++ $ )
 Int collection.immutable.PagedSeq[Int]
 flags --> A
 LET --> val
-$NEW --> ({ val temp = $ ; new collection.immutable.PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; k-i }) })
+$NEW --> ({ val temp = $ ; new collection.immutable.PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; if (k==i) -1 else k-i }) })
 
 
 Int collection.immutable.Queue[Int]
@@ -110,9 +111,9 @@ $NEW --> collection.immutable.Queue( $ : _*)
 
 
 Int collection.immutable.Range
-flags --> N
+flags --> N RANGE
 LET --> val
-$NEW --> ( $ )
+$NEW --> ( $ : collection.immutable.Range )
 
 
 Int collection.immutable.Seq[Int]
@@ -158,7 +159,7 @@ $NEW --> collection.immutable.Vector[Int]( $ : _*)
 
 
 Int Array[Int]
-flags --> A
+flags --> ARRAY
 CCM --> collection.mutable.WrappedArray[Int]
 $NEW --> Array[Int]( $ : _*)
 

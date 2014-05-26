@@ -37,16 +37,31 @@ case class Code(pre: Seq[String], wrap: Seq[String], tests: Seq[(String, Int)], 
   lazy val yflags = flags.filterNot(_.startsWith("!"))
   lazy val nflags = flags.filter(_.startsWith("!")).map(_.drop(1))
   def canRunOn[C <: Class[_]](klasses: Set[C], cflags: Set[String]): Boolean = {
-    val available = klasses.flatMap(_.getMethods.filterNot(isStatic)).map(x => dedollar(x.getName))
+    val available = klasses.flatMap(_.getMethods.filterNot(isStatic))
+    val named = available.map(x => dedollar(x.getName))
     val needs = all.flatMap(Parsing.readNeeds).toSet
-    (needs subsetOf available) && yflags.subsetOf(cflags) && (nflags & cflags).isEmpty
+    val ans = (needs subsetOf named) && yflags.subsetOf(cflags) && (nflags & cflags).isEmpty
+    available.filter(x => needs contains dedollar(x.getName)).foreach(hasCBF)
+    ans
   }
   def canRunOn[C <: Class[_]](klass: C, cflags: Set[String]): Boolean = canRunOn(Set(klass), cflags)
 }
 object Code {
+  val knownCBFs = new collection.mutable.AnyRefMap[Class[_], Set[java.lang.reflect.Method]]
+  
   // Checks if a method is static; if so, it doesn't count to satisfy a test.
   def isStatic(m: java.lang.reflect.Method) =
     java.lang.reflect.Modifier.isStatic(m.getModifiers)
+  
+  def hasCBF(m: java.lang.reflect.Method) = 
+    m.getParameterTypes.exists(c => classOf[collection.generic.CanBuildFrom[_,_,_]].isAssignableFrom(c)) match {
+      case true => 
+        val c = m.getDeclaringClass
+        val s = knownCBFs.getOrElseUpdate(c, Set())
+        if (!s.contains(m)) knownCBFs(c) = (s + m)
+        true
+      case false => false
+    }
 
   // Local reinterpretation of name mangling.  Probably should ask compiler instead.
   val knownDollars = 

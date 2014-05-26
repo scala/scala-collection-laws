@@ -18,7 +18,7 @@ object Instances { val all = Map(
 "collection.immutable.LinearSeq[Int]" -> (collection.immutable.LinearSeq[Int]((0 to 0): _*), classOf[collection.immutable.LinearSeq[Int]]),
 "collection.immutable.ListSet[Int]" -> ((collection.immutable.ListSet.empty[Int] ++(0 to 0)), classOf[collection.immutable.ListSet[Int]]),
 "collection.immutable.List[Int]" -> (collection.immutable.List[Int]((0 to 0): _*), classOf[collection.immutable.List[Int]]),
-"collection.immutable.PagedSeq[Int]" -> (({ val temp =(0 to 0); new collection.immutable.PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; k-i }) }), classOf[collection.immutable.PagedSeq[Int]]),
+"collection.immutable.PagedSeq[Int]" -> (({ val temp =(0 to 0); new collection.immutable.PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; if (k==i) -1 else k-i }) }), classOf[collection.immutable.PagedSeq[Int]]),
 "collection.immutable.Queue[Int]" -> (collection.immutable.Queue((0 to 0): _*), classOf[collection.immutable.Queue[Int]]),
 "collection.immutable.Range" -> (((0 to 0)), classOf[collection.immutable.Range]),
 "collection.immutable.Seq[Int]" -> (collection.immutable.Seq((0 to 0): _*), classOf[collection.immutable.Seq[Int]]),
