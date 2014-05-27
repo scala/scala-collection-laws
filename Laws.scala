@@ -155,15 +155,33 @@ import laws.Laws.sameType
       }.mkString("_")
       fixed.indices.map(desc + "_" + _) zip fixed
     }
-    if (collname contains "Buffer") println(s"$coll flags $flags")
-    if (collname contains "Set") println(s"$coll flags $flags")
     collname -> methods
   }).toList
   
   lawsAsWildCode.filterNot(_.covered).foreach{ code =>
     println("Test not used by any collection: "+code.core.mkString("; "))
   }
-
+  
+  knownRepls.foreach{ case (_,v) => v.foreach{ rep =>
+    val coll = rep("CC").head
+    val instance = Instances.all.getOrElse(coll, throw new IllegalArgumentException("Can't find instance "+coll))
+    val k = instance._2
+    if (!Code.filledNeed.contains(k)) {
+      println("Could not find any tests covering methods of "+k)
+    }
+    else {
+      val hittable = k.getMethods.
+        filter(x => (x.getModifiers & java.lang.reflect.Modifier.PUBLIC) != 0).
+        map(x => Code.dedollar(x.getName)).
+        filterNot(_ contains "$").toSet
+      val missed = hittable -- Code.filledNeed(k) -- Set("map", "flatMap", "filter")
+      if (missed.size > 0) {
+        println(s"Missed ${missed.size} methods on ${k.getName}")
+        missed.toList.sorted.map("  " + _).foreach(println)
+      }
+    }
+  }}
+  
   val lawsAsMethods = lawsAsCode.flatMap(_._2).map{ case (fname, methods) => fname -> {
     methods.flatten.map{ case (mname, lines) => 
       Vector(if (junit) "@Test" else "", s"def $mname() {") ++ lines.map("  "+_) :+ "}" 

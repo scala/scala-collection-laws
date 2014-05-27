@@ -175,7 +175,7 @@ y ... sameType(x, x.`:::`(y))
 n !ARRAY ... (n < 0) || (n >= x.`size`) || ((x: Any) match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
 n ARRAY ... (n < 0) || (n >= x.`size`) || { Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1) }
 // combinations goes here
-y ... x.`containsSlice`(y) == Iterator.from(0).map(x.`drop`).takeWhile(_.`nonEmpty`).exists(x.`take`(y.`size`) theSameAs y)
+y ... x.`containsSlice`(y) == Iterator.from(0).map(x.`drop`).takeWhile(_.`nonEmpty`).exists(_.`take`(y.`size`) theSameAs y)
 y ... val List(g,h,q) = List(x,y,x.`diff`(y)).map(_.`groupBy`(identity).mapValues(_.length).toMap); g.forall{ case (k,n) => val m = n - h.getOrElse(k,0); (m > 0) implies (q.getOrElse(k,0) == m) }
 val s = x.`toSet`; x.`distinct`.`size` == s.size && x.forall(s)
 n !S ... x.`dropRight`(n) theSameAs x.`reverse`.`drop`(n).reverse
@@ -207,9 +207,9 @@ p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)
 x.`lastOption` == Try{ x.`last` }.toOption
 n ... x.`lengthCompare`(n).signum == (x.`size` compare n).signum
 !ITERATOR ... val xx = x.map(_.toString); xx eq xx.`mapConserve`(identity)
-x.`size` > 8 || x.`permutations`.size == x.toVector.groupBy(identity).map{ case (_,vs) => vs.size }.scanLeft((x.size,0)){ (c,i) => (c._1 - c._2, i) }.map{ case (n,k) => (1L to k).map(n+1 - _).prod / (1L to k).prod }.prod
+x.`size` > 8 || x.`permutations`.size == x.toVector.groupBy(identity).map{ case (_,vs) => vs.size }.scanLeft((x.size,0)){ (c,i) => (c._1 - c._2, i) }.map{ case (n,k) => (1L to k).map(n+1 - _).product / (1L to k).product }.product
 x.`size` > 8 || x.`permutations`.size == x.`permutations`.toSet.size
-x.`size` > 8 || { val xs = x.toSet; x.`permutations`.forall(xs) }
+x.`size` > 8 || { val xs = x.toSet; x.`permutations`.forall(_.forall(xs)) }
 p ... x.`prefixLength`(p) == x.`takeWhile`(p).`size`
 x.`productIterator` theSameAs x
 val ix = x.`toIndexedSeq`; val k = x.`size`; var ki = 0; x.`reverse`.`forall`{ xi => ki += 1; xi == ix(k - ki) }
@@ -221,7 +221,7 @@ y ... x.`reverse_:::`(y) theSameAs x.`:::`(y.`reverse`)
 y ... sameType(x, x.`reverse_:::`(y))
 p n ... n <= 0 || x.`segmentLength`(p,n) == x.`drop`(n).`takeWhile`(p).`size`
 r ... r <= 0 || x.`sliding`(r).`size` == (if (x.nonEmpty) math.max(0,x.`size`-r)+1 else 0)
-r ... r <= 0 || x.`size` <= 0 || { vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) == (for (i <- 0 to (1+vx.size-r)) yield vx.slice(i,math.min(vx.size,i+r))).toVector }
+r ... r <= 0 || x.`size` <= 0 || { val vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) == (for (i <- 0 to (1+vx.size-r)) yield vx.slice(i,math.min(vx.size,i+r))).toVector }
 f ... x.`sortBy`(f) theSameAs x.`sortWith`((a,b) => f(a) < f(b))
 f ... val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList; (xx zip xx.drop(1)).forall{ case (a,b) => !(f(a) > f(b)) }
 x.`sorted` theSameAs x.`toArray`.sorted // Need to add a custom ordering here

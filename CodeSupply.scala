@@ -41,6 +41,7 @@ case class Code(pre: Seq[String], wrap: Seq[String], tests: Seq[(String, Int)], 
     val named = available.map(x => dedollar(x.getName))
     val needs = all.flatMap(Parsing.readNeeds).toSet
     val ans = (needs subsetOf named) && yflags.subsetOf(cflags) && (nflags & cflags).isEmpty
+    if (ans) klasses.foreach(k => filledNeed(k) = filledNeed.getOrElseUpdate(k,Set()) ++ needs)
     available.filter(x => needs contains dedollar(x.getName)).foreach(hasCBF)
     ans
   }
@@ -48,6 +49,7 @@ case class Code(pre: Seq[String], wrap: Seq[String], tests: Seq[(String, Int)], 
 }
 object Code {
   val knownCBFs = new collection.mutable.AnyRefMap[Class[_], Set[java.lang.reflect.Method]]
+  val filledNeed = new collection.mutable.AnyRefMap[Class[_], Set[String]]
   
   // Checks if a method is static; if so, it doesn't count to satisfy a test.
   def isStatic(m: java.lang.reflect.Method) =
