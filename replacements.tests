@@ -57,7 +57,9 @@ OP --> + *
 LET --> def
 ONE --> 1
 ZERO --> 0
+DEFINITE --> true
 instance --> $NEW((0 to 0))
+doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
 
 
 // Immutable types
@@ -143,6 +145,7 @@ $NEW --> collection.immutable.Stack( $ : _*)
 Int collection.immutable.Stream[Int]
 LET --> val
 $NEW --> ( $ ).toStream
+DEFINITE --> false
 
 
 Int collection.immutable.Traversable[Int]
@@ -289,6 +292,7 @@ $NEW --> collection.Iterable[Int]( $ : _*)
 Int collection.Iterator[Int]
 flags --> ITERATOR
 $NEW --> ( $ ).iterator
+DEFINITE --> false
 
 
 Int collection.LinearSeq[Int]
@@ -317,3 +321,6 @@ Int collection.TraversableOnce[Int]
 $NEW --> (( $ ).iterator: collection.TraversableOnce[Int])
 
 
+Int collection.SeqView[Int,Seq[Int]]
+flags --> VIEW
+$NEW --> Seq( $ : _*).view

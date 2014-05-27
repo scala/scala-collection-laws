@@ -9,6 +9,7 @@ object Instances {
     "collection.Iterable[Int]" -> (collection.Iterable[Int]((0 to 0): _*), classOf[collection.Iterable[Int]], mth(collection.Iterable[Int]((0 to 0): _*))),
     "collection.Iterator[Int]" -> (((0 to 0)).iterator, classOf[collection.Iterator[Int]], mth(((0 to 0)).iterator)),
     "collection.LinearSeq[Int]" -> (collection.LinearSeq[Int]((0 to 0): _*), classOf[collection.LinearSeq[Int]], mth(collection.LinearSeq[Int]((0 to 0): _*))),
+    "collection.SeqView[Int,Seq[Int]]" -> (Seq((0 to 0): _*).view, classOf[collection.SeqView[Int,Seq[Int]]], mth(Seq((0 to 0): _*).view)),
     "collection.Seq[Int]" -> (collection.Seq[Int]((0 to 0): _*), classOf[collection.Seq[Int]], mth(collection.Seq[Int]((0 to 0): _*))),
     "collection.Set[Int]" -> ((collection.Set.empty[Int] ++(0 to 0)), classOf[collection.Set[Int]], mth((collection.Set.empty[Int] ++(0 to 0)))),
     "collection.SortedSet[Int]" -> ((collection.SortedSet.empty[Int] ++(0 to 0)), classOf[collection.SortedSet[Int]], mth((collection.SortedSet.empty[Int] ++(0 to 0)))),

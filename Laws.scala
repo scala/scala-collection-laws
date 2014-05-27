@@ -164,9 +164,9 @@ import laws.Laws.sameType
     println("Test not used by any collection: "+code.core.mkString("; "))
   }
   
-  val doNotCheck = Set("foreach", "map", "flatMap", "filter", "seq", "par", "equals", "toString", "canEqual")
   knownRepls.foreach{ case (_,v) => v.foreach{ rep =>
     val coll = rep("CC").head
+    val doNotCheck = rep("doNotVerifyMethods").toSet
     val instance = Instances.all.getOrElse(coll, throw new IllegalArgumentException("Can't find instance "+coll))
     val k = instance._2
     if (!Code.filledNeed.contains(k)) {
