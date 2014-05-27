@@ -109,11 +109,13 @@ import laws.Laws.sameType
   }
   
   val instanceCode =
-    Vector(autoComment,"package laws","object Instances { val all = Map(") ++
-    knownRepls.toVector.flatMap{ case (_,vs) =>
-      vs.map{ mm => "\"" + mm("CC").head + "\" -> (" + mm("instance").head + ", classOf[" + mm("CCM").head + "])," }
-    }.sorted ++
-    Vector("  \"\" -> null)", "}")
+    Vector(autoComment,"package laws","import scala.reflect.runtime.{universe => ru}","object Instances {",
+      "  def mth[T: ru.TypeTag](t: T) = implicitly[ru.TypeTag[T]].tpe.declarations.filter(_.isMethod).filter(_.isPublic).map(_.name)",
+      "  val all = Map(") ++
+      knownRepls.toVector.flatMap{ case (_,vs) =>
+        vs.map{ mm => "    \"" + mm("CC").head + "\" -> (" + mm("instance").head + ", classOf[" + mm("CCM").head + "], mth(" + mm("instance").head + "))," }
+      }.sorted ++
+      Vector("    \"\" -> null","  )", "}")
     
   if (instanceCode != existingInstanceCode) {
     val pw = new java.io.PrintWriter("Instances.scala")
@@ -170,10 +172,7 @@ import laws.Laws.sameType
       println("Could not find any tests covering methods of "+k)
     }
     else {
-      val hittable = k.getMethods.
-        filter(x => (x.getModifiers & java.lang.reflect.Modifier.PUBLIC) != 0).
-        map(x => Code.dedollar(x.getName)).
-        filterNot(_ contains "$").toSet
+      val hittable = instance._3.map(nm => Code.dedollar(nm.toString)).filterNot(_ contains "$").toSet
       val missed = hittable -- Code.filledNeed(k) -- Set("map", "flatMap", "filter")
       if (missed.size > 0) {
         println(s"Missed ${missed.size} methods on ${k.getName}")
