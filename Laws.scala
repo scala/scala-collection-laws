@@ -110,7 +110,7 @@ import laws.Laws.sameType
   
   val instanceCode =
     Vector(autoComment,"package laws","import scala.reflect.runtime.{universe => ru}","object Instances {",
-      "  def mth[T: ru.TypeTag](t: T) = implicitly[ru.TypeTag[T]].tpe.declarations.filter(_.isMethod).filter(_.isPublic).map(_.name)",
+      "  def mth[T: ru.TypeTag](t: T) = implicitly[ru.TypeTag[T]].tpe.declarations.filter(d => d.isMethod && d.isPublic && !d.isStatic && !d.isConstructor).map(_.name)",
       "  val all = Map(") ++
       knownRepls.toVector.flatMap{ case (_,vs) =>
         vs.map{ mm => "    \"" + mm("CC").head + "\" -> (" + mm("instance").head + ", classOf[" + mm("CCM").head + "], mth(" + mm("instance").head + "))," }
@@ -164,6 +164,7 @@ import laws.Laws.sameType
     println("Test not used by any collection: "+code.core.mkString("; "))
   }
   
+  val doNotCheck = Set("foreach", "map", "flatMap", "filter", "seq", "par", "equals", "toString", "canEqual")
   knownRepls.foreach{ case (_,v) => v.foreach{ rep =>
     val coll = rep("CC").head
     val instance = Instances.all.getOrElse(coll, throw new IllegalArgumentException("Can't find instance "+coll))
@@ -173,7 +174,7 @@ import laws.Laws.sameType
     }
     else {
       val hittable = instance._3.map(nm => Code.dedollar(nm.toString)).filterNot(_ contains "$").toSet
-      val missed = hittable -- Code.filledNeed(k) -- Set("map", "flatMap", "filter")
+      val missed = hittable -- Code.filledNeed(k) -- doNotCheck
       if (missed.size > 0) {
         println(s"Missed ${missed.size} methods on ${k.getName}")
         missed.toList.sorted.map("  " + _).foreach(println)

@@ -2,7 +2,7 @@
 package laws
 import scala.reflect.runtime.{universe => ru}
 object Instances {
-  def mth[T: ru.TypeTag](t: T) = implicitly[ru.TypeTag[T]].tpe.declarations.filter(_.isMethod).filter(_.isPublic).map(_.name)
+  def mth[T: ru.TypeTag](t: T) = implicitly[ru.TypeTag[T]].tpe.declarations.filter(d => d.isMethod && d.isPublic && !d.isStatic && !d.isConstructor).map(_.name)
   val all = Map(
     "Array[Int]" -> (Array[Int]((0 to 0): _*), classOf[collection.mutable.WrappedArray[Int]], mth(Array[Int]((0 to 0): _*))),
     "collection.IndexedSeq[Int]" -> (collection.IndexedSeq[Int]((0 to 0): _*), classOf[collection.IndexedSeq[Int]], mth(collection.IndexedSeq[Int]((0 to 0): _*))),

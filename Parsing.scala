@@ -5,8 +5,14 @@ import collection.mutable.Builder
 object Parsing {
   // Read what methods are needed (names appear between backticks), or remove the backticks
   val NeedReg = "`[^`]+`".r
-  def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => x.slice(1,x.length-1)).toSet
-  def fixNeeds(s: String) = NeedReg.replaceAllIn(s, _.toString.drop(1).dropRight(1))
+  def fixBackslash(s: String, pre: String = ""): String = {
+    val i = s.indexOf('\\')
+    if (i < 0) { if (pre.isEmpty) s else pre+s }
+    else if (i+1 < s.length && s(i+1) == '\\') fixBackslash(s.substring(i+2), pre + s.substring(0,i+1))
+    else fixBackslash(s.substring(i+1), pre + s.substring(0,i+1))
+  }
+  def readNeeds(s: String) = NeedReg.findAllIn(s).map(x => fixBackslash(x.slice(1,x.length-1))).toSet
+  def fixNeeds(s: String) = NeedReg.replaceAllIn(s, x => fixBackslash(x.toString.drop(1).dropRight(1)))
   
   // Find which variables to create, or what flags apply, or remove all that and just retain code
   def readCalls(s: String) = {
