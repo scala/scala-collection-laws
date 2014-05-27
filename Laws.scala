@@ -196,7 +196,7 @@ import laws.Laws.sameType
       val source = s"$dirname/$fname.scala"
       compile.foreach{ pw => Try{ 
         pw.println(s"echo 'Compiling $source'")
-        pw.println(s"time scalac $source") 
+        pw.println(s"time scalac -J-Xmx1G $source") 
         pw.println
       } }
       run.foreach{ pw => Try {

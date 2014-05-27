@@ -62,7 +62,7 @@ sameType(x, x.`companion`.empty[@A])
 
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b1) == z
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z
-n m r ... n < 0 || n >= x.`size` || m < 0 || { val arr = new Array[@A](r); x.`copyToArray`(arr, n, m); arr.take(math.min(m,r)) theSameAs x.toArray.drop(n).take(m) }
+//n m r ... n < 0 || n >= 1024 || { val arr = new Array[@A](n+r+m); x.`copyToArray`(arr, n, r); val k = math.max(0, arr.length-n); arr.drop(n).take(k) theSameAs x.toArray.take(k) }
 pf ... x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)
 val b = new collection.mutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x
 p ... x.`count`(p) > 0 == x.`exists`(p)
@@ -184,7 +184,7 @@ y ... sameType(x, x.`:::`(y))
 n !ARRAY ... (n < 0) || (n >= x.`size`) || ((x: Any) match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
 n ARRAY ... (n < 0) || (n >= x.`size`) || { Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1) }
 // combinations goes here
-y ... x.`containsSlice`(y) == Iterator.from(0).map(x.`drop`).takeWhile(_.`nonEmpty`).exists(_.`take`(y.`size`) theSameAs y)
+y ... x.`containsSlice`(y) == (y.`size` == 0 || (Iterator.from(0).map(x.`drop`).takeWhile(_.`nonEmpty`).exists(_.`take`(y.`size`) theSameAs y)))
 y ... val List(xg,yg,xdyg) = List(x,y,x.`diff`(y)).map(_.`groupBy`(identity).mapValues(_.size).toMap); xg.forall{ case (k,n) => val m = n - yg.getOrElse(k,0); (m > 0) implies (xdyg.getOrElse(k,0) == m) }
 val s = x.`toSet`; x.`distinct`.`size` == s.size && x.forall(s)
 n !S ... x.`dropRight`(n) theSameAs x.`reverse`.`drop`(n).reverse
@@ -204,7 +204,7 @@ p !ITERATOR ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
 p ITERATOR ... val k = x.`takeWhile`(xi => !p(xi)).`size`; x.`indexWhere`(p) match { case -1 => k == x.`size`; case q => q == k }
 x.`indices` == (0 until x.`size`)
 x.`size` == 0 || x.`init` == x.`dropRight`(1)
-x.`inits`.toVector.map(_.toVector) == { val vx = x.`toVector`; (for (i <- vx.indices) yield vx.drop(i)).toVector }
+x.`inits`.toVector.map(_.toVector) == { val vx = x.`toVector`; (for (i <- vx.length to 0 by -1) yield vx.take(i)).toVector }
 y ... x.`intersect`(y).`toSet` == (x.toSet & y.toSet)  // Need to improve this one
 y !RANGE ... sameType(x, x.`intersect`(y))
 x.`iterator` theSameAs x
@@ -230,9 +230,9 @@ y ... x.`reverse_:::`(y) theSameAs x.`:::`(y.`reverse`)
 y ... sameType(x, x.`reverse_:::`(y))
 p n ... n <= 0 || x.`segmentLength`(p,n) == x.`drop`(n).`takeWhile`(p).`size`
 r ... r <= 0 || x.`sliding`(r).`size` == (if (x.nonEmpty) math.max(0,x.`size`-r)+1 else 0)
-r ... r <= 0 || x.`size` <= 0 || { val vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) == (for (i <- 0 to (1+vx.size-r)) yield vx.slice(i,math.min(vx.size,i+r))).toVector }
+r ... r <= 0 || x.`size` <= 0 || (r >= x.`size` && { x.`sliding`(r).map(_.toVector).toVector == Vector(x.toVector) }) || { val vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) == Vector.range(0, 1+vx.size-r).map(i => vx.slice(i,i+r)) }
 f ... x.`sortBy`(f) theSameAs x.`sortWith`((a,b) => f(a) < f(b))
-f ... val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList; (xx zip xx.drop(1)).forall{ case (a,b) => !(f(a) > f(b)) }
+f ... val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList; (xx zip xx.drop(1)).forall{ case (a,b) => !(f(a) < f(b)) }
 x.`sorted` theSameAs x.`toArray`.sorted // Need to add a custom ordering here
 n ... val (x1,x2) = x.`splitAt`(n); (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
 n ... val (x1,x2) = x.`splitAt`(n); sameType(x1, x2) && sameType(x, x1)
@@ -300,3 +300,11 @@ x.`clone` theSameAs x
 x.`empty` theSameAs Nil
 x.`toQueue` theSameAs x
 y ... x.`subsetOf`(y) == x.`forall`(y contains _)
+
+LAZY r f ... { var k = 0; x.map{ xi => k += 1; f(xi) }.`take`(r); k <= r }
+LAZY r f ... { var k = 0; x.flatMap{ xi => k += 1; List(xi, f(xi)) }.`take`(r); k < (r+1)/2 }
+LAZY r pf ... { var k = 0; x.`collect`{ xi if pf.isDefinedAt(xi) => k += 1; pf(xi) }.`take`(r); k <= r }
+LAZY r p ... { var k = 0; x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r); k <= r }
+LAZY r p ... { var k = 0; x.`filterNot`{ xi => if (!p(xi)) k += 1; p(xi) }.`take`(r); k <= r }
+LAZY r ... { var over = false; (x `zip` Iterator.iterate(0){ i => if (i>=r) over = true; i+1 }).`take`(r); !over }
+LAZY r ... { var over = false; (x `zipAll` Iterator.iterate(0){ i => if (i >= r) over = true; i+1 }.take(r+2)).`take`(r); !over }
