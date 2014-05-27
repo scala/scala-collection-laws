@@ -57,7 +57,7 @@ x.`toStream` theSameAs x
 x.`toTraversable` theSameAs x
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b1) == z
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z
-// copyToArray goes here...need some conditions
+n m r ... n < 0 || n >= x.`size` || m < 0 || { val arr = new Array[@A](r); x.`copyToArray`(arr, n, m); arr.take(math.min(m,r)) theSameAs x.`drop`(n).`take`(m) }
 pf ... x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)
 val b = new collection.mutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x
 p ... x.`count`(p) > 0 == x.`exists`(p)
@@ -66,11 +66,11 @@ p ... x.`count`(p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }
 p ... x.filter(p).`size` == x.`count`(p) // Filter is part of MonadOps, so we won't test for it!
 p ... x.filter(p).`forall`(p) == true
 p !RANGE ... sameType(x, x.filter(p))
-a op ... Set(x.`fold`(a)(op), x.`foldLeft`(a)(op), x.`foldRight`(a)(op), x.`/:`(a)(op), x.`:\\`(a)(op)).size == 1""
+// a op ... Set(x.`fold`(a)(op), x.`foldLeft`(a)(op), x.`foldRight`(a)(op), x.`/:`(a)(op), x.`:\\`(a)(op)).size == 1
 Try{x.`max`}.toOption == Try{x.`reduce`(_ max _)}.toOption
-// maxBy(f)
+f ... Try{x.`maxBy`(f)}.toOption == Try{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }.toOption
 Try{x.`min`}.toOption == Try{x.`reduce`(_ min _)}.toOption
-// minBy(f)
+f ... Try{x.`minBy`(f)}.toOption == Try{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }.toOption
 x.`nonEmpty` == x.`exists`(_ => true)
 one ... x.`product` == x.`fold`(one)(_ * _)
 op ... Set(Try{x.`reduce`(op)}.toOption, Try{x.`reduceLeft`(op)}.toOption, Try{x.`reduceRight`(op)}.toOption, x.`reduceLeftOption`(op), x.`reduceRightOption`(op)).size == 1
@@ -136,7 +136,7 @@ n m !S ... n < 0 || m >= x.size || { x.`slice`(n, m) theSameAs x.`drop`(n).`take
 n m ... n < 0 || m >= x.size || { sameType(x, x.`slice`(n, m)) }
 p ... x.`span`(p)._1.`forall`(p)
 p !S ... (x.span(p)._2.`size`) > 0 implies !x.`span`(p)._2.`take`(1).`exists`(p)
-p S ... (x.span(p)._2.`size`) > 0 implies !x.`span`(p)._2.`forall(p)`
+p S ... (x.span(p)._2.`size`) > 0 implies !x.`span`(p)._2.`forall`(p)
 p ... val (x1, x2) = x.`span`(p); val n = x1.`span`(p)._1.`size`; (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
 p ... val (x1, x2) = x.`span`(p); sameType(x1, x2) && sameType(x, x1)
 n ... x.`take`(n).`size` == ((0 max n) min x.size)
@@ -175,24 +175,27 @@ y ... sameType(x, x.`:::`(y))
 n !ARRAY ... (n < 0) || (n >= x.`size`) || ((x: Any) match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
 n ARRAY ... (n < 0) || (n >= x.`size`) || { Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1) }
 // combinations goes here
-// containsSlice goes here
-// diff goes here, this is broken: y ... val List(g,h) = List(x,y).`groupBy`(identity).mapValues(_.length).toMap; x.`diff`(y).`groupBy`(identity).mapValues(_.length).forall{ case (k,v) => v == (0 max g(k)-h.get(k).getOrElse(0)) }
+y ... x.`containsSlice`(y) == Iterator.from(0).map(x.`drop`).takeWhile(_.`nonEmpty`).exists(x.`take`(y.`size`) theSameAs y)
+y ... val List(g,h,q) = List(x,y,x.`diff`(y)).map(_.`groupBy`(identity).mapValues(_.length).toMap); g.forall{ case (k,n) => val m = n - h.getOrElse(k,0); (m > 0) implies (q.getOrElse(k,0) == m) }
 val s = x.`toSet`; x.`distinct`.`size` == s.size && x.forall(s)
 n !S ... x.`dropRight`(n) theSameAs x.`reverse`.`drop`(n).reverse
 sameType(x, x.`reverse`)
-// endsWith goes here
-// groupBy goes here
-!x.`nonEmpty` || (x match { case _: scala.collection.Seq[_] => Seq(x.`head`) theSameAs x.`take`(1); case _ => true })
+y ... x.`endsWith`(y) == (x.`drop`(math.max(0, x.`size`-y.size)) theSameAs y)
+g ... x.`groupBy`(g).keySet theSameAs x.map(g).toSet
+g ... x.`groupBy`(g).toMap.forall{ case (k,vs) => x.filter(xi => g(xi)==k) theSameAs vs }
+!ARRAY ... !x.`nonEmpty` || (x match { case _: scala.collection.Seq[_] => Seq(x.`head`) theSameAs x.`take`(1); case _ => true })
+ARRAY ... !x.`nonEmpty` || (Seq(x.`head`) theSameAs x.`take`(1))
 x.`headOption` == Try{ x.`head` }.toOption
 n a ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }
 a ... x.`indexOf`(a) == x.`indexOf`(a,0)
-// indexOfSlice goes here
+y ... (x.`indexOfSlice`(y) >= 0) == x.`containsSlice`(y)
+y ... val i = x.`indexOfSlice`(y); (i < 0) || (x.`drop`(i).`take`(y.`size`) theSameAs y)
 p n !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`indexWhere`(p,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && p(x.`drop`(kk).`head`) } }
 p !ITERATOR ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
 p ITERATOR ... val k = x.`takeWhile`(xi => !p(xi)).`size`; x.`indexWhere`(p) match { case -1 => k == x.`size`; case q => q == k }
 x.`indices` == (0 until x.`size`)
 x.`size` == 0 || x.`init` == x.`dropRight`(1)
-// inits goes here, this doesn't work: x.`inits` theSameAs Iterator.iterate(x.`toSeq`.iterator)(_.`dropRight(1)).takeWhile(_.nonEmpty) :+ x.toSeq.dropRight(x.`size`)
+x.`inits`.toVector.map(_.toVector) == { val vx = x.`toVector`; (for (i <- vx.indices) yield vx.drop(i)).toVector }
 y ... x.`intersect`(y).`toSet` == (x.toSet & y.toSet)  // Need to improve this one
 y !RANGE ... sameType(x, x.`intersect`(y))
 x.`iterator` theSameAs x
@@ -203,8 +206,10 @@ p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`ind
 p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)
 x.`lastOption` == Try{ x.`last` }.toOption
 n ... x.`lengthCompare`(n).signum == (x.`size` compare n).signum
-// mapConserve goes here
-// permutations goes here
+!ITERATOR ... val xx = x.map(_.toString); xx eq xx.`mapConserve`(identity)
+x.`size` > 8 || x.`permutations`.size == x.toVector.groupBy(identity).map{ case (_,vs) => vs.size }.scanLeft((x.size,0)){ (c,i) => (c._1 - c._2, i) }.map{ case (n,k) => (1L to k).map(n+1 - _).prod / (1L to k).prod }.prod
+x.`size` > 8 || x.`permutations`.size == x.`permutations`.toSet.size
+x.`size` > 8 || { val xs = x.toSet; x.`permutations`.forall(xs) }
 p ... x.`prefixLength`(p) == x.`takeWhile`(p).`size`
 x.`productIterator` theSameAs x
 val ix = x.`toIndexedSeq`; val k = x.`size`; var ki = 0; x.`reverse`.`forall`{ xi => ki += 1; xi == ix(k - ki) }
@@ -214,10 +219,11 @@ f ... x.`reverseMap`(f) theSameAs x.map(f).`reverse`
 f !RANGE ... sameType(x, x.`reverseMap`(f))
 y ... x.`reverse_:::`(y) theSameAs x.`:::`(y.`reverse`)
 y ... sameType(x, x.`reverse_:::`(y))
-// segmentLength goes here
-// sliding goes here
-// sortBy goes here
-// sortWith goes here
+p n ... n <= 0 || x.`segmentLength`(p,n) == x.`drop`(n).`takeWhile`(p).`size`
+r ... r <= 0 || x.`sliding`(r).`size` == (if (x.nonEmpty) math.max(0,x.`size`-r)+1 else 0)
+r ... r <= 0 || x.`size` <= 0 || { vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) == (for (i <- 0 to (1+vx.size-r)) yield vx.slice(i,math.min(vx.size,i+r))).toVector }
+f ... x.`sortBy`(f) theSameAs x.`sortWith`((a,b) => f(a) < f(b))
+f ... val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList; (xx zip xx.drop(1)).forall{ case (a,b) => !(f(a) > f(b)) }
 x.`sorted` theSameAs x.`toArray`.sorted // Need to add a custom ordering here
 n ... val (x1,x2) = x.`splitAt`(n); (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
 n ... val (x1,x2) = x.`splitAt`(n); sameType(x1, x2) && sameType(x, x1)
@@ -230,7 +236,8 @@ n !RANGE ... sameType(x, x.`takeRight`(n))
 // transpose goes here
 y ... x.`union`(y).`toSet` == (x.toSet union y.toSet)
 y !RANGE ... sameType(x, x.`union`(y))
-// unzip goes here
+y ... val xa = x.`zip`(y).`unzip`._1.`toArray`; x.`take`(xa.size) theSameAs xa
+y ... val xb = x.`zip`(y).`unzip`._2.`toArray`; y.`take`(xb.size) theSameAs xb
 x theSameAs x.`view`
 y ... val x0 = x; x0.`++=`(y); x0 theSameAs (x.`++`(y))
 y ... val x0 = x; x0.`++=:`(y); x0 theSameAs (y.`++`(x))
@@ -247,7 +254,7 @@ y ... { val z = x; z.`appendAll`(y); z } == x.`++=`(y)
 a ... { val z = x; z.`prepend`(a); z } == x.`+=:`(a)
 y ... { val z = x; z.`prependAll`(y); z } == x.`++=:`(y)
 n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`reduceToSize`(n); x0.`size` == n }
-// n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`reduceToSize`(n); x0 theSameAs x.`take`(n) }
+n !S ... n < 0 || n >= x.`size` || { val x0 = x; x0.`reduceToSize`(n); x0 theSameAs x.`take`(n) }
 n m !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; x0.`remove`(n,m); x0 theSameAs (x.`take`(n).`++`(x.`drop`(n+(0 max m)))) }
 n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; val a0 = x0.`remove`(n); x0.`size` == x.`size`-1 && x.`apply`(n) == a0 }
 n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0, x1 = x; x0.`remove`(n); x1.`remove`(n,1); x0 theSameAs x1 }
