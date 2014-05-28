@@ -56,7 +56,7 @@ x.`toIterator` theSameAs x
 x.`toStream` theSameAs x
 x.`toTraversable` theSameAs x
 
-sameType(x, x.`companion`.empty[@A])
+!A ... sameType(x, x.`companion`.empty[@A])
 !S ... x.`mkString` == { val sb = new StringBuilder; x.foreach(sb ++= _.toString); sb.result }
 !S ... x.`mkString` == { val sb = new StringBuilder; x.`addString`(sb); sb.result }
 
@@ -164,7 +164,6 @@ y a b !N ... sameType(x, x.`zipAll`(y, a, b).map(_._1))
 x.`zipWithIndex`.map(_._1) theSameAs x
 x.`zipWithIndex`.map(_._2) theSameAs (0 until x.`size`)
 !N ... sameType(x, x.`zipWithIndex`.map(_._1))
-x.`productArity` == x.`size`
 y ... x.`++`(y) theSameAs x.`:++`(y)
 y ... x.`++`(y) theSameAs y.`++:`(x)
 a ... x.`::`(a).`size` == x.size+1
@@ -265,7 +264,7 @@ a ... { val z = x; z.`prepend`(a); z } == x.`+=:`(a)
 y ... { val z = x; z.`prependAll`(y); z } == x.`++=:`(y)
 n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`reduceToSize`(n); x0.`size` == n }
 n !S ... n < 0 || n >= x.`size` || { val x0 = x; x0.`reduceToSize`(n); x0 theSameAs x.`take`(n) }
-n m !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; x0.`remove`(n,m); x0 theSameAs (x.`take`(n).`++`(x.`drop`(n+(0 max m)))) }
+n m !S !DOUBLL ... n < 0 || m < 0 || n >= x.`size` || { val x0 = x; x0.`remove`(n,m); x0 theSameAs (x.`take`(n).`++`(x.`drop`(n+(0 max m)))) }
 n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; val a0 = x0.`remove`(n); x0.`size` == x.`size`-1 && x.`apply`(n) == a0 }
 n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0, x1 = x; x0.`remove`(n); x1.`remove`(n,1); x0 theSameAs x1 }
 x.`result` theSameAs x
@@ -303,7 +302,7 @@ y ... x.`subsetOf`(y) == x.`forall`(y contains _)
 
 LAZY r f ... { var k = 0; x.map{ xi => k += 1; f(xi) }.`take`(r); k <= r }
 LAZY r f ... { var k = 0; x.flatMap{ xi => k += 1; List(xi, f(xi)) }.`take`(r); k < (r+1)/2 }
-LAZY r pf ... { var k = 0; x.`collect`{ xi if pf.isDefinedAt(xi) => k += 1; pf(xi) }.`take`(r); k <= r }
+LAZY r pf ... { var k = 0; x.`collect`{ case xi if pf.isDefinedAt(xi) => k += 1; pf(xi) }.`take`(r); k <= r }
 LAZY r p ... { var k = 0; x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r); k <= r }
 LAZY r p ... { var k = 0; x.`filterNot`{ xi => if (!p(xi)) k += 1; p(xi) }.`take`(r); k <= r }
 LAZY r ... { var over = false; (x `zip` Iterator.iterate(0){ i => if (i>=r) over = true; i+1 }).`take`(r); !over }

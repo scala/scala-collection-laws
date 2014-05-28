@@ -157,7 +157,46 @@ import laws.Laws.sameType
       }.mkString("_")
       fixed.indices.map(desc + "_" + _) zip fixed
     }
-    collname -> methods
+    val compactedMethods = {
+      type Entry = (String, Seq[String])
+      def titleCore(e: Entry) = e._1.split('_').dropRight(1).mkString("_")
+      def coll(e: Entry) = e._2.head match { 
+        case s if s.startsWith("def x = ") || s.startsWith("val x = ") =>
+          Some(s.drop("def x = ".length))
+        case _ => None
+      }
+      def mergeOf(ea: Entry, eb: Entry): Option[(String, List[String], Seq[String], String)] = {
+        val title = titleCore(ea)
+        if (title != titleCore(eb)) None
+        else List(coll(ea), coll(eb)).flatten match {
+          case cab @ List(ca, cb) =>
+            val tail = ea._2.drop(1)
+            if (tail == eb._2.drop(1)) Some((title, cab, tail, ea._2.head.take("def x = ".length)))
+            else None
+          case _ => None
+        }
+      }
+      def compact(es: Seq[Entry], merged: Seq[Entry] = Seq.empty): Seq[Entry] = {
+        if (es.isEmpty) merged
+        else if (es.lengthCompare(1) == 0) merged :+ es.head
+        else {
+          val h = es.head
+          val t = es.tail
+          val m = t.iterator.map(ti => mergeOf(h,ti)).takeWhile(_.isDefined).toVector.flatten
+          if (m.length == 0) compact(t, merged :+ h)
+          else {
+            val title = m.head._1
+            val body = m.head._3
+            val dv = m.head._4
+            val gens = m.map(_._2.toVector).reduce(_ :+ _.last).mkString("List(() => ",", () => ", ").foreach{ generator => ")
+            val combo = (title, (gens +: ("  "+dv+"generator()") +: body.map("  "+_)) :+ "}")
+            compact(t.drop(m.length), merged :+ combo)
+          }
+        }
+      }
+      methods.map(ms => compact(ms))
+    }
+    collname -> compactedMethods
   }).toList
   
   lawsAsWildCode.filterNot(_.covered).foreach{ code =>
