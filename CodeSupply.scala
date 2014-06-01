@@ -18,7 +18,7 @@ case class Code(pre: Seq[String], wrap: Seq[String], tests: Seq[(String, Int)], 
   // Generates an error message based on loop context.
   def msg = Seq(
     ("  "*wrap.length) +
-    "val message = (lnum: Int) => \"Law line %d with %x;\".format(lnum, x.toString)" + 
+    "val message = (lnum: Int) => \"Law line %d with %s;\".format(lnum, x.mkString(\",\"))" + 
     wrap.map(_.trim).filter(_.startsWith("for (")).map(_.drop(5).
       takeWhile(_.isLetter)).filter(_.length > 0).map(x => """+" %s="+%s.toString""".format(x,x)).
       mkString

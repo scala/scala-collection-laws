@@ -157,6 +157,7 @@ import laws.Laws.sameType
       }.mkString("_")
       fixed.indices.map(desc + "_" + _) zip fixed
     }
+    /*
     val compactedMethods = {
       type Entry = (String, Seq[String])
       def titleCore(e: Entry) = e._1.split('_').dropRight(1).mkString("_")
@@ -196,7 +197,8 @@ import laws.Laws.sameType
       }
       methods.map(ms => compact(ms))
     }
-    collname -> compactedMethods
+    */
+    collname -> methods
   }).toList
   
   lawsAsWildCode.filterNot(_.covered).foreach{ code =>
@@ -235,13 +237,13 @@ import laws.Laws.sameType
       val source = s"$dirname/$fname.scala"
       compile.foreach{ pw => Try{ 
         pw.println(s"echo 'Compiling $source'")
-        pw.println(s"time scalac -J-Xmx1G $source") 
+        pw.println(s"time scc -J-Xmx1G $source") 
         pw.println
       } }
       run.foreach{ pw => Try {
         val target = s"$containingPackage.$fname" 
         pw.println(s"echo 'Running $target'")
-        pw.println(s"time scala $target")
+        pw.println(s"time sca $target")
         pw.println
       } }
       println(s"Writing $fname")

@@ -31,6 +31,7 @@ object Instances {
     "collection.immutable.Stack[Int]" -> (collection.immutable.Stack((0 to 0): _*), classOf[collection.immutable.Stack[Int]], mth(collection.immutable.Stack((0 to 0): _*))),
     "collection.immutable.Stream[Int]" -> (((0 to 0)).toStream, classOf[collection.immutable.Stream[Int]], mth(((0 to 0)).toStream)),
     "collection.immutable.Traversable[Int]" -> (collection.immutable.Traversable((0 to 0): _*), classOf[collection.immutable.Traversable[Int]], mth(collection.immutable.Traversable((0 to 0): _*))),
+    "collection.immutable.TreeSet[Int]" -> (collection.immutable.TreeSet((0 to 0): _* ), classOf[collection.immutable.TreeSet[Int]], mth(collection.immutable.TreeSet((0 to 0): _* ))),
     "collection.immutable.Vector[Int]" -> (collection.immutable.Vector[Int]((0 to 0): _*), classOf[collection.immutable.Vector[Int]], mth(collection.immutable.Vector[Int]((0 to 0): _*))),
     "collection.mutable.ArrayBuffer[Int]" -> (collection.mutable.ArrayBuffer[Int]((0 to 0): _*), classOf[collection.mutable.ArrayBuffer[Int]], mth(collection.mutable.ArrayBuffer[Int]((0 to 0): _*))),
     "collection.mutable.ArraySeq[Int]" -> (collection.mutable.ArraySeq[Int]((0 to 0): _*), classOf[collection.mutable.ArraySeq[Int]], mth(collection.mutable.ArraySeq[Int]((0 to 0): _*))),

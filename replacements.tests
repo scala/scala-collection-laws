@@ -58,6 +58,7 @@ LET --> def
 ONE --> 1
 ZERO --> 0
 DEFINITE --> true
+MINEVALS --> 0
 instance --> $NEW((0 to 0))
 doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
 
@@ -104,7 +105,7 @@ $NEW --> (collection.immutable.ListSet.empty[Int] ++ $ )
 
 
 Int collection.immutable.PagedSeq[Int]
-flags --> A
+flags --> PS
 LET --> val
 $NEW --> ({ val temp = $ ; new collection.immutable.PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; if (k==i) -1 else k-i }) })
 
@@ -115,6 +116,7 @@ $NEW --> collection.immutable.Queue( $ : _*)
 
 
 Int collection.immutable.Range
+X  --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64))
 flags --> N RANGE
 LET --> val
 $NEW --> ( $ : collection.immutable.Range )
@@ -132,7 +134,7 @@ $NEW --> (collection.immutable.Set.empty[Int] ++ $ )
 
 
 Int collection.immutable.SortedSet[Int]
-flags --> S
+flags --> S SORTED
 LET --> val
 $NEW --> (collection.immutable.SortedSet.empty[Int] ++ $ )
 
@@ -147,11 +149,18 @@ flags --> LAZY
 LET --> val
 $NEW --> ( $ ).toStream
 DEFINITE --> false
+MINEVALS --> 1
 
 
 Int collection.immutable.Traversable[Int]
 LET --> val
 $NEW --> collection.immutable.Traversable( $ : _*)
+
+
+Int collection.immutable.TreeSet[Int]
+flags --> S SORTED
+LET --> val
+$NEW --> collection.immutable.TreeSet( $ : _* )
 
 
 Int collection.immutable.Vector[Int]
@@ -252,7 +261,7 @@ $NEW --> (collection.mutable.Set.empty[Int] ++ $ )
 
 
 Int collection.mutable.SortedSet[Int]
-flags --> S
+flags --> S SORTED
 $NEW --> (collection.mutable.SortedSet.empty[Int] ++ $ )
 
 
@@ -265,7 +274,7 @@ $NEW --> collection.mutable.Traversable[Int]( $ : _*)
 
 
 Int collection.mutable.TreeSet[Int]
-flags --> S
+flags --> S SORTED
 $NEW --> (collection.mutable.TreeSet.empty[Int] ++ $ )
 
 
@@ -310,7 +319,7 @@ $NEW --> (collection.Set.empty[Int] ++ $ )
 
 
 Int collection.SortedSet[Int]
-flags --> S
+flags --> S SORTED
 $NEW --> (collection.SortedSet.empty[Int] ++ $ )
 
 
