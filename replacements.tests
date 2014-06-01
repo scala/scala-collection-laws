@@ -174,8 +174,8 @@ $NEW --> collection.immutable.Vector[Int]( $ : _*)
 
 
 Int Array[Int]
-flags --> ARRAY
 CCM --> collection.mutable.WrappedArray[Int]
+flags --> ARRAY
 $NEW --> Array[Int]( $ : _*)
 
 
@@ -240,6 +240,7 @@ $NEW --> collection.mutable.MutableList[Int]( $ : _*)
 
 
 Int collection.mutable.PriorityQueue[Int]
+flags --> S PQ
 $NEW --> collection.mutable.PriorityQueue[Int]( $ : _*)
 
 
@@ -332,6 +333,34 @@ $NEW --> (( $ ).iterator: collection.TraversableOnce[Int])
 DEFINITE --> false
 
 
+
+
+// Lazy types derived from existing types (lazy or not)
+
 Int collection.SeqView[Int,Seq[Int]]
 flags --> VIEW LAZY
+LET --> val
 $NEW --> Seq( $ : _*).view
+
+
+Int collection.TraversableView[Int,Traversable[Int]]
+flags --> VIEW LAZY
+LET --> val
+$NEW --> Traversable( $ : _*).view
+
+
+Int collection.IterableView[Int,Iterable[Int]]
+flags --> VIEW LAZY
+LET --> val
+$NEW --> Iterable( $ : _*).view
+
+
+Int collection.immutable.StreamView[Int,Stream[Int]]
+flags --> VIEW LAZY
+LET --> val
+$NEW --> Stream( $ : _*).view
+
+
+Int collection.mutable.IndexedSeqView[Int,collection.mutable.IndexedSeq[Int]]
+flags --> VIEW LAZY MUVU
+$NEW --> collection.mutable.IndexedSeq( $ : _*).view

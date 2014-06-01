@@ -254,10 +254,25 @@ import laws.Laws.sameType
         pw.println(universalHeader)
         pw.println
         if (junit) pw.println(s"@RunWith(classOf[JUnit4])")
+        else {
+          pw.println(s"import laws.Laws.{insist => assert}")
+          pw.println(s"import laws.Laws.reportMissed")
+          pw.println
+        }
         pw.println(s"class $fname {")
+        if (!junit) pw.println(s"  implicit val missMe = new laws.Laws.CountMissed")
         pw.println
         methods.foreach{ m =>
-          m.foreach{ line => pw.println("  "+line) }
+          val ma = m.toArray
+          var missered = false
+          for (i <- ma.indices) {
+            val line = ma(i)
+            if (!junit && i == ma.length-1) pw.println("    reportMissed")
+            pw.println("  "+line)
+            if (!junit && !missered && line.startsWith("def test")) {
+              pw.println("    implicit val misser = new collection.mutable.ArrayBuffer[(String,Throwable)]")
+            }
+          }
           pw.println
         }
         pw.println("}")
@@ -266,7 +281,8 @@ import laws.Laws.sameType
           pw.println(s"object $fname { def main(args: Array[String]) {")
           pw.println(s"  val tester = new $fname")
           methods.foreach{ m => pw.println("  tester."+m.dropWhile(! _.startsWith("def ")).head.split(' ').tail.head) }
-          pw.println("""println("All tests passed for """+fname+"""")""")
+          pw.println("""  if (tester.missMe.count == 0) println("All tests passed for """+fname+"""")""")
+          pw.println("""  else println(s"Missed ${tester.missMe.count} method invocations.")""")
           pw.println("}}")
         }
       } finally { pw.close }
@@ -297,6 +313,40 @@ object Laws {
       @inline def isPartOf[B](cb: Once[B]) = isPart(underlying, cb, false)
     }      
   }
+  
+  class FalseAssertion extends Exception("Assertion failed") {}
+  class CountMissed { private[this] var myCount = 0; def inc { myCount += 1 }; def count = myCount }
+  
+  def insist[A](f: => Boolean, m: => String)(implicit acc: collection.mutable.ArrayBuffer[(String, Throwable)]) {
+    try { 
+      if (!f) acc += m -> (new FalseAssertion)
+    } catch {
+      case t: Throwable => acc += m -> t
+    }
+  }
+  
+  def reportMissed(implicit acc: collection.mutable.ArrayBuffer[(String, Throwable)], cnt: CountMissed) { if (acc.nonEmpty) {
+    cnt.inc
+    acc.groupBy{ case (m, t) =>
+      m.split(' ').drop(2).take(1).map(_.toInt).apply(0)
+    }.toVector.sortBy(_._1).map(_._2).foreach{ mts =>
+      val wrong = mts.collect{ case (m, fa: FalseAssertion) => (m, fa) }
+      val broke = mts diff wrong
+      if (broke.nonEmpty) {
+        println("Exceptions thrown:")
+        broke.take(20).foreach{ case (m,t) => println("  "+m) }
+        broke.drop(20) match { case x => if (x.nonEmpty) println("... and "+x.length+" more") }
+        broke.head._2.printStackTrace
+      }
+      if (wrong.nonEmpty) {
+        println("Wrong answers:")
+        wrong.take(20).foreach{ case (m,t) => println("  "+m) }
+        wrong.drop(20) match { case x => if (x.nonEmpty) println("... and "+x.length+" more") }
+        wrong.head._2.printStackTrace
+      }
+      println
+    }
+  }}
   
   def countedSetForall[A](xs: Once[A], ys: Once[A], ordered: Boolean = false)(p: (Int,Int) => Boolean) = {
     if (ordered) {
