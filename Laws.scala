@@ -82,6 +82,8 @@ import laws.Laws.sameType
       tames.map{ case (a, cc, substs, subbee) =>
         val tame = (subbee.map{ splitArrow2 }.toMap + ("A" -> a) + ("CC" -> cc) + ("CCN" -> cc.takeWhile(_ != '['))) |> { t =>
           if (!(t contains "CCM")) t + ("CCM" -> cc) else t
+        } |> { t =>
+          if (!(t contains "NAME")) t + ("NAME" -> cc) else t
         }
         (tame ++ wildMap.filterKeys(k => !tame.contains(k)), substs)
       }
@@ -92,7 +94,7 @@ import laws.Laws.sameType
   
   val knownRepls = readReplacementsFile("replacements.tests")
   
-  knownRepls.values.toVector.flatten.groupBy(_("CC").head).map{ case (_,v) =>
+  knownRepls.values.toVector.flatten.groupBy(_("NAME").head).map{ case (_,v) =>
     if (v.length > 1) s"${v.length} duplicates of ${v.head}" else ""
   }.filter(_.nonEmpty).mkString(" ") match {
     case "" =>
@@ -113,7 +115,7 @@ import laws.Laws.sameType
       "  def mth[T: ru.TypeTag](t: T) = implicitly[ru.TypeTag[T]].tpe.declarations.filter(d => d.isMethod && d.isPublic && !d.isStatic && !d.isConstructor).map(_.name)",
       "  val all = Map(") ++
       knownRepls.toVector.flatMap{ case (_,vs) =>
-        vs.map{ mm => "    \"" + mm("CC").head + "\" -> (" + mm("instance").head + ", classOf[" + mm("CCM").head + "], mth(" + mm("instance").head + "))," }
+        vs.map{ mm => "    \"" + mm("NAME").head + "\" -> (" + mm("instance").head + ", classOf[" + mm("CCM").head + "], mth(" + mm("instance").head + "))," }
       }.sorted ++
       Vector("    \"\" -> null","  )", "}")
     
@@ -140,10 +142,11 @@ import laws.Laws.sameType
   }
   
   val lawsAsCode = knownRepls.mapValues(_.map{ rep =>
+    val collid = rep("NAME").head
     val coll = rep("CC").head
-    val collname: String = coll.map{ case x if x.isLetter => x; case _ => '_' }
+    val collname: String = collid.map{ case x if x.isLetter => x; case _ => '_' }
     val flags = rep.getOrElse("flags", Set.empty[String])
-    val instance = Instances.all.getOrElse(coll, throw new IllegalArgumentException("Can't find instance "+coll))
+    val instance = Instances.all.getOrElse(collid, throw new IllegalArgumentException("Can't find instance "+collid))
     val valid = lawsAsWildCode.filter(_.canRunOn(instance._2, flags)).map(_.cover(coll))
     val methods = valid.groupBy(_.pre).toList.map{ case (pre, codes) =>
       val lines = codes.groupBy(_.wrap).toList.flatMap{ case (wrap, somecodes) =>
@@ -206,9 +209,9 @@ import laws.Laws.sameType
   }
   
   knownRepls.foreach{ case (_,v) => v.foreach{ rep =>
-    val coll = rep("CC").head
+    val collid = rep("NAME").head
     val doNotCheck = rep("doNotVerifyMethods").toSet
-    val instance = Instances.all.getOrElse(coll, throw new IllegalArgumentException("Can't find instance "+coll))
+    val instance = Instances.all.getOrElse(collid, throw new IllegalArgumentException("Can't find instance "+collid))
     val k = instance._2
     if (!Code.filledNeed.contains(k)) {
       println("Could not find any tests covering methods of "+k)
@@ -300,6 +303,13 @@ object Laws {
   }
   
   object Implicits {
+    implicit class MyToString[A](val underlying: A) extends AnyVal {
+      def myToString = underlying match {
+        case t: TraversableOnce[_] => t.mkString(t.getClass.getName+"(",",",")")
+        case a: Array[_] => a.mkString(a.getClass.getName+"(",",",")")
+        case _ => underlying.toString
+      }
+    }
     implicit class MoreLogic(val underlying: Boolean) extends AnyVal {
       @inline def implies(b: => Boolean) = !underlying || b
       @inline def impliedBy(b: => Boolean) = !b || underlying

@@ -162,8 +162,8 @@ y a b !N !MUVU !BUGA ... sameType(x, x.`zipAll`(y, a, b).map(_._1))
 x.`zipWithIndex`.map(_._1) theSameAs x
 x.`zipWithIndex`.map(_._2) theSameAs (0 until x.`size`)
 !N !MUVU !BUGA ... sameType(x, x.`zipWithIndex`.map(_._1))
-y ... x.`++`(y) theSameAs x.`:++`(y)
-y ... x.`++`(y) theSameAs y.`++:`(x)
+y ... x.`:++`(y) theSameAs x.`++`(y)
+y ... x.`++:`(y) theSameAs y.`++`(x)
 a ... x.`::`(a).`size` == x.size+1
 a ... x.`::`(a).`head` == a
 a ... sameType(x, x.`::`(a))
@@ -181,7 +181,7 @@ y ... sameType(x, x.`:::`(y))
 n !ARRAY ... (n < 0) || (n >= x.`size`) || ((x: Any) match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
 n ARRAY ... (n < 0) || (n >= x.`size`) || { Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1) }
 // combinations goes here
-y ... x.`containsSlice`(y) == (y.`size` == 0 || (Iterator.from(0).map(x.`drop`).takeWhile(_.`nonEmpty`).exists(_.`take`(y.`size`) theSameAs y)))
+y ... x.`containsSlice`(y) implies (y.`size` == 0 || (Iterator.from(0).map(x.`drop`).takeWhile(_.`nonEmpty`).exists(_.`take`(y.`size`) theSameAs y)))
 y ... val List(xg,yg,xdyg) = List(x,y,x.`diff`(y)).map(_.`groupBy`(identity).mapValues(_.size).toMap); xg.forall{ case (k,n) => val m = n - yg.getOrElse(k,0); (m > 0) implies (xdyg.getOrElse(k,0) == m) }
 val s = x.`toSet`; x.`distinct`.`size` == s.size && x.forall(s)
 n !S ... x.`dropRight`(n) theSameAs x.`take`(x.`size` - n)
@@ -233,7 +233,7 @@ f ... val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList; (xx zip xx.drop(1)).fo
 x.`sorted` theSameAs x.`toArray`.sorted // Need to add a custom ordering here
 n ... val (x1,x2) = x.`splitAt`(n); (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
 n ... val (x1,x2) = x.`splitAt`(n); sameType(x1, x2) && sameType(x, x1)
-n y ... n < 0 || { x.`startsWith`(y,n) == (x.`drop`(n).`take`(y.`size`) theSameAs y) }
+n y ... n < 0 || { x.`startsWith`(y,n) implies (x.`drop`(n).`take`(y.`size`) theSameAs y) }
 y ... x.`startsWith`(y) == x.startsWith(y,0)
 x.`size` < 1 || { x.`tail` theSameAs x.`drop`(1) }
 !PQ ... (x.`tails`.toVector zip x.`reverse`.`inits`.map(_.reverse).toVector).forall{ case (l,r) => l theSameAs r }

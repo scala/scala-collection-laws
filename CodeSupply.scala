@@ -20,7 +20,7 @@ case class Code(pre: Seq[String], wrap: Seq[String], tests: Seq[(String, Int)], 
     ("  "*wrap.length) +
     "val message = (lnum: Int) => \"Law line %d with %s;\".format(lnum, x.mkString(\",\"))" + 
     wrap.map(_.trim).filter(_.startsWith("for (")).map(_.drop(5).
-      takeWhile(_.isLetter)).filter(_.length > 0).map(x => """+" %s="+%s.toString""".format(x,x)).
+      takeWhile(_.isLetter)).filter(_.length > 0).map(x => """+" %s="+%s.myToString""".format(x,x)).
       mkString
   )
   
