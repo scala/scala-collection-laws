@@ -11,39 +11,6 @@ import Sup._
 class Laws(junit: Boolean) {
   import Laws._
   
-  val containingPackage = "scala.collection"
-  
-  val universalHeader = autoComment + "\n\n" + {
-"""
-package """ + containingPackage + """
-
-import org.junit.runner.RunWith
-import org.junit.runners.JUnit4
-import org.junit.Test
-import scala.util.Try
-import laws.Laws.Implicits._
-import laws.Laws.sameType
-""" |> { x => if (junit) x else x.split('\n').filter(! _.contains("junit")).mkString("\n") }
-  }
-  
-  val knownSups = Seq(
-    Sup("p", "for (i <- ca; p = (_i: @A) => _i < i) {", Wraps, Some(Sup("", "val ca = @CA", Outer))),
-    Sup("n", "for (n <- cn) {", Wraps, Some(Sup("","val cn = @CN",Outer))),
-    Sup("m", "for (m <- cm) {", Wraps, Some(Sup("","val cm = @CM",Outer))),
-    Sup("r", "for (r <- cr) {", Wraps, Some(Sup("","val cr = @CR",Outer))),
-    Sup("a", "for (a <- ca) {", Wraps, Some(Sup("","val ca = @CA",Outer))),
-    Sup("b", "for (b <- cb) {", Wraps, Some(Sup("","val cb = @CB",Outer))),
-    Sup("x", "@LET x = @X", Outer),
-    Sup("y", "val ys = @YS", Outer, Some(Sup("", "for (y_i <- ys) { @LET y = y_i()", Wraps))),
-    Sup("pf", "for (i <- ca; pf = @PF) {", Wraps, Some(Sup("", "val ca = @CA", Outer))),
-    Sup("f", "val f = @F", Outer),
-    Sup("g", "val gs = @GS", Outer, Some(Sup("", "for (g <- gs) {", Wraps))),
-    Sup("z", "for (z <- ca) {", Wraps, Some(Sup("","val ca = @CA",Outer))),
-    Sup("op", "val op = (a1: @A, a2: @A) => a1 @OP a2", Outer),
-    Sup("one", "val one = @ONE", Outer),
-    Sup("zero", "val zero = @ZERO", Outer)
-  )
-    
   def readReplacementsFile(fname: String) = {
     def splitAtLeast(n: Int, sn: (String, Int)) = {
       val parts = sn._1.split("\\s+")
