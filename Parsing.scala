@@ -4,13 +4,11 @@ import annotation.tailrec
 import collection.mutable.Builder
 
 object Parsing {
-  trait Numbered { def index: Int }
-
   // Numbered lines, either bare or of the the form left-sep-right
-  // left is spaces and alphabetic only
+  // left is spaces and alphabetic only, plus !
   // sep is a nonempty separator that does not start with whitespace or an alphabetic character
   // right is a list of things, split however one wishes.
-  case class Line(left: String, sep: String, rights: Vector[String], index: Int) extends Numbered {
+  case class Line(left: String, sep: String, rights: Vector[String], index: Int) {
     lazy val whole = if (isSplit) left + sep + right else left
     lazy val right = if (isSplit) rights.mkString("\n") else ""
     lazy val indent = " "*left.length
@@ -19,14 +17,13 @@ object Parsing {
     
     // Try to merge this with a compatible following line (same separator, following line has whitespace instead of left text)
     def merge(l: Line): Option[Line] =
-      if (!(isSplit && l.isSplit && sep == l.sep && indent == l.left)) None
+      if (!(isSplit && l.isSplit && sep == l.sep && indent == Line.detab(l.left))) None
       else Some(new Line(left, sep, rights ++ l.rights, index))
     
     // Remove any text with a trailing double slash (whole lines only)
-    def decomment = if (isSplit) this else {
-      val i = left indexOf "//"
-      new Line(left take i, sep, rights, index)
-    }
+    def decomment = 
+      if (isSplit) this
+      else new Line({ val i = left indexOf "//"; if (i<0) left else left take i }, sep, rights, index)
       
     // Trim whitespace (only from right side if we're not split)
     def trimmed =
@@ -37,33 +34,48 @@ object Parsing {
     def parsed = if (isSplit) this else Line.apply(left, index)
   }
   object Line {
+    def mkSepRegex(sep: String) = ("""^((?:\s|\w|!)+)(""" + java.util.regex.Pattern.quote(sep) + """)(.*)""").r
+    val JustTab = """\t""".r
     val AllWhite = """^\s*$""".r
-    val ArrowRegex = """^((?:\s|\w)+)(-->)(.*)""".r
-    val DotsRegex = """^((?:\s|\w)+)(\.\.\.)(.*)""".r
+    val ArrowRegex = mkSepRegex("-->")
+    val DotsRegex = mkSepRegex("...")
     
     val emptyRight = Vector("")
     val empty = new Line("", "", emptyRight, -1)
     
+    // Convert tabs to eight spaces
+    def detab(s: String) = JustTab.replaceAllIn("\t","        ")
+    
+    // Produce a bare line (just text, numbered)
+    def bare(s: String, i: Int) = new Line(s, "", emptyRight, i)
+    
     // Try to parse the line
-    def apply(s: String, i: Int, seps: String*): Line = {
-      for (sep <- seps) {
-        val CustomRegex = ("""^((?:\s|\w)+)(""" + java.util.regex.Pattern.quote(sep) + """)(.*)""").r
+    def apply(s: String, i: Int): Line = s match {
+      case ArrowRegex(l, s, r) => new Line(l, s,  Vector(r),  i)
+      case DotsRegex(l, s, r)  => new Line(l, s,  Vector(r),  i)
+      case x                   => new Line(x, "", emptyRight, i)
+    }
+    
+    // Parse the line with custom separators
+    def custom(s: String, i: Int, firstSep: String, moreSeps: String*): Line = {
+      for (sep <- (firstSep +: moreSeps)) {
+        val CustomRegex = mkSepRegex(sep)
         s match {
           case CustomRegex(l, s, r) => return new Line(l, s, Vector(r), i)
           case _ =>
         }
       }
-      s match {
-        case ArrowRegex(l, s, r) => new Line(l, s,  Vector(r),  i)
-        case DotsRegex(l, s, r)  => new Line(l, s,  Vector(r),  i)
-        case x                   => new Line(x, "", emptyRight, i)
-      }
+      Line.bare(s, i)
     }
     
-    // Produce a bare line (just text, numbered)
-    def bare(s: String, i: Int) = new Line(s, "", emptyRight, i)
+    // Parse the line with default and custom separators
+    def apply(s: String, i: Int, firstSep: String, moreSeps: String*): Line = {
+      val x = custom(s, i, firstSep, moreSeps: _*)
+      if (!x.isSplit) apply(s,i) else x
+    }
   }
   
+  // Encapsulates operations on blocks of lines (comments, merging, etc.)
   case class Lines(lines: Vector[Line]) {
     // Apply some function to get a new Lines
     def ap(f: Vector[Line] => Vector[Line]) = new Lines(f(lines))
@@ -78,17 +90,17 @@ object Parsing {
         else (0, group, line)
       }.drop(1).
         groupBy(_._2).          // Group by group number
+        toVector.sortBy(_._1).  // Keep original order
         map(_._2.map(_._3)).    // Only keep lines
         map(v => v.dropWhile(_.isWhite).reverse.dropWhile(_.isWhite).reverse).   // Trim white lines from both ends
-        map(v => new Lines(v)). // Pack into Lines class
-        toVector
+        map(v => new Lines(v))  // Pack into Lines class
     }
     
     // Remove comments (unsplit lines only)
     def decomment = map(_.decomment)
     
-    // Throw away all empty lines after trimming whitespace
-    def trim = map(_.trimmed).ap(_.filter(! _.isWhite))
+    // Find separators for any lines that haven't already been parsed
+    def parsed = map(_.parsed)
     
     // glue together lines with continuation pattern: ... or --> at same position but with whitespace before
     def compact = ap(ls => (Vector.empty[Line] /: ls){ (v,line) => 
@@ -97,6 +109,9 @@ object Parsing {
         case None          => v :+ line
       }
     })
+    
+    // Throw away all empty lines after trimming whitespace
+    def trim = map(_.trimmed).ap(_.filter(! _.isWhite))
   }
   object Lines {
     import scala.util.Try
@@ -109,8 +124,15 @@ object Parsing {
       flatMap{ case (s,t) => Try{ s.close }; t }.toOption
       
     def apply(s: String): Option[Lines] = apply(new java.io.File(s))
+    
+    def parsed(f: java.io.File, blanks: Int): Option[Vector[Lines]] = apply(f).map(_.tokenize(blanks).map(_.decomment.parsed.compact.trim).filter(_.lines.length > 0))
+    def parsed(s: String, blanks: Int): Option[Vector[Lines]] = parsed(new java.io.File(s), blanks)
+    
+    def parsed(f: java.io.File): Option[Lines] = apply(f).map(_.decomment.parsed.compact.trim)
+    def parsed(s: String): Option[Lines] = parsed(new java.io.File(s))
   }
 
+  case class Test(raw: Line, params: Set[String], flags: Set[String], index: Int)
   // Find which variables to create, what flags to apply, and what the (raw unsubstituted) code is
   /*
   case class TestLine(rawcode: String, params: Set[String], flags: Set[String], index: Int) extends Numbered {
