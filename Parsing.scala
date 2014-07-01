@@ -77,6 +77,9 @@ object Parsing {
   
   // Encapsulates operations on blocks of lines (comments, merging, etc.)
   case class Lines(lines: Vector[Line]) {
+    @inline def underlying = lines
+    @inline def isEmpty = lines.isEmpty
+    
     // Apply some function to get a new Lines
     def ap(f: Vector[Line] => Vector[Line]) = new Lines(f(lines))
     def map(f: Line => Line) = ap(_.map(f))
@@ -135,6 +138,8 @@ object Parsing {
   case class Test(line: Line, params: Set[String], must: Set[String], mustnt: Set[String]) {
     lazy val methods = Test.BacktickRegex.findAllIn(line.right).map(Test.pickOutBackticked).toSet
     lazy val code = Test.BacktickRegex.replaceAllIn(line.right, Test.matchOutBackticked)
+    def validateMethods(p: String => Boolean) = methods.forall(p)
+    def validateFlags(p: String => Boolean) = must.forall(p) && !mustnt.exists(p)
   }
   object Test {
     import scala.util._
@@ -156,6 +161,43 @@ object Parsing {
     }
     
     def unapply(l: Line): Option[Test] = parse(l).right.toOption
+  }
+  
+  case class Tests(params: Set[String], tests: Vector[Test]) {
+    @inline def underlying = tests
+    @inline def isEmpty = tests.isEmpty
+    lazy val codes = tests.map(_.code)
+    def validatedMethods(p: String => Boolean) = {
+      val filt = tests.filter(_.validateMethods(p))
+      if (filt.length == tests.length) this
+      else new Tests(params, filt)
+    }
+    def validatedFlags(p: String => Boolean) = {
+      val filt = tests.filter(_.validateFlags(p))
+      if (filt.length == tests.length) this
+      else new Tests(params, filt)
+    }
+  }
+  object Tests {
+    import scala.util._
+    
+    def parseFrom(lines: Lines): Either[Vector[String], Vector[Tests]] = {
+      val tests = lines.underlying.map(Test.parse)
+      val wrong = tests.collect{ case Left(msg) => msg }
+      if (wrong.nonEmpty) Left(wrong)
+      else Right(
+        tests.collect{ case Right(test) => test }.
+          groupBy(x => x.params.toList.sorted).                    // Group same parameters
+          map{ case (k,v) => k.mkString(s" ${k.length} ") -> v }.  // Convert parameters to nice form for sorting
+          toVector.sortBy(_._1).map(_._2).                         // Put them in order
+          map(ts => new Tests(ts.head.params, ts))
+      )
+    }
+    
+    def apply(f: java.io.File): Either[Vector[String], Vector[Tests]] =
+      Lines.parsed(f).map(parseFrom).getOrElse(Left(Vector(s"Couldn't read ${f.getPath}")))
+      
+    def apply(s: String): Either[Vector[String], Vector[Tests]] = apply(new java.io.File(s))
   }
   // Find which variables to create, what flags to apply, and what the (raw unsubstituted) code is
   /*
