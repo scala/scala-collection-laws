@@ -118,7 +118,7 @@ object Parsing {
     
     val empty = new Lines(Vector.empty[Line])
     
-    def apply(f: java.io.File): Option[Lines] = 
+    def apply(f: java.io.File): Option[Lines] =
       Try{ io.Source.fromFile(f) }.
       map{ src => src -> Try { new Lines(src.getLines.toVector.zipWithIndex.map{ case (s,n) => Line.bare(s,n+1) }) } }.
       flatMap{ case (s,t) => Try{ s.close }; t }.toOption
@@ -132,7 +132,31 @@ object Parsing {
     def parsed(s: String): Option[Lines] = parsed(new java.io.File(s))
   }
 
-  case class Test(raw: Line, params: Set[String], flags: Set[String], index: Int)
+  case class Test(line: Line, params: Set[String], must: Set[String], mustnt: Set[String]) {
+    lazy val methods = Test.BacktickRegex.findAllIn(line.right).map(Test.pickOutBackticked).toSet
+    lazy val code = Test.BacktickRegex.replaceAllIn(line.right, Test.matchOutBackticked)
+  }
+  object Test {
+    import scala.util._
+    
+    val BacktickRegex = "`[^`]+`".r
+    val pickOutBackticked = (s: String) => s.split("\\\\").mkString("\\").drop(1).dropRight(1)
+    val matchOutBackticked = (m: scala.util.matching.Regex.Match) => if (m.matched == null) "" else pickOutBackticked(m.matched)
+    
+    def parse(line: Line): Either[String, Test] = {
+      if (!line.isSplit) Right(new Test(line, Set("x"), Set(), Set()))
+      else if (line.sep != "...") Left(s"Wrong separator on line ${line.index}: ${line.sep}")
+      else {
+        val (params, rest1) = line.left.split("\\s+").filter(_.length > 0).partition(_.forall(_.isLower))
+        val (must, rest2) = rest1.partition(_.forall(_.isUpper))
+        val (mustnt, uhoh) = rest2.partition(s => (s startsWith "!") && (s drop 1).forall(_.isUpper))
+        if (uhoh.nonEmpty) Left(s"Syntax error in line ${line.index}: identifier neither parameter (lower-case) nor flag (upper): ${uhoh.mkString(" ")}")
+        else Right(new Test(line, params.toSet | Set("x"), must.toSet, mustnt.map(_.drop(1)).toSet))
+      }
+    }
+    
+    def unapply(l: Line): Option[Test] = parse(l).right.toOption
+  }
   // Find which variables to create, what flags to apply, and what the (raw unsubstituted) code is
   /*
   case class TestLine(rawcode: String, params: Set[String], flags: Set[String], index: Int) extends Numbered {
@@ -140,12 +164,11 @@ object Parsing {
     lazy val methods = {
       TestLine.BacktickRegex.
         findAllIn(rawcode).
-        map(_.split("\\\\").mkString("\\").drop(1).dropRight(1)).   // Cut off backticks and fix any backslashes within
+        map(_.split("\\\\").mkString("\\").drop(1).dropRight(1)). 
         toSet
     }
   }
   object TestLine {
-    val BacktickRegex = "`[^`]+`".r
     def unapply(l: Line): Option[TestLine] =
       if (l.sep != "...") None
       else
