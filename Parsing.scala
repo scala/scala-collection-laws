@@ -5,7 +5,7 @@ import collection.mutable.Builder
 
 object Parsing {
   // Numbered lines, either bare or of the the form left-sep-right
-  // left is spaces and alphabetic only, plus !
+  // left is spaces and alphabetic only, plus ! and $
   // sep is a nonempty separator that does not start with whitespace or an alphabetic character
   // right is a list of things, split however one wishes.
   case class Line(left: String, sep: String, rights: Vector[String], index: Int) {
@@ -34,7 +34,7 @@ object Parsing {
     def parsed = if (isSplit) this else Line.apply(left, index)
   }
   object Line {
-    def mkSepRegex(sep: String) = ("""^((?:\s|\w|!)+)(""" + java.util.regex.Pattern.quote(sep) + """)(.*)""").r
+    def mkSepRegex(sep: String) = ("""^((?:\s|\w|!|\$)+)(""" + java.util.regex.Pattern.quote(sep) + """)(.*)""").r
     val JustTab = """\t""".r
     val AllWhite = """^\s*$""".r
     val ArrowRegex = mkSepRegex("-->")
@@ -148,7 +148,7 @@ object Parsing {
     val pickOutBackticked = (s: String) => s.split("\\\\").mkString("\\").drop(1).dropRight(1)
     val matchOutBackticked = (m: scala.util.matching.Regex.Match) => if (m.matched == null) "" else pickOutBackticked(m.matched)
     
-    def parse(line: Line): Either[String, Test] = {
+    def parseFrom(line: Line): Either[String, Test] = {
       if (!line.isSplit) Right(new Test(line, Set("x"), Set(), Set()))
       else if (line.sep != "...") Left(s"Wrong separator on line ${line.index}: ${line.sep}")
       else {
@@ -160,7 +160,7 @@ object Parsing {
       }
     }
     
-    def unapply(l: Line): Option[Test] = parse(l).right.toOption
+    def unapply(l: Line): Option[Test] = parseFrom(l).right.toOption
   }
   
   case class Tests(params: Set[String], tests: Vector[Test]) {
@@ -182,7 +182,7 @@ object Parsing {
     import scala.util._
     
     def parseFrom(lines: Lines): Either[Vector[String], Vector[Tests]] = {
-      val tests = lines.underlying.map(Test.parse)
+      val tests = lines.underlying.map(Test.parseFrom)
       val wrong = tests.collect{ case Left(msg) => msg }
       if (wrong.nonEmpty) Left(wrong)
       else Right(
@@ -199,29 +199,51 @@ object Parsing {
       
     def apply(s: String): Either[Vector[String], Vector[Tests]] = apply(new java.io.File(s))
   }
-  // Find which variables to create, what flags to apply, and what the (raw unsubstituted) code is
-  /*
-  case class TestLine(rawcode: String, params: Set[String], flags: Set[String], index: Int) extends Numbered {
-    // Set of methods that are required to run this test
-    lazy val methods = {
-      TestLine.BacktickRegex.
-        findAllIn(rawcode).
-        map(_.split("\\\\").mkString("\\").drop(1).dropRight(1)). 
-        toSet
+  
+  sealed trait Replacer {
+    def line: Line
+    def key: String
+  }
+  sealed trait ReplaceAt extends Replacer {
+    def at = "@"+key
+  }
+  case class ReplaceParam(line: Line, key: String, value: String) extends Replacer {}
+  case class ReplaceSubst(line: Line, key: String, value: String) extends ReplaceAt {
+    def subOn(s: String) = if (s contains at) s.split(at).mkString(value) else s
+  }
+  case class ReplaceExpand(line: Line, key: String, values: Vector[String]) extends ReplaceAt {
+    import scala.util._
+    def allSubs(s: String) = 
+      if (!(s contains at)) Left(s)
+      else Right(values.map{v => s.split(at).mkString(v)})
+  }
+  case class ReplaceMacro(line: Line, key: String, value: String) extends Replacer {}
+  case class ReplaceInfo(line: Line, key: String, values: Set[String]) extends Replacer {}
+  object Replacer {
+    val ParamRegex = """^(\p{Lower}+)$""".r
+    val SubstRegex = """^(\p{Upper}+)$""".r
+    val MacroRegex = """^(\$\p{Upper}+)$""".r
+    val InfoRegex = """^(\p{Lower}\p{Alpha}+)$""".r
+    
+    def parseFrom(line: Line): Either[String, Replacer] = {
+      if (!line.isSplit) Left(s"No arrow on line ${line.index}: ${line.whole}")
+      else if (line.sep != "-->") Left(s"Line ${line.index} has wrong separator: ${line.sep}")
+      else line.left match {
+        case ParamRegex(name) => Right(ReplaceParam(line, name, line.right))
+        case SubstRegex(name) => Right(delimSplit(line.right).toVector match {
+          case Vector(s) => ReplaceSubst(line, name, s)
+          case v => ReplaceExpand(line, name, v)
+        })
+        case MacroRegex(name) => delimSplit(line.right).toVector match {
+          case Vector(s) if (s contains " $ ") => Right(ReplaceMacro(line, name, s))
+          case _ => Left(s"Line ${line.index} is a macro $name but has no insertion point ' $$ '")
+        }
+        case InfoRegex(name) => Right(ReplaceInfo(line, name, delimSplit(line.right).toSet))
+        case x => Left(s"Key for line ${line.index} not one of (lower UPPER camelCase $$MACRO): $x")
+      }
     }
   }
-  object TestLine {
-    def unapply(l: Line): Option[TestLine] =
-      if (l.sep != "...") None
-      else
-      case Flagged(flags, code) =>
-        val (lower, upper) = flags.trim.split("\\s+").filter(_.nonEmpty).toSet.partition(_.last.isLower)
-        if (!upper.forall(_.last.isUpper)) None
-        else Some(new TestLine(code, Set("x") | lower, upper))
-      case _ => Some(new TestLine(s, Set("x"), Set[String]()))
-    }
-  }
-  */
+  
   
   // Perform substitution of @-prefixed strings (caps only)
   val ReplReg = "@[A-Z]+".r
