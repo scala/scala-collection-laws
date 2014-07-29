@@ -53,7 +53,7 @@ object Parsing {
     val empty = new Line("", "", emptyRight, -1)
     
     /** Converts tabs to eight spaces */
-    def detab(s: String) = JustTab.replaceAllIn("\t","        ")
+    def detab(s: String) = JustTab.replaceAllIn(s,"        ")
     
     /** Given a string and a line number, wrap it as an unparsed `Line` */
     def bare(s: String, i: Int) = new Line(s, "", emptyRight, i)
@@ -136,21 +136,21 @@ object Parsing {
     val empty = new Lines(Vector.empty[Line])
     
     /** Optionally reads a file into a `Lines`. */
-    def apply(f: java.io.File): Option[Lines] =
+    def read(f: java.io.File): Option[Lines] =
       Try{ io.Source.fromFile(f) }.
       map{ src => src -> Try { new Lines(src.getLines.toVector.zipWithIndex.map{ case (s,n) => Line.bare(s,n+1) }) } }.
       flatMap{ case (s,t) => Try{ s.close }; t }.toOption
       
     /** Optionally reads the file referred to by a string into a `Lines` */
-    def apply(s: String): Option[Lines] = apply(new java.io.File(s))
+    def read(s: String): Option[Lines] = read(new java.io.File(s))
     
     /** Optionally reads a file and parses it for arrows and dots, treating `blanks` successive blanks as different chunks (see `tokenize`) */
-    def parsed(f: java.io.File, blanks: Int): Option[Vector[Lines]] = apply(f).map(_.tokenize(blanks).map(_.decomment.parsed.compact.trim).filter(_.lines.length > 0))
+    def parsed(f: java.io.File, blanks: Int): Option[Vector[Lines]] = read(f).map(_.tokenize(blanks).map(_.decomment.parsed.compact.trim).filter(_.lines.length > 0))
     /** Optionally reads the file referred to by a string, parses for arrows and dots, and chunks on `blanks` successive empty lines (see `tokenize`) */
     def parsed(s: String, blanks: Int): Option[Vector[Lines]] = parsed(new java.io.File(s), blanks)
     
     /** Optionally reads and parses a file into a single chunk (no `tokenize`) */
-    def parsed(f: java.io.File): Option[Lines] = apply(f).map(_.decomment.parsed.compact.trim)
+    def parsed(f: java.io.File): Option[Lines] = read(f).map(_.decomment.parsed.compact.trim)
     /** Optionally reads and parses the file referred to by a string into a single chunk (no `tokenize`) */
     def parsed(s: String): Option[Lines] = parsed(new java.io.File(s))
   }
@@ -234,11 +234,11 @@ object Parsing {
     }
     
     /** Parse a file into `Tests` grouped by common parameters (or deliver error message(s)) */
-    def apply(f: java.io.File): Either[Vector[String], Vector[Tests]] =
+    def read(f: java.io.File): Either[Vector[String], Vector[Tests]] =
       Lines.parsed(f).map(parseFrom).getOrElse(Left(Vector(s"Couldn't read ${f.getPath}")))
       
     /** Parse the file referred to by a string into `Tests` grouped by common parameters (or deliver error message(s)) */
-    def apply(s: String): Either[Vector[String], Vector[Tests]] = apply(new java.io.File(s))
+    def read(s: String): Either[Vector[String], Vector[Tests]] = read(new java.io.File(s))
   }
   
   /** A `line` that describes a replacement, plus the `key` to replace parsed from that line */
@@ -254,14 +254,14 @@ object Parsing {
   case class ReplaceParam(line: Line, key: String, value: String) extends Replacer {}
   /** A replacement with both key and value parsed out, intended to be used on `@KEY` pattern */
   case class ReplaceSubst(line: Line, key: String, value: String) extends ReplaceAt {
-    def subOn(s: String) = if (s contains at) s.split(at).mkString(value) else s
+    def subOn(s: String) = if (s contains at) s.split(at, -1).mkString(value) else s
   }
   /** A set of replacements to apply, each in turn, on a `@KEY` pattern */
   case class ReplaceExpand(line: Line, key: String, values: Vector[String]) extends ReplaceAt {
     import scala.util._
     def allSubs(s: String): Either[String, Vector[String]] = 
       if (!(s contains at)) Left(s)
-      else Right(values.map{v => s.split(at).mkString(v)})
+      else Right(values.map{v => s.split(at, -1).mkString(v)})
   }
   /** A replacement to apply to a pattern of form $KEY(stuff), where $KEY( becomes whatever is in `before` and ) becomes whatever is in `after` */
   case class ReplaceMacro(line: Line, key: String, before: String, after: String) extends Replacer {
@@ -336,8 +336,8 @@ object Parsing {
       def inner(ss: Vector[String], depth: Int): Option[Vector[String]] = {
         val next = ss.flatMap{ s =>
           val s1 = if (!s.contains("$")) s else (s /: macros){ (si, m) => m._2.macroOn(si) }
-          val s2 = if (!s1.contains("@")) s1 else (s /: substs){ (si, sb) => sb._2.subOn(si) }
-          val ss3 = if (!s2.contains("@")) Vector(s1) else (Vector(s1) /: expands){ (sv, ex) => sv.flatMap{ si => ex._2.allSubs(si) match {
+          val s2 = if (!s1.contains("@")) s1 else (s1 /: substs){ (si, sb) => sb._2.subOn(si) }
+          val ss3 = if (!s2.contains("@")) Vector(s2) else (Vector(s2) /: expands){ (sv, ex) => sv.flatMap{ si => ex._2.allSubs(si) match {
             case Left(sj) => Vector(sj)
             case Right(svj) => svj
           }}}
@@ -364,7 +364,7 @@ object Parsing {
       private def simple(s: String) = s.map(c => if (c.isLetter || c.isDigit) c else '_')
       private def replace(k: String, v: String) = k -> (new ReplaceSubst(line, k, v))
       def defaults: Replacements = empty.copy(substs = Map(
-        replace("A", typ), replace("CC", coll), replace("CCN", unparameterized), replace("CCM", coll), replace("Name", simple(coll))
+        replace("A", typ), replace("CC", coll), replace("CCN", unparameterized), replace("CCM", coll), replace("NAME", simple(coll))
       ))
     }
   
@@ -422,11 +422,11 @@ object Parsing {
       }
     }
     
-    def apply(f: java.io.File): Either[Vector[String], Vector[Replacements]] = Lines.parsed(f, 2) match {
+    def read(f: java.io.File): Either[Vector[String], Vector[Replacements]] = Lines.parsed(f, 2) match {
       case None => Left(Vector("Could not read data from "+f.getPath))
       case Some(lss) => Replacements.parseFrom(lss)
     }
-    def apply(s: String): Either[Vector[String], Vector[Replacements]] = Replacements.apply(new java.io.File(s))
+    def read(s: String): Either[Vector[String], Vector[Replacements]] = Replacements.read(new java.io.File(s))
   }
   
   // Perform substitution of @-prefixed strings (caps only)
