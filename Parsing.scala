@@ -162,10 +162,11 @@ object Parsing {
     * @param mustnt - If any of these flags are present, this test will not be run
     */
   case class Test(line: Line, params: Set[String], must: Set[String], mustnt: Set[String]) {
+    private[this] def data = if (line.isSplit) line.right else line.left
     /** The methods required by this test (written between backticks in the test line) */
-    lazy val methods = Test.BacktickRegex.findAllIn(line.right).map(Test.pickOutBackticked).toSet
+    lazy val methods = Test.BacktickRegex.findAllIn(data).map(Test.pickOutBackticked).toSet
     /** The code to run (with backticks elided) */
-    lazy val code = Test.BacktickRegex.replaceAllIn(line.right, Test.matchOutBackticked)
+    lazy val code = Test.BacktickRegex.replaceAllIn(data, Test.matchOutBackticked)
     /** Checks to make sure every method is present as confirmed by `p` */
     def validateMethods(p: String => Boolean) = methods.forall(p)
     /** Given an oracle `p` that answers if a flag is present, make sure all flags that must be there are and none are that mustn't be */
@@ -215,6 +216,8 @@ object Parsing {
       if (filt.length == tests.length) this
       else new Tests(params, filt)
     }
+    def map(f: Test => Test) = new Tests(params, tests.map(f))
+    def filter(p: Test => Boolean) = new Tests(params, tests.filter(p))
   }
   object Tests {
     import scala.util._
@@ -265,17 +268,23 @@ object Parsing {
   }
   /** A replacement to apply to a pattern of form $KEY(stuff), where $KEY( becomes whatever is in `before` and ) becomes whatever is in `after` */
   case class ReplaceMacro(line: Line, key: String, before: String, after: String) extends Replacer {
-    @tailrec final def macroOn(s: String, prefix: String = ""): String = {
+    val rewrapper = (s: String) => before + s + after
+    @tailrec final def macroOn(s: String, prefix: String = "", f: String => String = rewrapper): String = {
       val i = s.indexOfSlice(key)
       if (i < 0) prefix + s
       else pairedIndicesOf(s,i+key.length) match {
         case None => prefix + s
-        case Some((i0, i1)) => macroOn(s drop i1, prefix + before + s.substring(i0+1, i1) + after)
+        case Some((i0, i1)) => macroOn(s drop i1, prefix + s.substring(0, i) + f(s.substring(i0+1, i1)), f)
       }
+    }
+    final def argsOf(s: String) = {
+      val b = Vector.newBuilder[String]
+      macroOn(s, "", t => { b += t; "" })
+      b.result
     }
   }
   /** A fake replacement that carries a set of values to use as flags instead of actual replacements */
-  case class ReplaceInfo(line: Line, key: String, values: Set[String]) extends Replacer {}
+  case class ReplaceInfo(line: Line, key: String, values: Vector[String]) extends Replacer {}
   object Replacer {
     val ParamRegex = """^(\p{Lower}+)$""".r
     val SubstRegex = """^(\p{Upper}+)$""".r
@@ -298,10 +307,10 @@ object Parsing {
             val j = if (i < 0) i else s.indexOfSlice(" $ ", i+3)
             if (i < 0) Left(s"Line ${line.index} is a macro but there is no substitution target ' $$ '")
             else if (j >= 0) Left(s"Line ${line.index} is a macro but there is more than one substitution target ' $$ '")
-            else Right(ReplaceMacro(line, name, s take i, s drop i+3))
+            else Right(ReplaceMacro(line, name, s take i+1, s drop i+2))
           case _ => Left(s"Line ${line.index} is a macro $name but does not have exactly one target pattern.")
         }
-        case InfoRegex(name) => Right(ReplaceInfo(line, name, delimSplit(line.right).toSet))
+        case InfoRegex(name) => Right(ReplaceInfo(line, name, delimSplit(line.right).toVector))
         case x => Left(s"Key for line ${line.index} not one of (lower UPPER camelCase $$MACRO): $x")
       }
     }
@@ -319,7 +328,8 @@ object Parsing {
     substs: Map[String, ReplaceSubst],
     expands: Map[String, ReplaceExpand],
     macros: Map[String, ReplaceMacro],
-    infos: Map[String, ReplaceInfo]
+    infos: Map[String, ReplaceInfo],
+    header: Option[Replacements.HeaderLine]
   ) {
     import Replacements.mergeMap
     
@@ -329,7 +339,8 @@ object Parsing {
       mergeMap(substs, r.substs),
       mergeMap(expands, r.expands),
       mergeMap(macros, r.macros),
-      mergeMap(infos, r.infos)
+      mergeMap(infos, r.infos),
+      header orElse r.header
     )
     
     def apply(s: String): Either[String, Vector[String]] = {
@@ -353,18 +364,19 @@ object Parsing {
         case None => Left("Expansion of string did not terminate: " + s)
       }
     }
+    
+    def myLine = header.map(_.line.index.toString).getOrElse("unknown")
   }
   object Replacements {
-    val empty = new Replacements(Map(), Map(), Map(), Map(), Map())
+    val empty = new Replacements(Map(), Map(), Map(), Map(), Map(), None)
     
     sealed trait HeaderLine { def line: Line; def typ: String }
     final case class Wildcard(val line: Line, val typ: String) extends HeaderLine
     final case class Specific(val line: Line, val typ: String, val coll: String) extends HeaderLine {
       lazy val unparameterized = coll.takeWhile(_ != '[')
-      private def simple(s: String) = s.map(c => if (c.isLetter || c.isDigit) c else '_')
       private def replace(k: String, v: String) = k -> (new ReplaceSubst(line, k, v))
       def defaults: Replacements = empty.copy(substs = Map(
-        replace("A", typ), replace("CC", coll), replace("CCN", unparameterized), replace("CCM", coll), replace("NAME", simple(coll))
+        replace("A", typ), replace("CC", coll), replace("CCN", unparameterized), replace("CCM", coll), replace("NAME", coll)
       ))
     }
   
@@ -382,7 +394,7 @@ object Parsing {
         val expands = parsed.collect{ case Right(re: ReplaceExpand) => re.key -> re }.toMap
         val macros = parsed.collect{ case Right(rm: ReplaceMacro) => rm.key -> rm }.toMap
         val infos = parsed.collect{ case Right(ri: ReplaceInfo) => ri.key -> ri }.toMap
-        Right(new Replacements(params, substs, expands, macros, infos))
+        Right(new Replacements(params, substs, expands, macros, infos, None))
       }
     }
     
@@ -415,10 +427,12 @@ object Parsing {
       else {
         val wild = direct.collect{ case Right((w: Wildcard, x)) => (w.typ -> (w -> x)) }.toMap
         val spec = direct.collect{ case Right((s: Specific, x)) => s -> x }
-        Right(spec.map{ case (header, mappings) => wild.get(header.typ) match {
-          case Some((_, common)) => mappings merge common merge header.defaults
-          case None              => mappings merge header.defaults
-        }})
+        Right(spec.map{ case (header, mappings) => 
+          (wild.get(header.typ) match {
+            case Some((_, common)) => mappings merge common merge header.defaults
+            case None              => mappings merge header.defaults
+          }).copy(header = Some(header))
+        })
       }
     }
     
@@ -428,30 +442,7 @@ object Parsing {
     }
     def read(s: String): Either[Vector[String], Vector[Replacements]] = Replacements.read(new java.io.File(s))
   }
-  
-  // Perform substitution of @-prefixed strings (caps only)
-  val ReplReg = "@[A-Z]+".r
-  def allSubstitutions(ss: Seq[String], mm: Map[String, Set[String]]): Seq[Seq[String]] = {
-    val wildcards = ss.flatMap(s => ReplReg.findAllIn(s).map(_.tail)).toSet | Set("A", "CC", "ONE", "ZERO")
-    var maps = Seq(Map[String,String]())
-    wildcards.map(s => s -> mm(s)).foreach{ wc =>
-      val (k,vs) = wc
-      val us = vs.toList
-      val old = maps
-      maps = maps.map(m => (m + (k -> us.head)))
-      if (us.tail.nonEmpty) {
-        maps = maps ++ us.tail.flatMap(u => old.map(m => (m + (k -> u))))
-      }
-    }
-    maps = maps.filter(_.size > 0)
-    if (maps.isEmpty) Seq(ss)
-    else maps.map(m => ss.map{ s => 
-      val t = ReplReg.replaceAllIn(s, rm => m(rm.toString.tail))
-      if (t contains '@') ReplReg.replaceAllIn(t, rm => m(rm.toString.tail)) else t
-    })
-  }
-    
-  
+ 
   
   // Paired delimiters that we recognize
   val paired = "()[]{}<>".grouped(2).map(x => x(0) -> x(1)).toMap
@@ -508,36 +499,4 @@ object Parsing {
     }
   }
 
-
-  // Encapsulates a named substitution pattern
-  // E.g. Substitution("$X", "<<", ">>") would be able to transform "$X(3)" into "<<3>>"
-  case class Substitution(key: String, lhs: String, rhs: String) {
-    // Perform this substitution on string s (and add prefix)
-    def sub(s: String, prefix: String): String = if (s.isEmpty) prefix else {
-      val i = s.indexOfSlice(key)
-      if (i < 0) prefix + s
-      else {
-	pairedIndicesOf(s, i+key.length) match {
-	  case None => throw new IllegalArgumentException(s"Could not match $key in $s")
-	  case Some((il, ir)) =>
-	    if (ir < 0) throw new IllegalArgumentException(s"Could not find right limit of parameter for $key in $s")
-	    val (i0,i1) = if (paired contains s(il)) (il+1,ir) else (il,ir+1)
-	    sub(s.drop(ir+1), prefix + s.substring(0,i) + lhs + s.slice(i0,i1) + rhs)
-	}
-      }
-    }
-    // Perform substitution without adding a prefix
-    def sub(s: String): String = sub(s,"")
-  }
-  object Substitution {
-    // Make a substitution from a string where the variable part should be inserted in place of $
-    def from(key: String, subst: String) = {
-      val i = subst.indexOfSlice(" $ ")
-      if (i < 0) throw new IllegalArgumentException("Could not find \" $ \" in " + subst)
-      val j = subst.indexOfSlice(" $ ",i+3)
-      if (j >= 0) throw new IllegalArgumentException("Found more than one \" $ \" in " + subst)
-      new Substitution(key, subst.substring(0,i), subst.substring(i+3))
-    }
-  }
 }
-

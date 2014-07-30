@@ -5,12 +5,122 @@ import scala.language.higherKinds
 
 import scala.util._
 import laws.Parsing._
-import laws.{Supply => Sup}
-import Sup._
 
 class Laws(junit: Boolean) {
   import Laws._
   
+    
+  def synthMethod(tests: Tests, replaces: Replacements): Either[Vector[String], (Vector[String], String)] = {
+    tests.params.filter(x => !replaces.params.contains(x)) match {
+      case missing if missing.nonEmpty => return Left(Vector(
+        s"Variables ${missing.toList.sorted.mkString(", ")} missing.",
+        s"  Required by test lines ${tests.underlying.map(_.line.index).mkString(", ")}",
+        s"  Not provided by collection block starting on line ${replaces.myLine}"
+      ))
+      case _ =>
+    }
+    
+    val replaced = tests.underlying.map(t => replaces(t.code).right.map(_ -> t.line))
+    val broken = replaced.collect{ case Left(x) => x }
+    if (broken.nonEmpty) return Left(broken)
+    
+    // Note: code to right doesn't compile, complains about with! -- val body = iteration +: replaced.collect{ case Right(code, line) => s"assert({$code}, \"Test line ${line.index} with \"+message)" }.flatten
+    val iteration = "val message = s\"" + tests.params.toList.sorted.map(x => s"$x = $$$x").mkString("; ") + "\" + blockIdentifierString"
+    val body = iteration +: replaced.collect{ case Right((codes, line)) => 
+      codes.map{ code =>"assert({" + code + "}, \"Test line " + line.index + " with \"+message)" }
+    }.flatten
+    Right(body)
+    
+    val (pres, fors, ins) = {
+      val pb, fb, ib = Vector.newBuilder[String]
+      tests.params.toList.sorted.map(replaces.params).map(_.value).foreach{ v =>
+        preMacro.macroOn(v, "", s => { pb += s; "" })
+        forMacro.macroOn(v, "", s => { fb += s; "" })
+        inMacro.macroOn(v, "", s => { ib += s; "" })
+      }
+      (pb.result, fb.result, ib.result)
+    }
+    val single = List(pres.mkString("\n"), fors.mkString("for (", "; ", ") {"), ins.mkString("\n")).mkString("\r")
+    val expanded = replaces(single) match {
+      case Left(error) =>
+        return Left(Vector(
+          "Problem with block starting on line ${replaces.myLine} expanding into test with vars ${tests.params.toList.sorted.mkString(", ")}",
+          error
+        ))
+      case Right(xs) => xs
+    }
+    
+    val whole = Vector.newBuilder[String]
+    if (junit) lineMacro.argsOf(replaces.infos.get("junitMethodPrefix").map(_.values.mkString(" ")).getOrElse("")).foreach(whole += _)
+    val methodName = "test_" + tests.params.toList.sorted.mkString("_")
+    whole += s"def test_$methodName() {"
+    
+    expanded.map(_.split("\r",-1)).map{ a =>
+      val outer = if (a(0).trim.isEmpty) Vector() else a(0).split("\n").toVector
+      val loop = if (a.length < 1 || a(1) == "for () {") None else Some(a(1))
+      val myBody = if (a.length < 2 || a(2).isEmpty) body else a(2).split("\n").toVector ++ body
+      val inner = if (loop.isDefined) myBody.map("  " + _) else myBody
+      outer ++ loop ++ inner ++ loop.map(_ => "}")
+    } match {
+      case Vector(unique) => whole += "  val blockIdentifierString = \"\""; unique.foreach(whole += "  " + _)
+      case more => more.zipWithIndex.foreach{ case (x,i) => 
+        whole += "  {"
+        whole += "    val blockIdentifierString = \" in group " + (i+1) + "\""
+        x.foreach(whole += "    " + _)
+        whole += "  }"
+      }
+    }
+    whole += "}"
+    Right((whole.result, methodName))
+  }
+  
+  def synthFile(testses: Vector[Tests], replaces: Replacements): Either[Vector[String], Vector[String]] = {
+    val flags = replaces.params.get("flags").map(_.value).getOrElse("").split("\\s+").filter(_.nonEmpty).toSet
+    val pruned = testses.map(_.filter(_.validateFlags(flags))).filter(_.underlying.nonEmpty) match {
+      case Vector() => return Left(Vector(s"No tests match flags set for block starting at line ${replaces.myLine}"))
+      case x => x
+    }
+    val (expanded, named) = {
+      val temp = pruned.map(t => synthMethod(t, replaces))
+      temp.collect{ case Left(errors) => errors }.reduceOption(_ ++ _) match {
+        case Some(errors) => return Left(errors)
+        case _ =>
+      }
+      temp.collect{ case Right(xs) => xs }.unzip
+    }
+    var title = "unknown"
+    val whole = Vector.newBuilder[String]
+    whole += autoComment
+    lineMacro.argsOf(replaces.infos.get("fileHeader").map(_.values.mkString(" ")).getOrElse("")).foreach(whole += _)
+    if (junit) lineMacro.argsOf(replaces.infos.get("junitFileHeader").map(_.values.mkString(" ")).getOrElse("")).foreach(whole += _)
+    whole += ""
+    whole += (replaces("@NAME") match {
+      case Left(error) => return Left(Vector("Could not create name for block starting at line ${replaces.myLine}",error))
+      case Right(Vector(x)) => title = simple(x); s"object Test_$title {"
+      case Right(xs) => return Left("Could not decide between alternative names for block starting at line ${replaces.myLine}" +: xs)
+    })
+    expanded.foreach{ e => whole += ""; e.foreach(whole += "  " + _) }
+    if (!junit) {
+      whole += ""
+      whole += "  def main(args: Array[String]) {"
+      whole += "    val tests: Vector[() => ()] = Vector("
+      named.map("      " + _ + " _").mkString(",\n").split("\n").foreach(whole += _)
+      whole += "    )"
+      whole += "    val results = tests.map(f => Try(f()))"
+      whole += "    val errors = results.collect{ case Failure(t) => t }"
+      whole += "    if (errors.nonEmpty) {"
+      whole += "      println(errors.length + \" errors!\")"
+      whole += "      errors.foreach{ e => println; e.getStackTrace.take(10).foreach(println); }"
+      whole += "      sys.exit(1)"
+      whole += "    }"
+      whole += "    println(\"All tests passed for " + title + "\")"
+      whole += "  }"
+    }
+    whole += "}"
+    Right(whole.result)
+  }
+  
+  /*
   def readReplacementsFile(fname: String) = {
     def splitAtLeast(n: Int, sn: (String, Int)) = {
       val parts = sn._1.split("\\s+")
@@ -260,9 +370,17 @@ class Laws(junit: Boolean) {
     compile.foreach{ pw => Try{ pw.close } }
     run.foreach{ pw => Try { pw.close } }
   }
+  */
 }
   
 object Laws {
+  val preMacro = ReplaceMacro(Line.empty, "$PRE", "", "")
+  val forMacro = ReplaceMacro(Line.empty, "$FOR", "", "")
+  val inMacro = ReplaceMacro(Line.empty, "$IN", "", "")
+  val lineMacro = ReplaceMacro(Line.empty, "$LINE", "", "")
+  
+  def simple(s: String) = s.map{ c => if (c.isLetter || c.isWhitespace || c.isDigit) c else '_' }
+
   type Once[A] = TraversableOnce[A]
   
   implicit class PipeEverythingForCryingOutLoud[A](val underlying: A) extends AnyVal {
@@ -358,7 +476,20 @@ object Laws {
   }
   
   val autoComment = "// THIS FILE IS AUTO-GENERATED BY Laws.scala, DO NOT EDIT DIRECTLY"
-    
+  
+  def freshenFile(file: java.io.File, lines: Vector[String]) = {
+    val existing = if (!file.exists) Vector() else scala.io.Source.fromFile(file) |> { x => val ans = x.getLines.toVector; x.close; ans }
+    if (lines == existing) false
+    else {
+      val fos = new java.io.FileOutputStream(file)
+      val pw = new java.io.PrintWriter(fos)
+      lines.foreach(pw.println)
+      pw.close
+      true
+    }
+  }
+  
+  /*
   case class HemiTest(test: String, calls: Set[String], flags: Set[String])
   implicit def testStringToHemiTest(test: String): HemiTest = HemiTest(fixCalls(test), readCalls(test), readFlags(test))
   
@@ -367,4 +498,5 @@ object Laws {
     val laws = new Laws(args contains ("--junit"))
     laws.writeAllTests
   }
+  */
 }
