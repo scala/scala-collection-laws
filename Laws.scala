@@ -161,7 +161,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       case Left(error) => return Left(Vector("Could not create name for block starting at line ${replaces.myLine}",error))
     })
     
-    // This is actually everything important: all the test methods
+    // Include all the test methods
     methods.foreach{ case TestMethod(_,code) => whole += ""; code.foreach(whole += "  " + _) }
     
     // If it's not to be used as jUnit tests, create a main method that runs everything
@@ -244,7 +244,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
   }
   
   /** Generate the Instances.scala file, compile it if necessary, and via reflection load it to get method info */
-  def getMethodOracle(replaceses: Vector[Replacements]): Either[Vector[String], Map[String, Set[String]]] = {
+  def getMethodOracle(replaceses: Vector[Replacements], recompile: Boolean = false): Either[Vector[String], Map[String, Set[String]]] = {
     // Make the code or bail if something went wrong
     val instanceCode = synthInstances(replaceses) match {
       case Left(v) => return Left("Could not create code for Instances.scala:" +: v)
@@ -259,7 +259,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     }
     
     // If the file's contents changed, we have to recompile
-    if (changed) {
+    if (changed || recompile) {
       Try {
         println("Compiling Instances.scala.")
         scala.sys.process.Process(Seq("scalac", "-J-Xmx1G", "Instances.scala"), (new java.io.File(".")).getCanonicalFile).!
@@ -277,7 +277,9 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       Right(meth.invoke(obj).asInstanceOf[Map[String, Set[String]]])
     }
     catch {
-      case t: Throwable => Left("Could not instantiate Instances:" +: explainException(t))
+      case t: Throwable => 
+        if (!recompile) getMethodOracle(replaceses, true)
+        else Left("Could not instantiate Instances:" +: explainException(t))
     }
   }
   
