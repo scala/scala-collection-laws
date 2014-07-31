@@ -6,7 +6,7 @@ import scala.language.higherKinds
 import scala.util._
 import laws.Parsing._
 
-class Laws(junit: Boolean) {
+class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: String) {
   import Laws._
   
     
@@ -74,9 +74,25 @@ class Laws(junit: Boolean) {
     Right((whole.result, methodName))
   }
   
-  def synthFile(testses: Vector[Tests], replaces: Replacements): Either[Vector[String], Vector[String]] = {
+  case class TestFile(title: String, pkg: String, code: Vector[String], unvisited: Option[Set[String]]) {
+    lazy val file = new java.io.File("generated-tests/Test_" + title + ".scala")
+    lazy val qualified = (pkg match { case "" => pkg; case _ => pkg + "." }) + "Test_" + title
+    def write(): Boolean = freshenFile(file, code)
+  }
+  def synthFile(testses: Vector[Tests], replaces: Replacements, oracle: Map[String, Set[String]]): Either[Vector[String], TestFile] = {
+    val myMethods = replaces("@NAME") match {
+      case Right(Vector(name)) => oracle.get(name) match {
+        case Some(m) => replaces.infos.get("doNotVerifyMethods").map(m ++ _.values.toSet).getOrElse(m)
+        case _ => return Left(Vector(s"Cannot find methods for collection named $name"))
+      }
+      case _ => return Left(Vector(s"Collection name lookup failed for block at ${replaces.myLine}"))
+    }
+    val unvisited = new collection.mutable.HashSet[String]
+    unvisited ++= myMethods
+    replaces.infos.get("doNotVerifyMethods").foreach(unvisited --= _.values)
+    
     val flags = replaces.params.get("flags").map(_.value).getOrElse("").split("\\s+").filter(_.nonEmpty).toSet
-    val pruned = testses.map(_.filter(_.validateFlags(flags))).filter(_.underlying.nonEmpty) match {
+    val pruned = testses.map(_.filter(x => x.validateFlags(flags) && x.validateMethods(myMethods, unvisited))).filter(_.underlying.nonEmpty) match {
       case Vector() => return Left(Vector(s"No tests match flags set for block starting at line ${replaces.myLine}"))
       case x => x
     }
@@ -117,7 +133,105 @@ class Laws(junit: Boolean) {
       whole += "  }"
     }
     whole += "}"
+    val pkg = lineMacro.argsOf(replaces.infos.get("fileHeader").map(_.values.mkString(" ")).getOrElse("")).
+      find(_ startsWith "package ").
+      map(_.drop(7).dropWhile(_.isWhitespace)).
+      getOrElse("")
+    Right(TestFile(title, pkg, whole.result, Some(unvisited.toSet)))
+  }
+  
+  def synthInstances(replaceses: Vector[Replacements]): Either[Vector[String], Vector[String]] = {
+    val needed = replaceses.map{ reps =>
+      reps("@NAME") match {
+        case Left(e) => Left(Vector(e))
+        case Right(Vector(name)) => reps("@CCM") match {
+          case Left(e) => Left(Vector(e))
+          case Right(Vector(coll)) => reps.params.get("instance").map(i => reps(i.value)) match {
+            case None => Left(Vector(s"Need a value for 'instance' in block at ${reps.myLine}"))
+            case Some(Left(e)) => Left(Vector(e))
+            case Some(Right(Vector(code))) => Right((name, coll, code))
+            case Some(Right(x)) => Left(s"Need just one instance in block at ${reps.myLine} but found" +: x): Either[Vector[String], (String, String, String)]
+          }
+          case Right(x) => Left(s"Need just one collection type for method search for block at ${reps.myLine} but found " +: x): Either[Vector[String], (String, String, String)]
+        }
+        case Right(x) => Left(s"Need just one name for block at ${reps.myLine} but found" +: x): Either[Vector[String], (String, String, String)]
+      }
+    } |> { ans =>
+      ans.collect{ case Left(v) => v }.reduceOption(_ ++ _) match {
+        case Some(v) => return Left(v)
+        case _ => ans.collect{ case Right(x) => x }
+      }
+    }
+    val assigned = needed.map{ case (name, coll, code) =>
+      val v = "inst_" + simple(name)
+      (name, v, s"val $v = (classOf[$coll], $code)")
+    }
+    val whole = Vector.newBuilder[String]
+    whole += autoComment
+    whole += "package laws"
+    whole += "object Instances {"
+    assigned.foreach{ case (_, _, code) => whole += "  " + code }
+    whole += "  val mapped: Map[String, Set[String]] = Map("
+    assigned.foreach{ case (name, v, _) => whole += "    \"" + name + "\" -> laws.MethodFinder(" + v + "._1, " + v + "._2 )," }
+    whole += "    \"null\" -> Set()"
+    whole += "  )"
+    whole += "}"
     Right(whole.result)
+  }
+  
+  def getMethodOracle(replaceses: Vector[Replacements]): Either[Vector[String], Map[String, Set[String]]] = {
+    val instanceCode = synthInstances(replaceses) match {
+      case Left(v) => return Left("Could not create code for Instances.scala:" +: v)
+      case Right(v) => v
+    }
+    val target = new java.io.File("Instances.scala")
+    val changed = Try{ freshenFile(target, instanceCode) } match {
+      case Failure(t) => return Left(s"Could not write file ${target.getCanonicalFile.getPath}" +: explainException(t))
+      case Success(b) => b
+    }
+    if (changed) {
+      Try {
+        println("Compiling Instances.scala.")
+        scala.sys.process.Process(Seq("scalac", "-J-Xmx1G", "Instances.scala"), (new java.io.File(".")).getCanonicalFile).!
+      } match {
+        case Failure(t) => return Left(s"Could not compile Instances.scala" +: explainException(t))
+        case Success(exitcode) if (exitcode != 0) => return Left(Vector(s"Failed to compile Instances.scala; exit code $exitcode"))
+        case _ =>
+      }
+    }
+    Right(try {
+      val obj = Class.forName("laws.Instances$").getDeclaredConstructors.headOption.map{ c => c.setAccessible(true); c.newInstance() }.get
+      val meth = Class.forName("laws.Instances$").getDeclaredMethods.find(_.getName == "mapped").get
+      meth.invoke(obj).asInstanceOf[Map[String, Set[String]]]
+    }
+    catch {
+      case t: Throwable => return Left("Could not instantiate Instances:" +: explainException(t))
+    })
+  }
+  
+  def generateTests(): Either[Vector[String], Vector[TestFile]] = {
+    val testses = Tests.read(linetestsFilename) match {
+      case Left(e) => return Left(s"Could not read tests filename $linetestsFilename" +: e)
+      case Right(ts) => ts
+    }
+    val replaceses = Replacements.read(replacementsFilename) match {
+      case Left(e) => return Left(s"Could not read replacements filename $replacementsFilename" +: e)
+      case Right(rs) => rs
+    }
+    val oracle = getMethodOracle(replaceses) match {
+      case Left(e) => return Left(s"Could not acquire available methods:" +: e)
+      case Right(ms) => ms
+    }
+    replaceses.map{ reps => synthFile(testses, reps, oracle) } match { case fs =>
+      val gs = fs.map{
+        case Right(f) => if (f.write()) Right(f) else Left(Vector("Could not write to "+f.file.getCanonicalFile.getPath))
+        case x => x
+      }
+      gs.collect{ case Left(e) => e }.reduceOption(_ ++ _) match {
+        case Some(e) => return Left(s"Could not create code for all test files" +: e)
+        case None => Right(fs.collect{ case Right(f) => f })
+      }
+    }
   }
   
   /*
@@ -488,6 +602,8 @@ object Laws {
       true
     }
   }
+  
+  def explainException(t: Throwable): Vector[String] = Option(t.getMessage).toVector ++ t.getStackTrace.map("  " + _.toString).toVector
   
   /*
   case class HemiTest(test: String, calls: Set[String], flags: Set[String])

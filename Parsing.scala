@@ -168,7 +168,13 @@ object Parsing {
     /** The code to run (with backticks elided) */
     lazy val code = Test.BacktickRegex.replaceAllIn(data, Test.matchOutBackticked)
     /** Checks to make sure every method is present as confirmed by `p` */
-    def validateMethods(p: String => Boolean) = methods.forall(p)
+    def validateMethods(p: String => Boolean): Boolean = methods.forall(p)
+    /** Checks to make sure every method is present as confirmed by `p` and removes those names if present in `unvisited` */
+    def validateMethods(p: String => Boolean, unvisited: collection.mutable.HashSet[String]): Boolean = {
+      val ans = validateMethods(p)
+      if (ans) unvisited --= methods
+      ans
+    }
     /** Given an oracle `p` that answers if a flag is present, make sure all flags that must be there are and none are that mustn't be */
     def validateFlags(p: String => Boolean) = must.forall(p) && !mustnt.exists(p)
   }
@@ -204,18 +210,6 @@ object Parsing {
     @inline def isEmpty = tests.isEmpty
     /** The source code for all tests */
     lazy val codes = tests.map(_.code)
-    /** A subset of tests that will run if only the methods verified by `p` are present */
-    def validatedMethods(p: String => Boolean) = {
-      val filt = tests.filter(_.validateMethods(p))
-      if (filt.length == tests.length) this
-      else new Tests(params, filt)
-    }
-    /** A subset of tests that will run if the flags reported by `p` are present */
-    def validatedFlags(p: String => Boolean) = {
-      val filt = tests.filter(_.validateFlags(p))
-      if (filt.length == tests.length) this
-      else new Tests(params, filt)
-    }
     def map(f: Test => Test) = new Tests(params, tests.map(f))
     def filter(p: Test => Boolean) = new Tests(params, tests.filter(p))
   }
@@ -274,7 +268,7 @@ object Parsing {
       if (i < 0) prefix + s
       else pairedIndicesOf(s,i+key.length) match {
         case None => prefix + s
-        case Some((i0, i1)) => macroOn(s drop i1, prefix + s.substring(0, i) + f(s.substring(i0+1, i1)), f)
+        case Some((i0, i1)) => macroOn(s drop i1+1, prefix + s.substring(0, i) + f(s.substring(i0+1, i1)), f)
       }
     }
     final def argsOf(s: String) = {
