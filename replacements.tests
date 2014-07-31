@@ -38,6 +38,12 @@
 //   CCM --> this is used to determine which methods are available; it is the same as CC unless overridden
 //   NAME --> this is used to determine filenames and uniqueness, set to CC by default
 
+// There are also four informational mappings that aren't actually substituted
+//    doNotVerifyMethods --> any methods here are assumed to exist and get tested
+//    junitMethodPrefix --> $LINE(anything here e.g. an annotation goes right before each method when creating jUnit tests)
+//    fileHeader --> $LINE(this goes at the top of the test file) $LINE(and this goes on the next line)
+//    junitFileHeader --> $LINE(this goes after the normal file headers) $LINE(but these only appear for jUnit tests)
+
 // **********************************************
 
 
