@@ -611,7 +611,7 @@ object Laws {
           }
         }
         
-        rs
+        if (opts.exists(_._1 == "changed")) rs.filter(_.written) else rs
     }
     
     opts.find(_._1 == "run").foreach{ case (_, nr) =>

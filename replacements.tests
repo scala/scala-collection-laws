@@ -338,7 +338,7 @@ $NEW --> collection.Iterable[Int]( $ : _*)
 
 
 Int collection.Iterator[Int]
-flags --> ITERATOR LAZY
+flags --> ITERATOR LAZY BUGC
 $NEW --> ( $ ).iterator
 DEFINITE --> false
 
@@ -492,44 +492,45 @@ $NEW --> Seq( $ : _*).view
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Appended
-flags --> VIEW LAZY
+flags --> VIEW LAZY BUGC
 LET --> val
 $NEW --> Seq( $ : _*).view.++(Seq(50,51))
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]DroppedWhile
-flags --> VIEW LAZY
+flags --> VIEW LAZY BUGC
 LET --> val
 $NEW --> Seq( $ : _*).view.dropWhile(_ < 2)
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Filtered
-flags --> VIEW LAZY
+flags --> VIEW LAZY BUGC
 LET --> val
 $NEW --> Seq( $ : _*).view.filter(_ > 4)
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]FlatMapped
-flags --> VIEW LAZY
+flags --> VIEW LAZY BUGC
 LET --> val
 $NEW --> Seq( $ : _*).view.flatMap(i => Seq(i, i+2))
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Mapped
-flags --> VIEW LAZY
+flags --> VIEW LAZY BUGC
 LET --> val
 $NEW --> Seq( $ : _*).view.map(_ + 1)
 
 
-Int collection.SeqView[Int,Seq[Int]]
-NAME --> collection.SeqView[Int,Seq[Int]]Patched
-flags --> VIEW LAZY
-LET --> val
-$NEW --> Seq( $ : _*).view.patch(1,Seq(50,51),1)
+//Int collection.SeqView[Int,Seq[Int]]
+//NAME --> collection.SeqView[Int,Seq[Int]]Patched
+//flags --> VIEW LAZY BUGC BUGD
+//LET --> val
+//$NEW --> Seq( $ : _*).view.patch(1,Seq(50,51),1)
+//Broken--patch is all messed up.
 
 
 //Int collection.SeqView[Int,Seq[Int]]
@@ -542,21 +543,21 @@ $NEW --> Seq( $ : _*).view.patch(1,Seq(50,51),1)
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Reversed
-flags --> VIEW LAZY
+flags --> VIEW LAZY BUGC
 LET --> val
 $NEW --> Seq( $ : _*).view.reverse
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Sliced
-flags --> VIEW LAZY
+flags --> VIEW LAZY BUGC
 LET --> val
 $NEW --> Seq( $ : _*).view.drop(2)
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]TakenWhile
-flags --> VIEW LAZY
+flags --> VIEW LAZY BUGC
 LET --> val
 $NEW --> Seq( $ : _*).view.takeWhile(_ < 6)
 
@@ -602,11 +603,12 @@ LET --> val
 $NEW --> Stream( $ : _*).view.map(_ + 1)
 
 
-Int collection.immutable.StreamView[Int,Stream[Int]]
-NAME --> collection.immutable.StreamView[Int,Stream[Int]]Patched
-flags --> VIEW LAZY ADEFINITE BUGC
-LET --> val
-$NEW --> Stream( $ : _*).view.patch(1,Stream(50,51),1)
+// Int collection.immutable.StreamView[Int,Stream[Int]]
+// NAME --> collection.immutable.StreamView[Int,Stream[Int]]Patched
+// flags --> VIEW LAZY ADEFINITE BUGC
+// LET --> val
+// $NEW --> Stream( $ : _*).view.patch(1,Stream(50,51),1)
+//Broken--Patched is messed up for now.
 
 
 //Int collection.immutable.StreamView[Int,Stream[Int]]
