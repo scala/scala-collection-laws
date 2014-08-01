@@ -11,7 +11,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
   import Laws._
   
   /** A method generated for testing. */
-  case class TestMethod(name: String, code: Vector[String])
+  case class TestMethod(name: String, code: Vector[String], lines: Set[Int])
   
   /** Given a set of tests that use identical variables and a set of replacements to fill in
     * for variables in those tests, generate a method that runs all the tests (or error messages
@@ -97,11 +97,15 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     whole += "}"
     
     // Method is complete.
-    Right(TestMethod(methodName, whole.result))
+    Right(TestMethod(methodName, whole.result, tests.underlying.map(_.line.index).toSet))
   }
 
   /** A file that performs tests on a single collection */
-  case class TestFile(title: String, pkg: String, code: Vector[String], unvisited: Option[Set[String]], written: Boolean = false) {
+  case class TestFile(
+    title: String, pkg: String, code: Vector[String],
+    unvisited: Option[Set[String]], lines: Set[Int],
+    written: Boolean = false
+  ) {
     lazy val file = new java.io.File("generated-tests/Test_" + title + ".scala")
     lazy val qualified = (pkg match { case "" => pkg; case _ => pkg + "." }) + "Test_" + title
     def write() = copy(written = freshenFile(file, code))
@@ -162,7 +166,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     })
     
     // Include all the test methods
-    methods.foreach{ case TestMethod(_,code) => whole += ""; code.foreach(whole += "  " + _) }
+    methods.foreach{ case TestMethod(_, code, _) => whole += ""; code.foreach(whole += "  " + _) }
     
     // If it's not to be used as jUnit tests, create a main method that runs everything
     if (!junit) {
@@ -175,7 +179,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       whole += "    val errors = results.collect{ case scala.util.Failure(t) => t }"
       whole += "    if (errors.nonEmpty) {"
       whole += "      println(errors.length + \" errors!\")"
-      whole += "      errors.foreach{ e => println; e.getStackTrace.take(10).foreach(println); }"
+      whole += "      errors.foreach{ e => println; laws.Laws.explainException(e).take(10).foreach(println); }"
       whole += "      sys.exit(1)"
       whole += "    }"
       whole += "    println(\"All tests passed for " + title + "\")"
@@ -190,7 +194,10 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       getOrElse("")
       
     // We have successfully created a test file.
-    Right(TestFile(title, pkg, whole.result, Some(unvisited.toSet)))
+    Right(TestFile(
+      title, pkg, whole.result,
+      Some(unvisited.toSet), methods.map(_.lines).reduceOption(_ ++ _).getOrElse(Set())
+    ))
   }
   
   /** Generate the contents of a file called Instances.scala that can use reflection to get all the available methods for each class */
@@ -283,16 +290,19 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     }
   }
   
+  lazy val loadedTestses = Tests.read(linetestsFilename)
+  lazy val loadedReplacementses = Replacements.read(replacementsFilename)
+  
   /** Loads all the files/info needed and generates the tests, including writing the files if their contents have changed. */
   def generateTests(): Either[Vector[String], Vector[TestFile]] = {
     // Load single-line tests (or bail)
-    val testses = Tests.read(linetestsFilename) match {
+    val testses = loadedTestses match {
       case Left(e) => return Left(s"Could not read tests filename $linetestsFilename" +: e)
       case Right(ts) => ts
     }
     
     // Load replacements for each collection (or bail)
-    val replaceses = Replacements.read(replacementsFilename) match {
+    val replaceses = loadedReplacementses match {
       case Left(e) => return Left(s"Could not read replacements filename $replacementsFilename" +: e)
       case Right(rs) => rs
     }
@@ -319,11 +329,110 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     }
   }
   
-  /** TODO: make this do something. */
-  def executeTests(files: Vector[TestFile]) {}
+  /** Encapsulates the results of executing some external routine */
+  case class Execution(exitcode: Int, elapsed: Double, output: Vector[String], command: Seq[String], before: Option[Execution] = None) {
+    /** Whether any of the executions failed */
+    def failed: Boolean = (exitcode != 0) || before.exists(_.failed)
+    
+    /** The total time taken by all executions */
+    def time: Double = elapsed + before.map(_.time).getOrElse(0.0)
+    
+    /** Link two executions. */
+    def +(e: Execution): Execution = e match {
+      case x if x eq Execution.empty => this
+      case _ => this match {
+        case x if x eq Execution.empty => e
+        case _ => before match {
+          case None => copy(before = Some(e))
+          case Some(x) => copy(before = Some(x + e))
+        }
+      }
+    }
+  }
+  object Execution {
+    /** Marker for no actual execution */
+    lazy val empty = Execution(0, 0.0, Vector.empty[String], Seq.empty[String])
+    
+    /** Run something (pre-parsed into separate arguments) */
+    def apply(s: String*): Execution = {
+      val tstart = System.nanoTime
+      val log = Vector.newBuilder[String]
+      val logger = sys.process.ProcessLogger(log += _)
+      val exitcode = sys.process.Process(s.toSeq).!(logger)
+      val elapsed = 1e-9 * (System.nanoTime - tstart)
+      Execution(exitcode, elapsed, log.result, s.toSeq)
+    }
+  }
+  
+  /** Compile and run a single test, collecting any output.
+    * The exit code should indicate whether a step succeeded or failed.
+    */
+  def executeTest(tf: TestFile, recompile: Boolean = false): Execution = {
+    val updated = Try{ freshenFile(tf.file, tf.code) } match {
+      case Failure(t) =>
+        return Execution(-1,  0, s"Could not create test file ${tf.file.getCanonicalFile.getPath}" +: explainException(t), Seq.empty[String])
+      case Success(b) => b
+    }
+    
+    def compile = {
+      val path = tf.file.getCanonicalFile.getPath
+      println("Compiling " + path)
+      Execution("scalac", "-J-Xmx1G", path)
+    }
+    
+    def run = {
+      val result = Execution("scala", "-J-Xmx1G", tf.qualified)
+      if (result.output.headOption.exists(_ startsWith "No such file or class")) result.copy(exitcode = 1)
+      else result
+    }
+    
+    val comp = if (!updated && !recompile) Execution.empty else compile
+    if (comp.failed) return comp
+    run match {
+      case x if x.failed && (comp eq Execution.empty) =>
+        val comp = compile
+        if (comp.failed) comp else run + comp
+      case _ => run + comp
+    }
+  }
+  
+  def executeTests(tfs: Vector[TestFile], executors: Int = 1): Vector[(TestFile, Option[Execution])] = {
+    import concurrent._
+    import duration._
+    import ExecutionContext.Implicits.global
+    
+    val answers = Vector.newBuilder[(TestFile, Option[Execution])]
+    var running = tfs.take(1 max executors).map(tf => tf -> Future(executeTest(tf)))
+    var remaining = tfs.drop(running.length)
+    while (running.nonEmpty) {
+      Try{ Await.ready( Future.firstCompletedOf(running.map(_._2)), Duration("10 min") ) } match {
+        case Failure(t) => 
+          answers ++= running.map{ case (tf, _) => tf -> None }
+          running = remaining.take(1 max executors).map(tf => tf -> Future(executeTest(tf)))
+          remaining = remaining drop running.length
+        case _ =>
+          val (done, undone) = running.partition(_._2.isCompleted)
+          val extra = remaining.take(done.length min (1 max executors)).map(tf => tf -> Future(executeTest(tf)))
+          remaining = remaining.drop(extra.length)
+          done.foreach{ case (tf, fu) => 
+            val ex = fu.value.flatMap(_.toOption)
+            ex.foreach{ e =>
+              val wall = if (e.failed) "!!!!!!!!!!" else "----------"
+              val bit = wall.take(1) + " "
+              println(wall + "\n" + e.output.map(bit + _ + "\n").mkString + wall)
+            }
+            answers += tf -> ex
+          }
+          running = undone ++ extra
+      }
+    }
+    
+    answers.result
+  }
   
 }
-  
+
+
 object Laws {
   // Macros are a convenient way to delimit separate commands to go in different contexts
   val preMacro = ReplaceMacro(Line.empty, "$PRE", "", "")
@@ -426,13 +535,110 @@ object Laws {
   /** Convert an exception into a bunch of lines that can be passed around as a Vector[String] */
   def explainException(t: Throwable): Vector[String] = Option(t.getMessage).toVector ++ t.getStackTrace.map("  " + _.toString).toVector
   
+  def humanReadableTime(d: Double): String = {
+    val days = (d/86400).floor.toInt
+    val hours = ((d - 86400*days)/3600).floor.toInt
+    val minutes = ((d - 86400*days - 3600*hours)/60).floor.toInt
+    val seconds = (d - 86400*days - 3600*hours - 60*minutes)
+    if (days > 0) f"$days days, $hours hours, $minutes minutes, $seconds%.1f seconds"
+    else if (hours > 0) f"$hours hours, $minutes minutes, $seconds%.1f seconds"
+    else if (minutes > 0) f"$minutes minutes, $seconds%.1f seconds"
+    else f"$seconds%.2f seconds"
+  }
+  
   /** Create the tests.  Maybe run them, too. */
   def main(args: Array[String]) {
-    if (args.length != 2) throw new Exception("Need two arguments--replacements file and single-line tests file")
-    val laws = new Laws(false, args(0), args(1))
-    laws.generateTests match {
-      case Left(e) => e.foreach(println)
-      case Right(r) => println("Generated " + r.length + " test files.")
+    val (optable, literal) = args.span(_ != "--")
+    val opts = optable.filter(_ startsWith "--").map(_.drop(2)).map{ x =>
+      val i = x.indexOf('=')
+      if (i < 0) x -> Right("")
+      else {
+        val y = x.substring(0,i)
+        val z = x.substring(i+1)
+        Try{ z.toLong } match {
+          case Failure(_) => y -> Right(z)
+          case Success(n) => y -> Left(n)
+        }
+      }
+    }
+    val fnames = optable.filterNot(_ startsWith "--") ++ literal.drop(1)
+    
+    if (fnames.length != 2) throw new Exception("Need two arguments--replacements file and single-line tests file")
+    val laws = new Laws(false, fnames(0), fnames(1))
+    
+    val tfs: Vector[laws.TestFile] = laws.generateTests match {
+      case Left(e) => e.foreach(println); sys.exit(1); return
+      case Right(rs) =>
+        var allLines = Set[Int]()
+        rs.foreach{ r =>
+          allLines |= r.lines
+          println(s"Created ${r.lines.size} single-line tests for")
+          println(s"  ${r.title}")
+          for (u <- r.unvisited if u.nonEmpty) {
+            println(s"  ${u.size} methods not tested:")
+            val i = u.toList.sorted.iterator
+            var s = "  "
+            while (i.hasNext) {
+              val t = {
+                val x = i.next
+                val more = 11 - (x.length % 11)
+                x + " "*more
+              }
+              if (s.length == 2) s += t
+              else if (s.length + t.length > 79) {
+                println(s)
+                s = "  " + t
+              }
+              else s += t
+            }
+            if (s.length > 2) println(s)
+          }
+          println
+        }
+        
+        val unusedLines = 
+          laws.loadedTestses.right.toOption.
+          map(_.flatMap(_.underlying.filter(x => !allLines.contains(x.line.index)))).
+          getOrElse(Vector())
+        
+        println("Generated " + rs.length + " test files.")
+        if (unusedLines.nonEmpty) {
+          println(s"${unusedLines.length} test lines were not used for any collection: ")
+          unusedLines.toList.sortBy(_.line.index).foreach{ ul =>
+            val text = f"${ul.line.index}%-3d ${ul.line.whole}"
+            if (text.length < 78) println("  " + text)
+            else println("  " + text.take(74) + "...")
+          }
+        }
+        
+        rs
+    }
+    
+    opts.find(_._1 == "run").foreach{ case (_, nr) =>
+      val n = 1 max nr.left.toOption.getOrElse(1L).toInt
+      val tstart = System.nanoTime
+      val ran = laws.executeTests(tfs, n).sortBy(_._1.qualified)
+      val elapsed = 1e-9*(System.nanoTime - tstart)
+      println
+      println("========= Summary of Test Run =========")
+      println(f"Tested ${ran.length} collections in ${humanReadableTime(elapsed)}")
+      
+      val succeeded = ran.collect{ case (tf, Some(e)) if !e.failed => (tf,e) }
+      println(s"  ${succeeded.length} collections passed")
+      
+      val ranButFailed = ran.collect{ case (tf, Some(e)) if e.failed && e.command.headOption.exists(_ == "scala") => (tf,e) }
+      println(s"  ${ranButFailed.length} collections failed")
+      ranButFailed.foreach{ case (tf, _) => println("    " + tf.qualified) }
+      
+      val didntCompile = ran.collect{ case (tf, Some(e)) if e.failed && e.command.headOption.exists(_ == "scalac") => (tf,e) }
+      println(s"  ${didntCompile.length} collections failed to compile")
+      didntCompile.foreach{ case (_, e) => println("    " + e.command.mkString(" ")) }
+      
+      val didntEvenFinish = ran.collect{ case (tf, None) => tf }
+      if (didntEvenFinish.nonEmpty) {
+        println("  ${didntEvenFinish.length} collections got stuck!  Better try these by hand.")
+        didntEvenFinish.foreach{ tf => println("    " + tf.qualified) }
+      }
     }
   }
 }

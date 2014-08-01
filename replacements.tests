@@ -84,7 +84,7 @@ z --> $PRE(val ca = @CA) $FOR(z <- ca)
 zero --> $PRE(val zero = @ZERO)
 instance --> $NEW((0 to 0))
 doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
-fileHeader --> $LINE(package scala.collection)
+fileHeader --> $LINE(package tests.generated.collection)
            --> $LINE(import scala.util.Try)
            --> $LINE(import laws.Laws.Implicits._)
            --> $LINE(import laws.Laws.sameType)

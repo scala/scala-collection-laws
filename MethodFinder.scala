@@ -11,7 +11,7 @@ object MethodFinder {
   
   val dollarMap = 
     """tilde ~ bang ! at @ hash # percent % up ^ amp & times * minus - plus + eq = bslash \\ bar | colon : less < greater > div / qmark ?""".
-    split(' ').grouped(2).map(a => ("\\$" + a(0)) -> a(1))
+    split(' ').grouped(2).map(a => ("\\$" + a(0)) -> a(1)).toVector
     
   def dedollar(s: String) = (s /: dollarMap)( (si, m) => si.replaceAll(m._1, m._2) )
   
@@ -29,6 +29,5 @@ object MethodFinder {
       map(m => dedollar(m.getName)).
       filter(n => !(n contains '$') && !objectMethods(n) && !taggedNotPublic(n)).
       toSet
-    match { case x => println(x); x }
   }
 }

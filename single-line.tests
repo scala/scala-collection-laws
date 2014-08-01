@@ -73,7 +73,7 @@ p ... x.filter(p).`forall`(p) == true
 p !RANGE ... sameType(x, x.filter(p))
 a op ... x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)
 a op ... x.`foldLeft`(a)(op) == x.`/:`(a)(op)
-a op ... x.`foldRight`(a)(op) == x.`:\\`(a)(op)
+// Cannot parse backslashes properly.  a op ... x.`foldRight`(a)(op) == x.`:\`(a)(op)
 !ADEFINITE ... x.`nonEmpty` implies (x.`hasDefiniteSize` == @DEFINITE)
 Try{x.`max`}.toOption == Try{x.`reduce`(_ max _)}.toOption
 f ... Try{x.`maxBy`(f)}.toOption == Try{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }.toOption
