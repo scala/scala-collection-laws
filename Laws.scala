@@ -382,46 +382,62 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     * The exit code should indicate whether a step succeeded or failed.
     */
   def executeTest(tf: TestFile, recompile: Boolean = false): Execution = {
-    def compile = {
+    def compile() = {
       val path = tf.file.getCanonicalFile.getPath
       println("Compiling " + path)
       Execution("scalac", "-J-Xmx1G", path)
     }
     
-    def run = {
+    def run() = {
       val result = Execution("scala", "-J-Xmx1G", tf.qualified)
       if (result.output.headOption.exists(_ startsWith "No such file or class")) result.copy(exitcode = 1)
       else result
     }
     
-    val comp = if (!tf.written && !recompile) Execution.empty else compile
+    // First see if we need to compile and bail if it doesn't work
+    val comp = if (!tf.written && !recompile) Execution.empty else compile()
     if (comp.failed) return comp
-    run match {
+      
+    // Then run, but if we didn't compile and the run fails, try compiling and re-running
+    run() match {
       case x if x.failed && (comp eq Execution.empty) =>
-        val comp = compile
-        if (comp.failed) comp else run + comp
-      case _ => run + comp
+        val comp = compile()
+        if (comp.failed) comp else run() + comp
+      case ran => ran + comp
     }
   }
   
+  /** Compile a bunch of tests, spawning as many processes as given by `executors`.
+    * If there's no progress on any executor for ten minutes, we'll try to just abandon
+    * them (and return None instead of Some[Execution] as for something that ran).
+    */
   def executeTests(tfs: Vector[TestFile], executors: Int = 1): Vector[(TestFile, Option[Execution])] = {
     import concurrent._
     import duration._
     import ExecutionContext.Implicits.global
     
+    // Accumulate finished test runs here
     val answers = Vector.newBuilder[(TestFile, Option[Execution])]
+    
+    // Maintain separate lists of running tasks and pending tasks
     var running = tfs.take(1 max executors).map(tf => tf -> Future(executeTest(tf)))
     var remaining = tfs.drop(running.length)
+    
     while (running.nonEmpty) {
       Try{ Await.ready( Future.firstCompletedOf(running.map(_._2)), Duration("10 min") ) } match {
-        case Failure(t) => 
+        case Failure(t) =>
+          // Nothing happened for ten minutes--throw everyone away and try a new batch
+          // Expect that this is very rare; otherwise you'll send the machine load through the roof.
           answers ++= running.map{ case (tf, _) => tf -> None }
           running = remaining.take(1 max executors).map(tf => tf -> Future(executeTest(tf)))
           remaining = remaining drop running.length
         case _ =>
+          // firstCompletedOf assures us that something's finished
           val (done, undone) = running.partition(_._2.isCompleted)
           val extra = remaining.take(done.length min (1 max executors)).map(tf => tf -> Future(executeTest(tf)))
           remaining = remaining.drop(extra.length)
+          
+          // Write the completed tests to stdout in addition to saving them
           done.foreach{ case (tf, fu) => 
             val ex = fu.value.flatMap(_.toOption)
             ex.foreach{ e =>
@@ -543,7 +559,9 @@ object Laws {
   /** Convert an exception into a bunch of lines that can be passed around as a Vector[String] */
   def explainException(t: Throwable): Vector[String] = Option(t.getMessage).toVector ++ t.getStackTrace.map("  " + _.toString).toVector
   
+  /** Write a time in seconds in a form easier for people to understand */
   def humanReadableTime(d: Double): String = {
+    // Code is not very DRY, is it?
     val days = (d/86400).floor.toInt
     val hours = ((d - 86400*days)/3600).floor.toInt
     val minutes = ((d - 86400*days - 3600*hours)/60).floor.toInt
@@ -556,6 +574,11 @@ object Laws {
   
   /** Create the tests.  Maybe run them, too. */
   def main(args: Array[String]) {
+    // Parse arguments: anything starting with -- is an option, unless
+    // it appears after a bare -- in argument list (standard GNU style).
+    // Options of the form --blah=foo have a Right("foo") associated with them
+    // Options of the form --blah=7 have a Left(7) associated with them
+    // Options without = have a Right("").
     val (optable, literal) = args.span(_ != "--")
     val opts = optable.filter(_ startsWith "--").map(_.drop(2)).map{ x =>
       val i = x.indexOf('=')
@@ -572,11 +595,21 @@ object Laws {
     val fnames = optable.filterNot(_ startsWith "--") ++ literal.drop(1)
     
     if (fnames.length != 2) throw new Exception("Need two arguments--replacements file and single-line tests file")
-    val laws = new Laws(false, fnames(0), fnames(1), opts.collect{ case ("deflag", Right(v)) if v != "" => v }.toSet )
+    
+    // Remove these flags from collections--an easy way to test if known bugs have been fixed!
+    val deflag = opts.collect{ case ("deflag", Right(v)) if v != "" => v }.toSet
+    
+    // Get the instance that does all the work (save for summarizing)
+    val laws = new Laws(false, fnames(0), fnames(1), deflag)
     
     val tfs: Vector[laws.TestFile] = laws.generateTests match {
-      case Left(e) => e.foreach(println); sys.exit(1); return
+      case Left(e) =>
+        // If we weren't able to generate tests, bail out
+        e.foreach(println)
+        sys.exit(1)
+        
       case Right(rs) =>
+        // Tests were created, so gather some summary statistics and babble about what happened
         var allLines = Set[Int]()
         rs.foreach{ r =>
           allLines |= r.lines
@@ -584,6 +617,7 @@ object Laws {
           println(s"  ${r.title}")
           for (u <- r.unvisited if u.nonEmpty) {
             println(s"  ${u.size} methods not tested:")
+            // All this is just for prettyprinting method names
             val i = u.toList.sorted.iterator
             var s = "  "
             while (i.hasNext) {
@@ -600,6 +634,7 @@ object Laws {
               else s += t
             }
             if (s.length > 2) println(s)
+            // Done prettyprinting
           }
           println
         }
@@ -611,6 +646,7 @@ object Laws {
         
         println("Generated " + rs.length + " test files.")
         if (unusedLines.nonEmpty) {
+          // Report which tests weren't used at all (an unused test is probably an indication of some sort of mistake)
           println(s"${unusedLines.length} test lines were not used for any collection: ")
           unusedLines.toList.sortBy(_.line.index).foreach{ ul =>
             val text = f"${ul.line.index}%-3d ${ul.line.whole}"
@@ -619,14 +655,18 @@ object Laws {
           }
         }
         
+        // If we want only new tests, filter out only ones whose source changed
         if (opts.exists(_._1 == "changed")) rs.filter(_.written) else rs
     }
     
     opts.find(_._1 == "run").foreach{ case (_, nr) =>
+      // Only run the tests if the option --run was given (--run=n says how many processes to spawn simultaneously)
       val n = 1 max nr.left.toOption.getOrElse(1L).toInt
       val tstart = System.nanoTime
       val ran = laws.executeTests(tfs, n).sortBy(_._1.qualified)
       val elapsed = 1e-9*(System.nanoTime - tstart)
+      
+      // When we reach here everything that will run has, so we just need to report on it
       println
       println("========= Summary of Test Run =========")
       println(f"Tested ${ran.length} collections in ${humanReadableTime(elapsed)}")
@@ -642,6 +682,7 @@ object Laws {
       println(s"  ${didntCompile.length} collections failed to compile")
       didntCompile.foreach{ case (_, e) => println("    " + e.command.mkString(" ")) }
       
+      // These ones are really bad--maybe should limit the number, or provide guidance on how to compile/run by hand?
       val didntEvenFinish = ran.collect{ case (tf, None) => tf }
       if (didntEvenFinish.nonEmpty) {
         println("  ${didntEvenFinish.length} collections got stuck!  Better try these by hand.")
