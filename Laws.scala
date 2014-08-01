@@ -411,7 +411,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     * If there's no progress on any executor for ten minutes, we'll try to just abandon
     * them (and return None instead of Some[Execution] as for something that ran).
     */
-  def executeTests(tfs: Vector[TestFile], executors: Int = 1): Vector[(TestFile, Option[Execution])] = {
+  def executeTests(tfs: Vector[TestFile], executors: Int = 1, recompile: Boolean = false): Vector[(TestFile, Option[Execution])] = {
     import concurrent._
     import duration._
     import ExecutionContext.Implicits.global
@@ -420,7 +420,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     val answers = Vector.newBuilder[(TestFile, Option[Execution])]
     
     // Maintain separate lists of running tasks and pending tasks
-    var running = tfs.take(1 max executors).map(tf => tf -> Future(executeTest(tf)))
+    var running = tfs.take(1 max executors).map(tf => tf -> Future(executeTest(tf, recompile)))
     var remaining = tfs.drop(running.length)
     
     while (running.nonEmpty) {
@@ -429,12 +429,12 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
           // Nothing happened for ten minutes--throw everyone away and try a new batch
           // Expect that this is very rare; otherwise you'll send the machine load through the roof.
           answers ++= running.map{ case (tf, _) => tf -> None }
-          running = remaining.take(1 max executors).map(tf => tf -> Future(executeTest(tf)))
+          running = remaining.take(1 max executors).map(tf => tf -> Future(executeTest(tf, recompile)))
           remaining = remaining drop running.length
         case _ =>
           // firstCompletedOf assures us that something's finished
           val (done, undone) = running.partition(_._2.isCompleted)
-          val extra = remaining.take(done.length min (1 max executors)).map(tf => tf -> Future(executeTest(tf)))
+          val extra = remaining.take(done.length min (1 max executors)).map(tf => tf -> Future(executeTest(tf, recompile)))
           remaining = remaining.drop(extra.length)
           
           // Write the completed tests to stdout in addition to saving them
@@ -663,7 +663,7 @@ object Laws {
       // Only run the tests if the option --run was given (--run=n says how many processes to spawn simultaneously)
       val n = 1 max nr.left.toOption.getOrElse(1L).toInt
       val tstart = System.nanoTime
-      val ran = laws.executeTests(tfs, n).sortBy(_._1.qualified)
+      val ran = laws.executeTests(tfs, n, opts.exists(_._1 == "recompile")).sortBy(_._1.qualified)
       val elapsed = 1e-9*(System.nanoTime - tstart)
       
       // When we reach here everything that will run has, so we just need to report on it

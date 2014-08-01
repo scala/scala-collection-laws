@@ -162,11 +162,12 @@ object Parsing {
     * @param mustnt - If any of these flags are present, this test will not be run
     */
   case class Test(line: Line, params: Set[String], must: Set[String], mustnt: Set[String]) {
+    import Test._
     private[this] def data = if (line.isSplit) line.right else line.left
     /** The methods required by this test (written between backticks in the test line) */
-    lazy val methods = Test.BacktickRegex.findAllIn(data).map(Test.pickOutBackticked).toSet
+    lazy val methods = data.split('`').grouped(2).filter(_.length == 2).map(_(1)).toSet
     /** The code to run (with backticks elided) */
-    lazy val code = Test.BacktickRegex.replaceAllIn(data, Test.matchOutBackticked)
+    lazy val code = data.filter(_ != '`')
     /** Checks to make sure every method is present as confirmed by `p` */
     def validateMethods(p: String => Boolean): Boolean = methods.forall(p)
     /** Checks to make sure every method is present as confirmed by `p` and removes those names if present in `unvisited` */
@@ -180,10 +181,6 @@ object Parsing {
   }
   object Test {
     import scala.util._
-    
-    val BacktickRegex = "`[^`]+`".r
-    val pickOutBackticked = (s: String) => s.split("\\\\").mkString("\\").drop(1).dropRight(1)
-    val matchOutBackticked = (m: scala.util.matching.Regex.Match) => if (m.matched == null) "" else pickOutBackticked(m.matched)
     
     /** Given a line from the file, try to parse out a single-line test, or produce an error message if it doesn't work. */
     def parseFrom(line: Line): Either[String, Test] = {

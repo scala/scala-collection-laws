@@ -68,12 +68,16 @@ val b = new collection.mutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result th
 p ... x.`count`(p) > 0 == x.`exists`(p)
 p ... (x.`count`(p) == x.`size`) == x.`forall`(p)
 p ... x.`count`(p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }
-p ... x.filter(p).`size` == x.`count`(p) // Filter is part of MonadOps, so we won't test for it!
+p ... x.filter(p).`size` == x.`count`(p)
 p ... x.filter(p).`forall`(p) == true
 p !RANGE ... sameType(x, x.filter(p))
+
+// Why doesn't array work?!  Induces out-of-place ambiguous implicit conversion problem on for loop (booleanArrayOps & byteArrayOps)?!
+y !ARRAY ... x.flatMap(xi => y.toList.take(xi)) theSameAs x.map(xi => y.toList.take(xi)).`flatten`
+
 a op ... x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)
 a op ... x.`foldLeft`(a)(op) == x.`/:`(a)(op)
-// Cannot parse backslashes properly.  a op ... x.`foldRight`(a)(op) == x.`:\`(a)(op)
+a op ... x.`foldRight`(a)(op) == x.`:\`(a)(op)
 !ADEFINITE ... x.`nonEmpty` implies (x.`hasDefiniteSize` == @DEFINITE)
 Try{x.`max`}.toOption == Try{x.`reduce`(_ max _)}.toOption
 f ... Try{x.`maxBy`(f)}.toOption == Try{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }.toOption
@@ -202,7 +206,10 @@ p !ITERATOR ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
 p ITERATOR ... val k = x.`takeWhile`(xi => !p(xi)).`size`; x.`indexWhere`(p) match { case -1 => k == x.`size`; case q => q == k }
 x.`indices` == (0 until x.`size`)
 x.`size` == 0 || (x.`init` theSameAs x.`dropRight`(1))
-// !PQ ... (x.`inits`.toVector.map(_.toVector) zip { val vx = x.`toVector`; (for (i <- vx.length to 0 by -1) yield vx.take(i)).toVector }).forall{ case (l,r) => l theSameAs r }
+x.`size` == 0 || (x.`init`.size == x.size - 1)
+x.`size` == 0 || (x.`init` isPartOf x)
+x.`size` == 0 || { val xx = x.`inits`.toVector.map(_.toVector); (xx zip xx.`tail`).`forall`{ case (a,b) => a.`size` - 1 == b.size && (b isPartOf a) } }
+!S ... { val xx = x.`inits`.toVector.map(_.toVector); (xx zip xx.`drop`(1)).`forall`{ case (a,b) => a.`init` theSameAs b } }
 y ... x.`intersect`(y).`toSet` == (x.toSet & y.toSet)  // Need to improve this one
 y !RANGE ... sameType(x, x.`intersect`(y))
 x.`iterator` theSameAs x
@@ -225,6 +232,9 @@ f ... x.`reverseMap`(f) theSameAs x.map(f).`reverse`
 f !RANGE !MUVU ... sameType(x, x.`reverseMap`(f))
 y ... x.`reverse_:::`(y) theSameAs x.`:::`(y.`reverse`)
 y ... sameType(x, x.`reverse_:::`(y))
+op !S one ... x.`scan`(one)((a,b) => op(a,b)) theSameAs x.toList.scanLeft(one)((a,b) => op(a,b))
+op !S one ... x.`scanLeft`(one)((a,b) => op(a,b)) theSameAs { val ab = collection.mutable.ArrayBuffer(one); x.foreach(xi => ab += (op(ab.last, xi))); ab }
+op !S one ... x.`scanRight`(one)((a,b) => op(a,b)) theSameAs x.toList.reverse.scanLeft(one)((a,b) => op(a,b)).reverse
 p n ... n <= 0 || x.`segmentLength`(p,n) == x.`drop`(n).`takeWhile`(p).`size`
 r ... r <= 0 || x.`sliding`(r).`size` == (if (x.nonEmpty) math.max(0,x.`size`-r)+1 else 0)
 r !S ... r <= 0 || x.`size` <= 0 || (r >= x.`size` && { x.`sliding`(r).map(_.toVector).toVector == Vector(x.toVector) }) || { val vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) == Vector.range(0, 1+vx.size-r).map(i => vx.slice(i,i+r)) }
