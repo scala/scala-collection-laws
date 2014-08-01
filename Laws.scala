@@ -7,7 +7,7 @@ import scala.util._
 import laws.Parsing._
 
 /** Generates and runs single-line collections tests that may be viewed as laws that collections should obey. */
-class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: String) {
+class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: String, deflag: Set[String]) {
   import Laws._
   
   /** A method generated for testing. */
@@ -291,7 +291,21 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
   }
   
   lazy val loadedTestses = Tests.read(linetestsFilename)
-  lazy val loadedReplacementses = Replacements.read(replacementsFilename)
+  lazy val loadedReplacementses = Replacements.read(replacementsFilename).right.map{ rs =>
+    rs.map{ r => r. // Strip out any flags from command-line that you want to ignore
+      params.get("flags").
+      map(rp => rp -> rp.value.split("\\s+").toSet).
+      filter{ case (_,flags) => (flags & deflag).nonEmpty }.
+      map{ case(rp, flags) => 
+        val x = flags diff deflag
+        r.copy(params = r.params.updated("flags", rp.copy(value = x.mkString(" "))))
+      }.
+      getOrElse(r)
+    }.filter{ r =>
+      // If the flag BROKEN exists, omit this collection
+      r.params.get("flags").map(_.value.split("\\s+").toSet).filter(_.contains("BROKEN")).isEmpty
+    }
+  }
   
   /** Loads all the files/info needed and generates the tests, including writing the files if their contents have changed. */
   def generateTests(): Either[Vector[String], Vector[TestFile]] = {
@@ -324,7 +338,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       }
       gs.collect{ case Left(e) => e }.reduceOption(_ ++ _) match {
         case Some(e) => return Left(s"Could not create code for all test files" +: e)
-        case None => Right(fs.collect{ case Right(f) => f })
+        case None => Right(gs.collect{ case Right(f) => f })  // Important that this is gs so we know which files were written out!
       }
     }
   }
@@ -368,12 +382,6 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     * The exit code should indicate whether a step succeeded or failed.
     */
   def executeTest(tf: TestFile, recompile: Boolean = false): Execution = {
-    val updated = Try{ freshenFile(tf.file, tf.code) } match {
-      case Failure(t) =>
-        return Execution(-1,  0, s"Could not create test file ${tf.file.getCanonicalFile.getPath}" +: explainException(t), Seq.empty[String])
-      case Success(b) => b
-    }
-    
     def compile = {
       val path = tf.file.getCanonicalFile.getPath
       println("Compiling " + path)
@@ -386,7 +394,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       else result
     }
     
-    val comp = if (!updated && !recompile) Execution.empty else compile
+    val comp = if (!tf.written && !recompile) Execution.empty else compile
     if (comp.failed) return comp
     run match {
       case x if x.failed && (comp eq Execution.empty) =>
@@ -564,7 +572,7 @@ object Laws {
     val fnames = optable.filterNot(_ startsWith "--") ++ literal.drop(1)
     
     if (fnames.length != 2) throw new Exception("Need two arguments--replacements file and single-line tests file")
-    val laws = new Laws(false, fnames(0), fnames(1))
+    val laws = new Laws(false, fnames(0), fnames(1), opts.collect{ case ("deflag", Right(v)) if v != "" => v }.toSet )
     
     val tfs: Vector[laws.TestFile] = laws.generateTests match {
       case Left(e) => e.foreach(println); sys.exit(1); return

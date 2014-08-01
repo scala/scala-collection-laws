@@ -38,8 +38,11 @@
 //   CCM --> this is used to determine which methods are available; it is the same as CC unless overridden
 //   NAME --> this is used to determine filenames and uniqueness, set to CC by default
 
-// There are also four informational mappings that aren't actually substituted
-//    doNotVerifyMethods --> any methods here are assumed to exist and get tested
+// There is one special flag
+//    BROKEN -- don't use this collection
+
+// There are four informational mappings that aren't actually substituted
+//    doNotVerifyMethods --> any methods here are assumed to exist; they aren't checked either for presence or usage
 //    junitMethodPrefix --> $LINE(anything here e.g. an annotation goes right before each method when creating jUnit tests)
 //    fileHeader --> $LINE(this goes at the top of the test file) $LINE(and this goes on the next line)
 //    junitFileHeader --> $LINE(this goes after the normal file headers) $LINE(but these only appear for jUnit tests)
@@ -99,10 +102,10 @@ junitFileHeader --> $LINE(import org.junit.runner.RunWith)
 // Immutable types
 
 
-// Int collection.immutable.BitSet
-// flags --> N S
-// LET --> val
-// $NEW --> collection.immutable.BitSet( $ : _*)
+Int collection.immutable.BitSet
+flags --> N S BROKEN
+LET --> val
+$NEW --> collection.immutable.BitSet( $ : _*)
 // Bitsets should be tested but are a bit annoying so ignore them for now.
 
 
@@ -138,10 +141,10 @@ LET --> val
 $NEW --> (collection.immutable.ListSet.empty[Int] ++ $ )
 
 
-// Int collection.immutable.PagedSeq[Int]
-// flags --> PS
-// LET --> val
-// $NEW --> ({ val temp = $ ; new collection.immutable.PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; if (k==i) -1 else k-i }) })
+Int collection.immutable.PagedSeq[Int]
+flags --> PS BROKEN
+LET --> val
+$NEW --> ({ val temp = $ ; new collection.immutable.PagedSeq[Int]((a,i,j) => { val t2 = temp.slice(i,j); var k=i; t2.foreach{ x => a(k) = x; k+=1 }; if (k==i) -1 else k-i }) })
 // PagedSeq is just too broken to deal with now.
 
 
@@ -226,9 +229,9 @@ Int collection.mutable.ArrayStack[Int]
 $NEW --> collection.mutable.ArrayStack[Int]( $ : _*)
 
 
-// Int collection.mutable.BitSet
-// flags --> N S
-// $NEW --> (collection.mutable.BitSet.empty ++ $ )
+Int collection.mutable.BitSet
+flags --> N S BROKEN
+$NEW --> (collection.mutable.BitSet.empty ++ $ )
 // Bitsets should be tested, but they're a bit annoying so ignore them for now.
 
 
@@ -275,10 +278,10 @@ Int collection.mutable.MutableList[Int]
 $NEW --> collection.mutable.MutableList[Int]( $ : _*)
 
 
+Int collection.mutable.PriorityQueue[Int]
+flags --> S PQ BROKEN
+$NEW --> collection.mutable.PriorityQueue[Int]( $ : _*)
 //PriorityQueue is just too weird.
-//Int collection.mutable.PriorityQueue[Int]
-//flags --> S PQ
-//$NEW --> collection.mutable.PriorityQueue[Int]( $ : _*)
 
 
 Int collection.mutable.Queue[Int]
@@ -525,19 +528,19 @@ LET --> val
 $NEW --> Seq( $ : _*).view.map(_ + 1)
 
 
-//Int collection.SeqView[Int,Seq[Int]]
-//NAME --> collection.SeqView[Int,Seq[Int]]Patched
-//flags --> VIEW LAZY BUGC BUGD
-//LET --> val
-//$NEW --> Seq( $ : _*).view.patch(1,Seq(50,51),1)
-//Broken--patch is all messed up.
+Int collection.SeqView[Int,Seq[Int]]
+NAME --> collection.SeqView[Int,Seq[Int]]Patched
+flags --> VIEW LAZY BUGC BROKEN
+LET --> val
+$NEW --> Seq( $ : _*).view.patch(1,Seq(50,51),1)
+//Broken--patch is all messed up.  This can go in again when patch is fixed (PR in, but a non-negligble change).
 
 
-//Int collection.SeqView[Int,Seq[Int]]
-//NAME --> collection.SeqView[Int,Seq[Int]]Prepended
-//flags --> VIEW LAZY
-//LET --> val
-//$NEW --> Seq( $ : _*).view.++:(Seq(50,51))
+Int collection.SeqView[Int,Seq[Int]]
+NAME --> collection.SeqView[Int,Seq[Int]]Prepended
+flags --> VIEW LAZY BROKEN
+LET --> val
+$NEW --> Seq( $ : _*).view.++:(Seq(50,51))
 //Broken--won't run instance code.  Weird message.
 
 
@@ -603,19 +606,19 @@ LET --> val
 $NEW --> Stream( $ : _*).view.map(_ + 1)
 
 
-// Int collection.immutable.StreamView[Int,Stream[Int]]
-// NAME --> collection.immutable.StreamView[Int,Stream[Int]]Patched
-// flags --> VIEW LAZY ADEFINITE BUGC
-// LET --> val
-// $NEW --> Stream( $ : _*).view.patch(1,Stream(50,51),1)
-//Broken--Patched is messed up for now.
+Int collection.immutable.StreamView[Int,Stream[Int]]
+NAME --> collection.immutable.StreamView[Int,Stream[Int]]Patched
+flags --> VIEW LAZY ADEFINITE BUGC BROKEN
+LET --> val
+$NEW --> Stream( $ : _*).view.patch(1,Stream(50,51),1)
+//Broken--Patched is messed up for now; when PR is merged this can go in again.
 
 
-//Int collection.immutable.StreamView[Int,Stream[Int]]
-//NAME --> collection.immutable.StreamView[Int,Stream[Int]]Prepended
-//flags --> VIEW LAZY ADEFINITE BUGC
-//LET --> val
-//$NEW --> Stream( $ : _*).view.++:(Stream(50,51))
+Int collection.immutable.StreamView[Int,Stream[Int]]
+NAME --> collection.immutable.StreamView[Int,Stream[Int]]Prepended
+flags --> VIEW LAZY ADEFINITE BUGC BROKEN
+LET --> val
+$NEW --> Stream( $ : _*).view.++:(Stream(50,51))
 //Can't seem to create this--java.lang.UnsupportedOperationException: TraversableView.Builder.result
 
 
@@ -640,7 +643,7 @@ LET --> val
 $NEW --> Stream( $ : _*).view.takeWhile(_ < 6)
 
 
-// Int collection.mutable.IndexedSeqView[Int,collection.mutable.IndexedSeq[Int]]
-// flags --> VIEW LAZY MUVU
-// $NEW --> collection.mutable.IndexedSeq( $ : _*).view
+Int collection.mutable.IndexedSeqView[Int,collection.mutable.IndexedSeq[Int]]
+flags --> VIEW LAZY MUVU BROKEN
+$NEW --> collection.mutable.IndexedSeq( $ : _*).view
 // Too messed up to take part in tests (at the moment)
