@@ -7,7 +7,10 @@ import scala.util._
 import laws.Parsing._
 
 /** Generates and runs single-line collections tests that may be viewed as laws that collections should obey. */
-class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: String, deflag: Set[String]) {
+class Laws(
+  junit: Boolean, replacementsFilename: String, linetestsFilename: String,
+  deflag: Set[String], scalaName: Seq[String], scalacName: Seq[String]
+) {
   import Laws._
   
   /** A method generated for testing. */
@@ -269,7 +272,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     if (changed || recompile) {
       Try {
         println("Compiling Instances.scala.")
-        scala.sys.process.Process(Seq("scalac", "-J-Xmx1G", "Instances.scala"), (new java.io.File(".")).getCanonicalFile).!
+        scala.sys.process.Process(scalacName :+ "Instances.scala"), (new java.io.File(".")).getCanonicalFile).!
       } match {
         case Failure(t) => return Left(s"Could not compile Instances.scala" +: explainException(t))
         case Success(exitcode) if (exitcode != 0) => return Left(Vector(s"Failed to compile Instances.scala; exit code $exitcode"))
@@ -341,42 +344,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
         case None => Right(gs.collect{ case Right(f) => f })  // Important that this is gs so we know which files were written out!
       }
     }
-  }
-  
-  /** Encapsulates the results of executing some external routine */
-  case class Execution(exitcode: Int, elapsed: Double, output: Vector[String], command: Seq[String], before: Option[Execution] = None) {
-    /** Whether any of the executions failed */
-    def failed: Boolean = (exitcode != 0) || before.exists(_.failed)
-    
-    /** The total time taken by all executions */
-    def time: Double = elapsed + before.map(_.time).getOrElse(0.0)
-    
-    /** Link two executions. */
-    def +(e: Execution): Execution = e match {
-      case x if x eq Execution.empty => this
-      case _ => this match {
-        case x if x eq Execution.empty => e
-        case _ => before match {
-          case None => copy(before = Some(e))
-          case Some(x) => copy(before = Some(x + e))
-        }
-      }
-    }
-  }
-  object Execution {
-    /** Marker for no actual execution */
-    lazy val empty = Execution(0, 0.0, Vector.empty[String], Seq.empty[String])
-    
-    /** Run something (pre-parsed into separate arguments) */
-    def apply(s: String*): Execution = {
-      val tstart = System.nanoTime
-      val log = Vector.newBuilder[String]
-      val logger = sys.process.ProcessLogger(log += _)
-      val exitcode = sys.process.Process(s.toSeq).!(logger)
-      val elapsed = 1e-9 * (System.nanoTime - tstart)
-      Execution(exitcode, elapsed, log.result, s.toSeq)
-    }
-  }
+  }  
   
   /** Compile and run a single test, collecting any output.
     * The exit code should indicate whether a step succeeded or failed.
@@ -385,11 +353,11 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     def compile() = {
       val path = tf.file.getCanonicalFile.getPath
       println("Compiling " + path)
-      Execution("scalac", "-J-Xmx1G", path)
+      Execution(scalacName :+ path)
     }
     
     def run() = {
-      val result = Execution("scala", "-J-Xmx1G", tf.qualified)
+      val result = Execution(scalaName :+ tf.qualified)
       if (result.output.headOption.exists(_ startsWith "No such file or class")) result.copy(exitcode = 1)
       else result
     }
@@ -558,7 +526,57 @@ object Laws {
   
   /** Convert an exception into a bunch of lines that can be passed around as a Vector[String] */
   def explainException(t: Throwable): Vector[String] = Option(t.getMessage).toVector ++ t.getStackTrace.map("  " + _.toString).toVector
+
+  /** Enum type for different type of external executions */
+  sealed trait ExecutionType {}
+  /** Ran something of an unknown type */
+  case object UnknownExecution extends ExecutionType
+  /** Compiled Instances.scala */
+  case object CompileInstances extends ExecutionType
+  /** Compiled a test */
+  case object CompileTest extends ExecutionType
+  /** Ran a test */
+  case object RunTest extends ExecutionType
   
+  /** Encapsulates the results of executing some external routine */
+  case class Execution(
+    exitcode: Int, elapsed: Double, output: Vector[String], command: Seq[String],
+    et: ExecutionType, before: Option[Execution] = None
+  ) {
+    /** Whether any of the executions failed */
+    def failed: Boolean = (exitcode != 0) || before.exists(_.failed)
+    
+    /** The total time taken by all executions */
+    def time: Double = elapsed + before.map(_.time).getOrElse(0.0)
+    
+    /** Link two executions. */
+    def +(e: Execution): Execution = e match {
+      case x if x eq Execution.empty => this
+      case _ => this match {
+        case x if x eq Execution.empty => e
+        case _ => before match {
+          case None => copy(before = Some(e))
+          case Some(x) => copy(before = Some(x + e))
+        }
+      }
+    }
+  }
+  object Execution {
+    /** Marker for no actual execution */
+    lazy val empty = Execution(0, 0.0, Vector.empty[String], Seq.empty[String], UnknownExecution)
+    
+    /** Run something (pre-parsed into separate arguments).  Warning, blocks until complete! */
+    def apply(et: ExecutionType)(s: String*): Execution = {
+      val tstart = System.nanoTime
+      val log = Vector.newBuilder[String]
+      val logger = sys.process.ProcessLogger(log += _)
+      val exitcode = sys.process.Process(s.toSeq).!(logger)
+      val elapsed = 1e-9 * (System.nanoTime - tstart)
+      Execution(exitcode, elapsed, log.result, s.toSeq, et)
+    }
+    def apply(et: ExecutionType)(ss: Seq[String]): Execution = apply(et)(ss: _*)
+  }
+
   /** Write a time in seconds in a form easier for people to understand */
   def humanReadableTime(d: Double): String = {
     // Code is not very DRY, is it?
@@ -572,7 +590,23 @@ object Laws {
     else f"$seconds%.2f seconds"
   }
   
-  /** Create the tests.  Maybe run them, too. */
+  /** Convenience method for allowing specification of scala/scala like '--scalac=fsc -J-Xmx2G'
+    * It will look for a space and a dash; if it finds it, and the last token
+    * doesn't have spaces, it will assume it's a command and break it up at whitespace-plus-dash.
+    */
+  def splitIfNotCommand(s: String): Vector[String] = {
+    val t = s.split("\\s-")
+    if (
+      Try{ (new java.io.File(s)).exists }.exists(_ == true) ||
+      t.length <= 1 ||
+      (t.last contains " ")
+    ) Vector(s)
+    else t.zipWithIndex.map{ case (x,i) => if (i==0) x else "-"+x }.toVector
+  }
+  
+  /** Creates the tests and may run them, depending on command-line options.
+    *  
+    */
   def main(args: Array[String]) {
     // Parse arguments: anything starting with -- is an option, unless
     // it appears after a bare -- in argument list (standard GNU style).
@@ -594,13 +628,27 @@ object Laws {
     }
     val fnames = optable.filterNot(_ startsWith "--") ++ literal.drop(1)
     
-    if (fnames.length != 2) throw new Exception("Need two arguments--replacements file and single-line tests file")
+    if (fnames.length != 2) throw new IllegalArgumentException("Need two arguments--replacements file and single-line tests file")
     
     // Remove these flags from collections--an easy way to test if known bugs have been fixed!
     val deflag = opts.collect{ case ("deflag", Right(v)) if v != "" => v }.toSet
     
+    // Let the caller specify what scala to use
+    val scalaName = opts.collect{ case ("scala", Right(v)) if v != "" => v }.toList match {
+      case cmds @ List(x, y, _*) => cmds
+      case cmd :: Nil  => splitIfNotCommand(cmd)
+      case None        => Vector("scala", "-J-Xmx1G")
+    }
+    
+    // And what scalac to use
+    val scalacName = opts.collect{ case ("scalac", Right(v)) if v != "" => v}.toList match {
+      case _ :: _ :: _ => throw new IllegalArgumentException("Provide at most one argument for how to invoke scala compiler.")
+      case cmd :: Nil  => cmd
+      case None        => Vector("scalac", "-J-Xmx1G")
+    }
+    
     // Get the instance that does all the work (save for summarizing)
-    val laws = new Laws(false, fnames(0), fnames(1), deflag)
+    val laws = new Laws(false, fnames(0), fnames(1), deflag, scalaName, scalacName)
     
     val tfs: Vector[laws.TestFile] = laws.generateTests match {
       case Left(e) =>
@@ -674,11 +722,11 @@ object Laws {
       val succeeded = ran.collect{ case (tf, Some(e)) if !e.failed => (tf,e) }
       println(s"  ${succeeded.length} collections passed")
       
-      val ranButFailed = ran.collect{ case (tf, Some(e)) if e.failed && e.command.headOption.exists(_ == "scala") => (tf,e) }
+      val ranButFailed = ran.collect{ case (tf, Some(e)) if e.failed && e.et == RunTest => (tf,e) }
       println(s"  ${ranButFailed.length} collections failed")
       ranButFailed.foreach{ case (tf, _) => println("    " + tf.qualified) }
       
-      val didntCompile = ran.collect{ case (tf, Some(e)) if e.failed && e.command.headOption.exists(_ == "scalac") => (tf,e) }
+      val didntCompile = ran.collect{ case (tf, Some(e)) if e.failed && e.et == CompileTest => (tf,e) }
       println(s"  ${didntCompile.length} collections failed to compile")
       didntCompile.foreach{ case (_, e) => println("    " + e.command.mkString(" ")) }
       
@@ -688,6 +736,11 @@ object Laws {
         println("  ${didntEvenFinish.length} collections got stuck!  Better try these by hand.")
         didntEvenFinish.foreach{ tf => println("    " + tf.qualified) }
       }
+      
+      // Something weird happened if the previous cases don't add up
+      val unaccounted = ran.length - (succeeded.length + ranButFailed.length + didntCompile.length + didntEvenFinish.length)
+      if (unaccounted > 0)
+        println(s"  Huh?  Couldn't figure out what happened to $unaccounted runs.")
     }
   }
 }
