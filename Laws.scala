@@ -272,7 +272,7 @@ class Laws(
     if (changed || recompile) {
       Try {
         println("Compiling Instances.scala.")
-        scala.sys.process.Process(scalacName :+ "Instances.scala"), (new java.io.File(".")).getCanonicalFile).!
+        scala.sys.process.Process(scalacName :+ "Instances.scala", (new java.io.File(".")).getCanonicalFile).!
       } match {
         case Failure(t) => return Left(s"Could not compile Instances.scala" +: explainException(t))
         case Success(exitcode) if (exitcode != 0) => return Left(Vector(s"Failed to compile Instances.scala; exit code $exitcode"))
@@ -353,11 +353,11 @@ class Laws(
     def compile() = {
       val path = tf.file.getCanonicalFile.getPath
       println("Compiling " + path)
-      Execution(scalacName :+ path)
+      Execution(scalacName :+ path, CompileTest)
     }
     
     def run() = {
-      val result = Execution(scalaName :+ tf.qualified)
+      val result = Execution(scalaName :+ tf.qualified, RunTest)
       if (result.output.headOption.exists(_ startsWith "No such file or class")) result.copy(exitcode = 1)
       else result
     }
@@ -531,8 +531,6 @@ object Laws {
   sealed trait ExecutionType {}
   /** Ran something of an unknown type */
   case object UnknownExecution extends ExecutionType
-  /** Compiled Instances.scala */
-  case object CompileInstances extends ExecutionType
   /** Compiled a test */
   case object CompileTest extends ExecutionType
   /** Ran a test */
@@ -574,7 +572,7 @@ object Laws {
       val elapsed = 1e-9 * (System.nanoTime - tstart)
       Execution(exitcode, elapsed, log.result, s.toSeq, et)
     }
-    def apply(et: ExecutionType)(ss: Seq[String]): Execution = apply(et)(ss: _*)
+    def apply(ss: Seq[String], et: ExecutionType): Execution = apply(et)(ss: _*)
   }
 
   /** Write a time in seconds in a form easier for people to understand */
@@ -597,7 +595,7 @@ object Laws {
   def splitIfNotCommand(s: String): Vector[String] = {
     val t = s.split("\\s-")
     if (
-      Try{ (new java.io.File(s)).exists }.exists(_ == true) ||
+      Try{ (new java.io.File(s)).exists }.toOption.exists(_ == true) ||
       t.length <= 1 ||
       (t.last contains " ")
     ) Vector(s)
@@ -636,15 +634,15 @@ object Laws {
     // Let the caller specify what scala to use
     val scalaName = opts.collect{ case ("scala", Right(v)) if v != "" => v }.toList match {
       case cmds @ List(x, y, _*) => cmds
-      case cmd :: Nil  => splitIfNotCommand(cmd)
-      case None        => Vector("scala", "-J-Xmx1G")
+      case cmd :: Nil            => splitIfNotCommand(cmd)
+      case Nil                   => Vector("scala", "-J-Xmx1G")
     }
     
     // And what scalac to use
     val scalacName = opts.collect{ case ("scalac", Right(v)) if v != "" => v}.toList match {
-      case _ :: _ :: _ => throw new IllegalArgumentException("Provide at most one argument for how to invoke scala compiler.")
-      case cmd :: Nil  => cmd
-      case None        => Vector("scalac", "-J-Xmx1G")
+      case cmds @ List(x, y, _*) => cmds
+      case cmd :: Nil            => splitIfNotCommand(cmd)
+      case Nil                   => Vector("scalac", "-J-Xmx1G")
     }
     
     // Get the instance that does all the work (save for summarizing)

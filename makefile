@@ -13,10 +13,13 @@ gen : default
 	scala -J-Xmx2G laws.Laws replacements.tests single-line.tests
 
 run : default
+	scala -J-Xmx2G laws.Laws --run=3 replacements.tests single-line.tests
+
+fullrun : default
 	scala -J-Xmx2G laws.Laws --run=3 --recompile replacements.tests single-line.tests
 
 docs : default
-	scaladoc -J-Xmx2G Parsing.scala MethodFinder.scala Laws.scala
+	mkdir -p api; scaladoc -d api -J-Xmx2G Parsing.scala MethodFinder.scala Laws.scala
 
 clean :
-	rm -r laws/*.class generated-tests/*.scala tests
+	rm -r laws/*.class generated-tests/*.scala tests api
