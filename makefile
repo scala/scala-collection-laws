@@ -13,7 +13,7 @@ gen : default
 	scala -J-Xmx2G laws.Laws replacements.tests single-line.tests
 
 run : default
-	scala -J-Xmx2G laws.Laws --run=3 replacements.tests single-line.tests
+	mkdir -p generated-tests; scala -J-Xmx2G laws.Laws --run=3 replacements.tests single-line.tests
 
 fullrun : default
 	scala -J-Xmx2G laws.Laws --run=3 --recompile replacements.tests single-line.tests
