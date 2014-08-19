@@ -33,7 +33,7 @@ make run
 
 we should see something like the following (`...` indicates many more output lines, not a literal output string from the tests):
 
-```scala
+```
 scalac -J-Xmx2G Parsing.scala
 scalac -J-Xmx2G MethodFinder.scala
 scalac -J-Xmx2G Laws.scala
@@ -135,7 +135,7 @@ n m !BUGB ... n < 0 || m >= x.size || { sameType(x, x.`slice`(n, m)) }
 
 Furthermore, it tells us what values of the parameters uncovered the error.  We fire up a REPL to test:
 
-```
+```scala
 scala> (0 to 3).slice(0, -1)
 res0: scala.collection.immutable.IndexedSeq[Int] = Vector()
 ```
