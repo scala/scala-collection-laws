@@ -43,7 +43,7 @@ class Laws(
       tests.params.toList.sorted.map(x => s"$x = $$$x").mkString("; ") + 
       "\" + blockIdentifierString"
     val body = messageLine +: replaced.collect{ case Right((codes, line)) => 
-      codes.map{ code =>"assert({" + code + "}, \"Test line " + line.index + " with \"+message)" }
+      codes.map{ code =>"if (!{" + code + "}) { throw new AssertionError(\"Test line " + line.index + " with \"+message) }" }
     }.flatten
     
     // Generate code to inject before, inside, and comprehensions for for
