@@ -7,10 +7,7 @@ import scala.util._
 import laws.Parsing._
 
 /** Generates and runs single-line collections tests that may be viewed as laws that collections should obey. */
-class Laws(
-  junit: Boolean, replacementsFilename: String, linetestsFilename: String,
-  deflag: Set[String], scalaName: Seq[String], scalacName: Seq[String]
-) {
+class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: String, deflag: Set[String], scalaEnv: Laws.ScalaEnv) {
   import Laws._
   
   /** A method generated for testing. */
@@ -272,7 +269,7 @@ class Laws(
     if (changed || recompile) {
       Try {
         println("Compiling Instances.scala.")
-        scala.sys.process.Process(scalacName :+ "Instances.scala", (new java.io.File(".")).getCanonicalFile).!
+        scala.sys.process.Process(scalaEnv.compile("Instances.scala"), (new java.io.File(".")).getCanonicalFile).!
       } match {
         case Failure(t) => return Left(s"Could not compile Instances.scala" +: explainException(t))
         case Success(exitcode) if (exitcode != 0) => return Left(Vector(s"Failed to compile Instances.scala; exit code $exitcode"))
@@ -353,11 +350,11 @@ class Laws(
     def compile() = {
       val path = tf.file.getCanonicalFile.getPath
       println("Compiling " + path)
-      Execution(scalacName :+ path, CompileTest)
+      Execution(scalaEnv.compile(path), CompileTest)
     }
     
     def run() = {
-      val result = Execution(scalaName :+ tf.qualified, RunTest)
+      val result = Execution(scalaEnv.run(tf.qualified), RunTest)
       if (result.output.headOption.exists(_ startsWith "No such file or class")) result.copy(exitcode = 1)
       else result
     }
@@ -588,18 +585,12 @@ object Laws {
     else f"$seconds%.2f seconds"
   }
   
-  /** Convenience method for allowing specification of scala/scala like '--scalac=fsc -J-Xmx2G'
-    * It will look for a space and a dash; if it finds it, and the last token
-    * doesn't have spaces, it will assume it's a command and break it up at whitespace-plus-dash.
-    */
-  def splitIfNotCommand(s: String): Vector[String] = {
-    val t = s.split("\\s-")
-    if (
-      Try{ (new java.io.File(s)).exists }.toOption.exists(_ == true) ||
-      t.length <= 1 ||
-      (t.last contains " ")
-    ) Vector(s)
-    else t.zipWithIndex.map{ case (x,i) => if (i==0) x else "-"+x }.toVector
+  /** Specifies how to run the Scala compiler and launch the JVM */
+  case class ScalaEnv(scala: String, scalaArgs: Seq[String], scalac: String, scalacArgs: Seq[String]) {
+    /** Returns the command-line which will compile the files listed in ss */
+    def compile(ss: String*): Vector[String] = ((scalac +: scalacArgs) ++ ss.toSeq).toVector
+    /** Returns the command-line which will run the files listed in ss */
+    def run(ss: String*): Vector[String] = ((scala +: scalaArgs) ++ ss.toSeq).toVector
   }
   
   /** Creates the tests and may run them, depending on command-line options.
@@ -631,22 +622,44 @@ object Laws {
     // Remove these flags from collections--an easy way to test if known bugs have been fixed!
     val deflag = opts.collect{ case ("deflag", Right(v)) if v != "" => v }.toSet
     
-    // Let the caller specify what scala to use
-    val scalaName = opts.collect{ case ("scala", Right(v)) if v != "" => v }.toList match {
-      case cmds @ List(x, y, _*) => cmds
-      case cmd :: Nil            => splitIfNotCommand(cmd)
-      case Nil                   => Vector("scala", "-J-Xmx1G")
+    // Compile these many files jointly (first try--compile-time errors will retry one by one)
+    val jointly = opts.collect{ case ("joint-compile", Left(n)) if (n > 0) => n }.toList match {
+      case Nil => 1
+      case x :: Nil => x
+      case xs => throw new IllegalArgumentException("Don't know what to do with multiple joint-compile args: " + xs.mkString(", "))
+    
+    // Let the caller specify what scala to use (if actually java, will need to change arguments)
+    val scalaCmd = opts.collect{ case ("scala", Right(v)) if v != "" => v }.toList match {
+      case cmds @ List(x, y, _*) =>
+        throw new IllegalArgumentException("Don't know what to do with more than one version of scala specified: " + cmds.mkString(", "))
+      case cmd :: Nil            => cmd
+      case Nil                   => "scala"
     }
     
     // And what scalac to use
-    val scalacName = opts.collect{ case ("scalac", Right(v)) if v != "" => v}.toList match {
-      case cmds @ List(x, y, _*) => cmds
-      case cmd :: Nil            => splitIfNotCommand(cmd)
-      case Nil                   => Vector("scalac", "-J-Xmx1G")
+    val scalacCmd = opts.collect{ case ("scalac", Right(v)) if v != "" => v}.toList match {
+      case cmds @ List(x, y, _*) =>
+        throw new IllegalArgumentException("Don't know what to do with more than one version of scalac specified: " + cmds.mkString(", "))
+      case cmd :: Nil            => cmd
+      case Nil                   => "scalac"
+    }
+
+    // Let the caller specify what scala arguments to use
+    val scalaArgs = opts.collect{ case ("scala-args", Right(v)) if v != "" => v }.toList match {
+      case Nil => "-J-Xmx1G" :: Nil
+      case cmds => cmds
     }
     
+    // And what scalac arguments to use
+    val scalacArgs = opts.collect{ case ("scalac-args", Right(v)) if v != "" => v }.toList match {
+      case Nil => "-J-Xmx1G" :: Nil
+      case cmds => cmds
+    }
+    
+    val scalaEnv = ScalaEnv(scalaCmd, scalaArgs, scalacCmd, scalacArgs)
+
     // Get the instance that does all the work (save for summarizing)
-    val laws = new Laws(false, fnames(0), fnames(1), deflag, scalaName, scalacName)
+    val laws = new Laws(false, fnames(0), fnames(1), deflag, scalaEnv)
     
     val tfs: Vector[laws.TestFile] = laws.generateTests match {
       case Left(e) =>

@@ -1,25 +1,27 @@
 scala-collections-laws
 ======================
 
-An exploration of partially automatic generation of tests for the entire collections library.
+Partially automatic generation of tests for the Scala collections library.
 
 To generate the tests, `make`
 
 To generate and run the tests, `make run`
 
-To generate, recompile even tests whose source hasn't changed, and run, `make fullrun`
+To generate, recompile even tests whose source hasn't changed, and run, `make full`
 
-By default, it uses three threads at a time to compile/run (--run=3).  This can be altered in the makefile.
+By default, it uses three threads at a time to compile/run (`--run=3`).  This can be altered in the makefile.
+ 
+If you want to only run tests that have been modified and therefore probably need to be recompiled, use `--changed` (this is not in the makefile)
+ 
+If you want to recompile everything whether or not the source was changed on this run, use `--recompile` (`full` uses this)
+ 
+To specify what command to use for the compiler, use `--scalac=fsc` or somesuch (paths are okay; be sure to escape spaces).
+ 
+To specify what command to use to run, use `--scala=scala` or somesuch.
+ 
+To specify arguments, use `--scala-args=arg1` `--scala-args=arg2` etc. (one `--scalac-args=` per argument).
 
-If you want to only run tests that have been modified and therefore probably need to be recompiled, use --changed (this is not in the makefile)
-
-If you want to recompile everything whether or not the source was changed on this run, use --recompile (`fullrun` uses this)
-
-To specify what command to use for the compiler, use `--scalac=fsc` or somesuch.  The safest way to pass multiple arguments is to repeat the --scalac command, e.g. `--scalac=fsc --scalac=-J-Xmx2G`.  It will do its best to interpret a single argument with spaces, e.g. '--scalac=fsc -J-Xmx2G'.
-
-To specify what command to use to run, use `--scala=scala` or somesuch.  
-
-Laws.scala will create and compile Instances.scala, and will create a whole bunch of source in generated-tests and class files in tests.generated.collection (be warned).
+`Laws.scala` will create and compile `Instances.scala`, and will create a whole bunch of source in `generated-tests` and class files in `tests/generated/collection` (be warned).
 
 ### A mini-walkthrough of detecting failed tests and verifying a bug
 
