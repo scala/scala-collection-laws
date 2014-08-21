@@ -594,7 +594,6 @@ object Laws {
   }
   
   /** Creates the tests and may run them, depending on command-line options.
-    *  
     */
   def main(args: Array[String]) {
     // Parse arguments: anything starting with -- is an option, unless
@@ -623,10 +622,12 @@ object Laws {
     val deflag = opts.collect{ case ("deflag", Right(v)) if v != "" => v }.toSet
     
     // Compile these many files jointly (first try--compile-time errors will retry one by one)
+    // TODO--actually use this
     val jointly = opts.collect{ case ("joint-compile", Left(n)) if (n > 0) => n }.toList match {
       case Nil => 1
       case x :: Nil => x
       case xs => throw new IllegalArgumentException("Don't know what to do with multiple joint-compile args: " + xs.mkString(", "))
+    }
     
     // Let the caller specify what scala to use (if actually java, will need to change arguments)
     val scalaCmd = opts.collect{ case ("scala", Right(v)) if v != "" => v }.toList match {

@@ -53,17 +53,17 @@
 
 // The generic data supplied for collections that contain Ints
 Int *
-X --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64)) $NEW(List(0,1,2,0,1,2))
+X --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64)) $NEW(List[Int](0,1,2,0,1,2))
 F --> ((_i: Int) => _i + 1)
 GS --> List((_i: Int) => (_i%2), (_i: Int) => math.signum(_i), (_i: Int) => (_i/2))
 PROP --> ((_i: @A) => _i < p_i)
 PF --> { case _i if _i < pf_i => _i + 1 }
-YS --> (List(4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => () => $NEW(y)))
-CA --> List(-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
-CB --> List(-70, -64, -15, -14, -13, -1, 0, 1, 2, 3, 12, 22, 40, 63, 64, 70)
-CM --> List(-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)
-CN --> List(-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
-CR --> List(0, 1, 2, 5, 15, 28, 33, 104)
+YS --> (List[Range](4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => () => $NEW(y)))
+CA --> List[Int](-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
+CB --> List[Int](-70, -64, -15, -14, -13, -1, 0, 1, 2, 3, 12, 22, 40, 63, 64, 70)
+CM --> List[Int](-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)
+CN --> List[Int](-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
+CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
 OP --> + *
 LET --> def
 ONE --> 1
@@ -150,7 +150,7 @@ $NEW --> ({ val temp = $ ; new collection.immutable.PagedSeq[Int]((a,i,j) => { v
 
 Int collection.immutable.Queue[Int]
 LET --> val
-$NEW --> collection.immutable.Queue( $ : _*)
+$NEW --> collection.immutable.Queue[Int]( $ : _*)
 
 
 Int collection.immutable.Range
@@ -162,7 +162,7 @@ $NEW --> ( $ : collection.immutable.Range )
 
 Int collection.immutable.Seq[Int]
 LET --> val
-$NEW --> collection.immutable.Seq( $ : _*)
+$NEW --> collection.immutable.Seq[Int]( $ : _*)
 
 
 Int collection.immutable.Set[Int]
@@ -179,7 +179,7 @@ $NEW --> (collection.immutable.SortedSet.empty[Int] ++ $ )
 
 Int collection.immutable.Stack[Int]
 LET --> val
-$NEW --> collection.immutable.Stack( $ : _*)
+$NEW --> collection.immutable.Stack[Int]( $ : _*)
 
 
 Int collection.immutable.Stream[Int]
@@ -192,13 +192,13 @@ MINEVALS --> 1
 
 Int collection.immutable.Traversable[Int]
 LET --> val
-$NEW --> collection.immutable.Traversable( $ : _*)
+$NEW --> collection.immutable.Traversable[Int]( $ : _*)
 
 
 Int collection.immutable.TreeSet[Int]
 flags --> S SORTED BUGA
 LET --> val
-$NEW --> collection.immutable.TreeSet( $ : _* )
+$NEW --> collection.immutable.TreeSet[Int]( $ : _* )
 
 
 Int collection.immutable.Vector[Int]
@@ -380,159 +380,159 @@ DEFINITE --> false
 Int collection.TraversableView[Int,Traversable[Int]]
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Traversable( $ : _*).view
+$NEW --> Traversable[Int]( $ : _*).view
 
 
 Int collection.TraversableView[Int,Traversable[Int]]
 NAME --> collection.TraversableView[Int,Traversable[Int]]Appended
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Traversable( $ : _*).view.++(Traversable(50,51))
+$NEW --> Traversable[Int]( $ : _*).view.++(Traversable(50,51))
 
 
 Int collection.TraversableView[Int,Traversable[Int]]
 NAME --> collection.TraversableView[Int,Traversable[Int]]DroppedWhile
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Traversable( $ : _*).view.dropWhile(_ < 2)
+$NEW --> Traversable[Int]( $ : _*).view.dropWhile(_ < 2)
 
 
 Int collection.TraversableView[Int,Traversable[Int]]
 NAME --> collection.TraversableView[Int,Traversable[Int]]Filtered
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Traversable( $ : _*).view.filter(_ > 4)
+$NEW --> Traversable[Int]( $ : _*).view.filter(_ > 4)
 
 
 Int collection.TraversableView[Int,Traversable[Int]]
 NAME --> collection.TraversableView[Int,Traversable[Int]]FlatMapped
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Traversable( $ : _*).view.flatMap(i => Traversable(i, i+2))
+$NEW --> Traversable[Int]( $ : _*).view.flatMap(i => Traversable(i, i+2))
 
 
 Int collection.TraversableView[Int,Traversable[Int]]
 NAME --> collection.TraversableView[Int,Traversable[Int]]Mapped
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Traversable( $ : _*).view.map(_ + 1)
+$NEW --> Traversable[Int]( $ : _*).view.map(_ + 1)
 
 
 Int collection.TraversableView[Int,Traversable[Int]]
 NAME --> collection.TraversableView[Int,Traversable[Int]]Sliced
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Traversable( $ : _*).view.drop(2)
+$NEW --> Traversable[Int]( $ : _*).view.drop(2)
 
 
 Int collection.TraversableView[Int,Traversable[Int]]
 NAME --> collection.TraversableView[Int,Traversable[Int]]TakenWhile
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Traversable( $ : _*).view.takeWhile(_ < 6)
+$NEW --> Traversable[Int]( $ : _*).view.takeWhile(_ < 6)
 
 
 Int collection.IterableView[Int,Iterable[Int]]
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Iterable( $ : _*).view
+$NEW --> Iterable[Int]( $ : _*).view
 
 
 Int collection.IterableView[Int,Iterable[Int]]
 NAME --> collection.IterableView[Int,Iterable[Int]]Appended
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Iterable( $ : _*).view.++(Iterable(50,51))
+$NEW --> Iterable[Int]( $ : _*).view.++(Iterable(50,51))
 
 
 Int collection.IterableView[Int,Iterable[Int]]
 NAME --> collection.IterableView[Int,Iterable[Int]]DroppedWhile
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Iterable( $ : _*).view.dropWhile(_ < 2)
+$NEW --> Iterable[Int]( $ : _*).view.dropWhile(_ < 2)
 
 
 Int collection.IterableView[Int,Iterable[Int]]
 NAME --> collection.IterableView[Int,Iterable[Int]]Filtered
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Iterable( $ : _*).view.filter(_ > 4)
+$NEW --> Iterable[Int]( $ : _*).view.filter(_ > 4)
 
 
 Int collection.IterableView[Int,Iterable[Int]]
 NAME --> collection.IterableView[Int,Iterable[Int]]FlatMapped
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Iterable( $ : _*).view.flatMap(i => Iterable(i, i+2))
+$NEW --> Iterable[Int]( $ : _*).view.flatMap(i => Iterable(i, i+2))
 
 
 Int collection.IterableView[Int,Iterable[Int]]
 NAME --> collection.IterableView[Int,Iterable[Int]]Mapped
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Iterable( $ : _*).view.map(_ + 1)
+$NEW --> Iterable[Int]( $ : _*).view.map(_ + 1)
 
 
 Int collection.IterableView[Int,Iterable[Int]]
 NAME --> collection.IterableView[Int,Iterable[Int]]Sliced
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Iterable( $ : _*).view.drop(2)
+$NEW --> Iterable[Int]( $ : _*).view.drop(2)
 
 
 Int collection.IterableView[Int,Iterable[Int]]
 NAME --> collection.IterableView[Int,Iterable[Int]]TakenWhile
 flags --> VIEW LAZY
 LET --> val
-$NEW --> Iterable( $ : _*).view.takeWhile(_ < 6)
+$NEW --> Iterable[Int]( $ : _*).view.takeWhile(_ < 6)
 
 
 Int collection.SeqView[Int,Seq[Int]]
 flags --> VIEW LAZY BUGC
 LET --> val
-$NEW --> Seq( $ : _*).view
+$NEW --> Seq[Int]( $ : _*).view
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Appended
 flags --> VIEW LAZY BUGC
 LET --> val
-$NEW --> Seq( $ : _*).view.++(Seq(50,51))
+$NEW --> Seq[Int]( $ : _*).view.++(Seq(50,51))
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]DroppedWhile
 flags --> VIEW LAZY BUGC
 LET --> val
-$NEW --> Seq( $ : _*).view.dropWhile(_ < 2)
+$NEW --> Seq[Int]( $ : _*).view.dropWhile(_ < 2)
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Filtered
 flags --> VIEW LAZY BUGC
 LET --> val
-$NEW --> Seq( $ : _*).view.filter(_ > 4)
+$NEW --> Seq[Int]( $ : _*).view.filter(_ > 4)
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]FlatMapped
 flags --> VIEW LAZY BUGC
 LET --> val
-$NEW --> Seq( $ : _*).view.flatMap(i => Seq(i, i+2))
+$NEW --> Seq[Int]( $ : _*).view.flatMap(i => Seq(i, i+2))
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Mapped
 flags --> VIEW LAZY BUGC
 LET --> val
-$NEW --> Seq( $ : _*).view.map(_ + 1)
+$NEW --> Seq[Int]( $ : _*).view.map(_ + 1)
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Patched
 flags --> VIEW LAZY BUGC BROKEN
 LET --> val
-$NEW --> Seq( $ : _*).view.patch(1,Seq(50,51),1)
+$NEW --> Seq[Int]( $ : _*).view.patch(1,Seq(50,51),1)
 //Broken--patch is all messed up.  This can go in again when patch is fixed (PR in, but a non-negligble change).
 
 
@@ -540,7 +540,7 @@ Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Prepended
 flags --> VIEW LAZY BROKEN
 LET --> val
-$NEW --> Seq( $ : _*).view.++:(Seq(50,51))
+$NEW --> Seq[Int]( $ : _*).view.++:(Seq(50,51))
 //Broken--won't run instance code.  Weird message.
 
 
@@ -548,69 +548,69 @@ Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Reversed
 flags --> VIEW LAZY BUGC
 LET --> val
-$NEW --> Seq( $ : _*).view.reverse
+$NEW --> Seq[Int]( $ : _*).view.reverse
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Sliced
 flags --> VIEW LAZY BUGC
 LET --> val
-$NEW --> Seq( $ : _*).view.drop(2)
+$NEW --> Seq[Int]( $ : _*).view.drop(2)
 
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]TakenWhile
 flags --> VIEW LAZY BUGC
 LET --> val
-$NEW --> Seq( $ : _*).view.takeWhile(_ < 6)
+$NEW --> Seq[Int]( $ : _*).view.takeWhile(_ < 6)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 flags --> VIEW LAZY ADEFINITE BUGC
 LET --> val
-$NEW --> Stream( $ : _*).view
+$NEW --> Stream[Int]( $ : _*).view
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Appended
 flags --> VIEW LAZY ADEFINITE BUGC
 LET --> val
-$NEW --> Stream( $ : _*).view.++(Stream(50,51))
+$NEW --> Stream[Int]( $ : _*).view.++(Stream(50,51))
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]DroppedWhile
 flags --> VIEW LAZY ADEFINITE BUGC
 LET --> val
-$NEW --> Stream( $ : _*).view.dropWhile(_ < 2)
+$NEW --> Stream[Int]( $ : _*).view.dropWhile(_ < 2)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Filtered
 flags --> VIEW LAZY ADEFINITE BUGC
 LET --> val
-$NEW --> Stream( $ : _*).view.filter(_ > 4)
+$NEW --> Stream[Int]( $ : _*).view.filter(_ > 4)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]FlatMapped
 flags --> VIEW LAZY ADEFINITE BUGC
 LET --> val
-$NEW --> Stream( $ : _*).view.flatMap(i => Stream(i, i+2))
+$NEW --> Stream[Int]( $ : _*).view.flatMap(i => Stream(i, i+2))
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Mapped
 flags --> VIEW LAZY ADEFINITE BUGC
 LET --> val
-$NEW --> Stream( $ : _*).view.map(_ + 1)
+$NEW --> Stream[Int]( $ : _*).view.map(_ + 1)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Patched
 flags --> VIEW LAZY ADEFINITE BUGC BROKEN
 LET --> val
-$NEW --> Stream( $ : _*).view.patch(1,Stream(50,51),1)
+$NEW --> Stream[Int]( $ : _*).view.patch(1,Stream(50,51),1)
 //Broken--Patched is messed up for now; when PR is merged this can go in again.
 
 
@@ -618,7 +618,7 @@ Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Prepended
 flags --> VIEW LAZY ADEFINITE BUGC BROKEN
 LET --> val
-$NEW --> Stream( $ : _*).view.++:(Stream(50,51))
+$NEW --> Stream[Int]( $ : _*).view.++:(Stream(50,51))
 //Can't seem to create this--java.lang.UnsupportedOperationException: TraversableView.Builder.result
 
 
@@ -626,24 +626,24 @@ Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Reversed
 flags --> VIEW LAZY ADEFINITE BUGC
 LET --> val
-$NEW --> Stream( $ : _*).view.reverse
+$NEW --> Stream[Int]( $ : _*).view.reverse
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Sliced
 flags --> VIEW LAZY ADEFINITE BUGC
 LET --> val
-$NEW --> Stream( $ : _*).view.drop(2)
+$NEW --> Stream[Int]( $ : _*).view.drop(2)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]TakenWhile
 flags --> VIEW LAZY ADEFINITE BUGC
 LET --> val
-$NEW --> Stream( $ : _*).view.takeWhile(_ < 6)
+$NEW --> Stream[Int]( $ : _*).view.takeWhile(_ < 6)
 
 
 Int collection.mutable.IndexedSeqView[Int,collection.mutable.IndexedSeq[Int]]
 flags --> VIEW LAZY MUVU BROKEN
-$NEW --> collection.mutable.IndexedSeq( $ : _*).view
+$NEW --> collection.mutable.IndexedSeq[Int]( $ : _*).view
 // Too messed up to take part in tests (at the moment)
