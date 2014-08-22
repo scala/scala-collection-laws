@@ -178,7 +178,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       whole += "    val results = tests.map(f => Try(f()))"
       whole += "    val errors = results.collect{ case scala.util.Failure(t) => t }"
       whole += "    if (errors.nonEmpty) {"
-      whole += "      println(errors.length + \" errors!\")"
+      whole += "      println(errors.length + \" errors for " + title + "!\")"
       whole += "      errors.foreach{ e => println; laws.Laws.explainException(e).take(10).foreach(println); }"
       whole += "      sys.exit(1)"
       whole += "    }"

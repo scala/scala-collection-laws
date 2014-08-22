@@ -70,6 +70,7 @@ ONE --> 1
 ZERO --> 0
 DEFINITE --> true
 MINEVALS --> 0
+AGAIN --> true
 a --> $PRE(val ca = @CA) $FOR(a <- ca)
 b --> $PRE(val cb = @CB) $FOR(b <- cb)
 f --> $PRE(val f = @F)
@@ -213,7 +214,7 @@ $NEW --> collection.immutable.Vector[Int]( $ : _*)
 
 Int Array[Int]
 CCM --> collection.mutable.WrappedArray[Int]
-flags --> ARRAY
+flags --> ARRAY BUGD
 $NEW --> Array[Int]( $ : _*)
 
 
@@ -320,10 +321,12 @@ $NEW --> (collection.mutable.TreeSet.empty[Int] ++ $ )
 
 
 Int collection.mutable.UnrolledBuffer[Int]
+flags --> USESARRAY
 $NEW --> collection.mutable.UnrolledBuffer[Int]( $ : _*)
 
 
 Int collection.mutable.WrappedArray[Int]
+flags --> USESARRAY
 $NEW --> (Array[Int]( $ : _*): collection.mutable.WrappedArray[Int])
 
 
@@ -341,9 +344,10 @@ $NEW --> collection.Iterable[Int]( $ : _*)
 
 
 Int collection.Iterator[Int]
-flags --> ITERATOR LAZY BUGC
+flags --> ITERATOR LAZY BUGC BUGD
 $NEW --> ( $ ).iterator
 DEFINITE --> false
+AGAIN --> false
 
 
 Int collection.LinearSeq[Int]
@@ -369,8 +373,10 @@ $NEW --> collection.Traversable[Int]( $ : _*)
 
 
 Int collection.TraversableOnce[Int]
+flags --> BUGD
 $NEW --> (( $ ).iterator: collection.TraversableOnce[Int])
 DEFINITE --> false
+AGAIN --> false
 
 
 

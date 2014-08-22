@@ -56,15 +56,16 @@ x.`toIterator` theSameAs x
 x.`toStream` theSameAs x
 x.`toTraversable` theSameAs x
 
-// !ARRAY ... sameType(x, x.`companion`.empty[@A])  // Not sure this is something we should check?
 !S ... x.`mkString` == { val sb = new StringBuilder; x.foreach(sb ++= _.toString); sb.result }
 !S ... x.`mkString` == { val sb = new StringBuilder; x.`addString`(sb); sb.result }
 
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b1) == z
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z
-//n m r ... n < 0 || n >= 1024 || { val arr = new Array[@A](n+r+m); x.`copyToArray`(arr, n, r); val k = math.max(0, arr.length-n); arr.drop(n).take(k) theSameAs x.toArray.take(k) }
+!BUGD !S n m r ... n < 0 || { val arr = new Array[@A](r); x.`copyToArray`(arr, n, m); (arr.drop(n).take(m) zip x.toList).forall{ case (x,y) => x==y } }
 pf ... x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)
 val b = new collection.mutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x
+x theSameAs x.`companion`(x.toList: _*)
+!RANGE !SORTED !ARRAY !USESARRAY ... sameType(x, x.`companion`.empty[@A])
 p ... x.`count`(p) > 0 == x.`exists`(p)
 p ... (x.`count`(p) == x.`size`) == x.`forall`(p)
 p ... x.`count`(p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }
@@ -78,7 +79,10 @@ y !ARRAY ... x.flatMap(xi => y.toList.take(xi)) theSameAs x.map(xi => y.toList.t
 a op ... x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)
 a op ... x.`foldLeft`(a)(op) == x.`/:`(a)(op)
 a op ... x.`foldRight`(a)(op) == x.`:\`(a)(op)
+{ val xx = x.`genericBuilder`[@A]; x.foreach{ xx += _ }; x theSameAs xx.result }
+!RANGE !SORTED !ARRAY !USESARRAY ... { val xx = x.`genericBuilder`[@A]; sameType(x, xx.result) }
 !ADEFINITE ... x.`nonEmpty` implies (x.`hasDefiniteSize` == @DEFINITE)
+x.`isTraversableAgain` == @AGAIN
 Try{x.`max`}.toOption == Try{x.`reduce`(_ max _)}.toOption
 f ... Try{x.`maxBy`(f)}.toOption == Try{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }.toOption
 Try{x.`min`}.toOption == Try{x.`reduce`(_ min _)}.toOption
