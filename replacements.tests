@@ -572,49 +572,49 @@ $NEW --> Seq[Int]( $ : _*).view.takeWhile(_ < 6)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
-flags --> VIEW LAZY ADEFINITE BUGC
+flags --> VIEW LAZY ADEFINITE BUGC STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Appended
-flags --> VIEW LAZY ADEFINITE BUGC
+flags --> VIEW LAZY ADEFINITE BUGC STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.++(Stream(50,51))
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]DroppedWhile
-flags --> VIEW LAZY ADEFINITE BUGC
+flags --> VIEW LAZY ADEFINITE BUGC STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.dropWhile(_ < 2)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Filtered
-flags --> VIEW LAZY ADEFINITE BUGC
+flags --> VIEW LAZY ADEFINITE BUGC STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.filter(_ > 4)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]FlatMapped
-flags --> VIEW LAZY ADEFINITE BUGC
+flags --> VIEW LAZY ADEFINITE BUGC STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.flatMap(i => Stream(i, i+2))
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Mapped
-flags --> VIEW LAZY ADEFINITE BUGC
+flags --> VIEW LAZY ADEFINITE BUGC STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.map(_ + 1)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Patched
-flags --> VIEW LAZY ADEFINITE BUGC BROKEN
+flags --> VIEW LAZY ADEFINITE BUGC BROKEN STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.patch(1,Stream(50,51),1)
 //Broken--Patched is messed up for now; when PR is merged this can go in again.
@@ -622,7 +622,7 @@ $NEW --> Stream[Int]( $ : _*).view.patch(1,Stream(50,51),1)
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Prepended
-flags --> VIEW LAZY ADEFINITE BUGC BROKEN
+flags --> VIEW LAZY ADEFINITE BUGC BROKEN STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.++:(Stream(50,51))
 //Can't seem to create this--java.lang.UnsupportedOperationException: TraversableView.Builder.result
@@ -630,21 +630,21 @@ $NEW --> Stream[Int]( $ : _*).view.++:(Stream(50,51))
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Reversed
-flags --> VIEW LAZY ADEFINITE BUGC
+flags --> VIEW LAZY ADEFINITE BUGC STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.reverse
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Sliced
-flags --> VIEW LAZY ADEFINITE BUGC
+flags --> VIEW LAZY ADEFINITE BUGC STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.drop(2)
 
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]TakenWhile
-flags --> VIEW LAZY ADEFINITE BUGC
+flags --> VIEW LAZY ADEFINITE BUGC STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.takeWhile(_ < 6)
 

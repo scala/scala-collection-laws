@@ -203,8 +203,8 @@ x.`headOption` == Try{ x.`head` }.toOption
 n a !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }
 a !ITERATOR ... x.`indexOf`(a) == x.`indexOf`(a,0)
 a ITERATOR ... { val k = x.`takeWhile`(_ != a); x.`indexOf`(a) match { case -1 => k.`size` == x.size; case kk => x.`drop`(kk).`next` == a } }
-y ... (x.`indexOfSlice`(y) >= 0) == x.`containsSlice`(y)
-y ... val i = x.`indexOfSlice`(y); (i < 0) || (x.`drop`(i).`take`(y.`size`) theSameAs y)
+y ... y.`size` == 0 || { val i = x.`indexOfSlice`(y); !x.`take`(math.max(0,i-1+y.size)).`containsSlice`(y) && ((i >= 0) implies (x.`drop`(i).`take`(y.size) theSameAs y)) }
+y r ... y.`size` == 0 || { val i = x.`indexOfSlice`(y,r); !x.`drop`(r).`take`(math.max(0,i-1-r+y.size)).`containsSlice`(y) && ((i >= 0) implies (i >= r && (x.`drop`(i).`take`(y.size) theSameAs y))) }
 p n !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`indexWhere`(p,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && p(x.`drop`(kk).`head`) } }
 p !ITERATOR ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
 p ITERATOR ... val k = x.`takeWhile`(xi => !p(xi)).`size`; x.`indexWhere`(p) match { case -1 => k == x.`size`; case q => q == k }
@@ -220,6 +220,8 @@ x.`iterator` theSameAs x
 x.`size` == 0 || { Seq(x.`last`) theSameAs x.`takeRight`(1) }
 a n ... n < 0 || { x.`lastIndexOf`(a,n) match { case -1 => x.`take`(n+1).`indexOf`(a) == -1; case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexOf(a) } }
 a ... x.`lastIndexOf`(a) == x.lastIndexOf(a,x.`size`-1)
+y ... y.`size` == 0 || { val i = x.`lastIndexOfSlice`(y); !x.`drop`(math.max(0,i+1)).`containsSlice`(y) && ((i >= 0) implies (x.`drop`(i).`take`(y.size) theSameAs y)) }
+y r ... y.`size` == 0 || { val i = x.`lastIndexOfSlice`(y,r); !x.`take`(r).`drop`(math.max(0,i+1)).`containsSlice`(y) && ((i >= 0) implies (i <= r && (x.`drop`(i).`take`(y.size) theSameAs y))) }
 p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexWhere`(p) == -1; case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexWhere(p) } }
 p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)
 x.`lastOption` == Try{ x.`last` }.toOption
@@ -250,14 +252,20 @@ n ... val (x1,x2) = x.`splitAt`(n); sameType(x1, x2) && sameType(x, x1)
 n y ... n < 0 || { x.`startsWith`(y,n) implies (x.`drop`(n).`take`(y.`size`) theSameAs y) }
 y ... x.`startsWith`(y) == x.startsWith(y,0)
 x.`size` < 1 || { x.`tail` theSameAs x.`drop`(1) }
-!PQ ... (x.`tails`.toVector zip x.`reverse`.`inits`.map(_.reverse).toVector).forall{ case (l,r) => l theSameAs r }
+S ... x.`tails`.toList match { case x => (x zip x.tail).forall{ case (a,b) => (b subsetOf a) && b.size == a.size-1 } }
+!S ... x.`tails`.toList.map(_.toList) match { case x => (x zip x.tail).forall{ case (a :: b :: _, c :: _) => b == c; case (a,b) => b.isEmpty && a.size == 1 } }
 n ... x.`takeRight`(n) theSameAs { val m = x.`size` - n; x.`drop`(m) }
 n !RANGE ... sameType(x, x.`takeRight`(n))
-// transpose goes here
+n !RANGE !ARRAY ... n < 1 || x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ theSameAs x)
+n !RANGE ARRAY ... n < 1 || x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ theSameAs x)
 y ... x.`union`(y).`toSet` == (x.toSet union y.toSet)
 y !RANGE !MUVU ... sameType(x, x.`union`(y))
 y ... val xa = x.`zip`(y).`unzip`._1.`toArray`; x.`take`(xa.size) theSameAs xa
 y ... val xb = x.`zip`(y).`unzip`._2.`toArray`; y.`take`(xb.size) theSameAs xb
+x.map(a => (a,a)).`unzip` match { case (y1, y2) => List(y1, y2).forall(_ theSameAs x); case _ => false }
+x.map(a => (a,a,a)).`unzip3` match { case (y1, y2, y3) => List(y1, y2, y3).forall(_ theSameAs x); case _ => false }
+y !S ... val z = x.`zip`(y).toArray; val n = math.min(x.`size`, y.size); var i,j = -1; x.`forall`{ xi => i += 1; i >= n || z(i)._1 == xi } && y.forall{ yj => j += 1; j >= n || z(j)._2 == yj }
+y S ... val z = x.`zip`(y).toArray; (z.map(_._1).toSet subsetOf x) && (z.map(_._2).toSet subsetOf y) && z.forall{ case (a,b) => (x contains a) && (y contains b) }
 x theSameAs x.`view`
 y ... val x0 = x; x0.`++=`(y); x0 theSameAs (x.`++`(y))
 y ... val x0 = x; x0.`++=:`(y); x0 theSameAs (y.`++`(x))
@@ -293,6 +301,7 @@ y ... x.`&~`(y) isPartOf x
 y ... x.`forall`(xi => y.`contains`(xi) != x.`&~`(y).contains(xi))
 y !RANGE ... sameType(x, x.`&~`(y))
 
+// Set-specific
 a S ... x.`add`(a) == !x.`contains`(a)
 a S ... (if (x.`contains`(a)) 0 else 1) == { val x0 = x; x0.`add`(a); x0.`size` - x.`size` }
 a S ... val x0 = x; x0.`add`(a); x0.`contains`(a)
@@ -304,6 +313,7 @@ a S ... val x0 = x; x0.`update`(a,true); x0 theSameAs x0.`+`(a)
 a S ... val x0 = x; x0.`update`(a,false); x0 theSameAs x0.`-`(a)
 y ... x.`|`(y) theSameAs x.`union`(y)
 
+// Mutable-specific
 x.`clone` theSameAs x
 { val x0 = x; x0.`clear`; x0 theSameAs Nil }
 { val x0 = x; x0.`clear`; x0.`++=`(x); x0 theSameAs x }
@@ -311,8 +321,11 @@ x.`empty` theSameAs Nil
 x.`toQueue` theSameAs x
 y ... x.`subsetOf`(y) == x.`forall`(y contains _)
 
+// Lazy-specific
 LAZY r f ... { var k = 0; x.map{ xi => k += 1; f(xi) }.`take`(r).toVector; k <= math.max(@MINEVALS, r) }
 LAZY r f ... { var k = 0; x.flatMap{ xi => k += 1; List(xi, f(xi)) }.`take`(r).toVector; k <= math.max(@MINEVALS, (r+1)/2) }
 LAZY r pf ... { var k = 0; x.`collect`{ case xi if pf.isDefinedAt(xi) => k += 1; pf(xi) }.`take`(r).toVector; k <= math.max(@MINEVALS, r) }
 LAZY r p ... { var k = 0; x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).toVector; k <= math.max(@MINEVALS, r) }
 //LAZY r p ... { var k = 0; x.`filterNot`{ xi => if (!p(xi)) k += 1; p(xi) }.`take`(r).toVector; k <= math.max(@MINEVALS, r) }
+// Force is weird with stream views--it forces it out of a view to a stream, but that's still lazy.  Not sure if this is intended behavior?
+!STREAMVIEW ... { var i = 0; val y = x.map{ xi => i += 1; xi }.`force`; val j = i; var k = 0; y.foreach(_ => k += 1); x.`size` == k && j == i }

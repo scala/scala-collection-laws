@@ -3,7 +3,7 @@ S = scala -J-Xmx2G
 G = mkdir -p generated-tests
 TESTS = replacements.tests single-line.tests
 RUN = --run=3 --scalac=fsc ${TESTS}
-PRERUN = fsc -shutdown; ${G}
+PRERUN = fsc -shutdown; sleep 2; ${G}
 
 default : laws/Laws.class
 
