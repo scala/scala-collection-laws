@@ -77,7 +77,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     // Now all the innards of the method
     // Slightly ugly because of how we glued the outer/loop/inner bits together with macro expansion
     expanded.map(_.split("\r",-1)).map{ a =>
-      val outer = if (a(0).trim.isEmpty) Vector() else a(0).split("\n").toVector
+      val outer = Vector(hoistOn) ++ (if (a(0).trim.isEmpty) Nil else a(0).split("\n").toList) ++ Vector(hoistOff)
       val loop = if (a.length < 1 || a(1) == "for () {") None else Some(a(1))
       val myBody = if (a.length < 2 || a(2).isEmpty) body else a(2).split("\n").toVector ++ body
       val inner = if (loop.isDefined) myBody.map("  " + _) else myBody
@@ -115,7 +115,11 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     * plus a map that lets us look up which methods are available for that collection, generate
     * a test file (or error messages that tell us what went wrong).
     */
-  def synthFile(testses: Vector[Tests], replaces: Replacements, oracle: Map[String, Set[String]]): Either[Vector[String], TestFile] = {
+  def synthFile(
+    testses: Vector[Tests], replaces: Replacements,
+    oracle: Map[String, Set[String]]
+  ): Either[Vector[String], TestFile] = {
+    
     // Find what methods are available (bailing out if there are errors)
     val myMethods = replaces("@NAME") match {
       case Right(Vector(name)) => oracle.get(name) match {
@@ -141,16 +145,30 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     }
     
     // Generate all the methods (or bail on errors)
-    val methods = {
+    val (methodCode, hoistables) = {
+      val hoistableBuilder = Vector.newBuilder[String]
       val temp = pruned.map(t => synthMethod(t, replaces))
       temp.collect{ case Left(errors) => errors }.reduceOption(_ ++ _) match {
         case Some(errors) => return Left(errors)
         case _ =>
       }
-      temp.collect{ case Right(xs) => xs }
+      val lines = temp.collect{ case Right(xs) =>
+        var hoisting = false
+        val i = xs.code.iterator
+        while (i.hasNext) i.next match {
+          case x if x endsWith hoistOn  => hoisting = true; println("Hoisting on")
+          case x if x endsWith hoistOff => hoisting = false; println("Hoisting off")
+          case x => if (hoisting) hoistableBuilder += x
+        }
+        xs
+      }
+      (lines, hoistableBuilder.result)
     }
     
-    var title = "unknown"   // Hack to pass back collection name info in a less awkward way
+    val hoists = makeHoists(hoistables)
+    val methods = methodCode.map(c => c.copy(code = hoistOut(c.code, hoists)))
+    
+    var title = "unknown"   // Hack to pass back collection name info (non-hack is awkward, sadly)
     
     // We have most pieces now, just need to assemble them into a file
     val whole = Vector.newBuilder[String]
@@ -164,6 +182,12 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       case Right(xs) => return Left("Could not decide between alternative names for block starting at line ${replaces.myLine}" +: xs)
       case Left(error) => return Left(Vector("Could not create name for block starting at line ${replaces.myLine}",error))
     })
+    
+    // Make the hoists
+    whole += ""
+    whole += "  object Hoists {"
+    hoists.toList.sortBy(_._1).foreach{ case (_,v) => whole += "    " + v }
+    whole += "  }"
     
     // Include all the test methods
     methods.foreach{ case TestMethod(_, code, _) => whole += ""; code.foreach(whole += "  " + _) }
@@ -423,6 +447,29 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
 
 
 object Laws {
+  // Hoisting of common constants relies upon comment pairs that can be detected
+  val hoistOn = "// Hoistable"
+  val hoistOff = "// !Hoistable"
+  val HoistName = """\s*val\s+(\w+)\s*=.+""".r
+  def makeHoists(variants: Seq[String]): Map[String, String] =
+    variants.
+      groupBy(x => x match { case HoistName(w) => Some(w); case _ => None }).
+      mapValues(v => (v, v.toSet)).
+      collect { case (Some(w), (xs, xset)) if xset.size == 1 && xs.length > 1 =>
+        w -> xset.head
+      }
+  def hoistOut(code: Vector[String], hoists: Map[String, String]): Vector[String] = {
+    val recoded = Vector.newBuilder[String]
+    var hoisting = false
+    for (s <- code) s match {
+      case x if x endsWith hoistOn => hoisting = true; recoded += x.takeWhile(_ == ' ') + "import Hoists._"
+      case x if x endsWith hoistOff => hoisting = false
+      case HoistName(w) if hoists contains w =>  // Skip
+      case x => recoded += x
+    }
+    recoded.result
+  }
+  
   // Macros are a convenient way to delimit separate commands to go in different contexts
   val preMacro = ReplaceMacro(Line.empty, "$PRE", "", "")
   val forMacro = ReplaceMacro(Line.empty, "$FOR", "", "")
@@ -620,14 +667,6 @@ object Laws {
     
     // Remove these flags from collections--an easy way to test if known bugs have been fixed!
     val deflag = opts.collect{ case ("deflag", Right(v)) if v != "" => v }.toSet
-    
-    // Compile these many files jointly (first try--compile-time errors will retry one by one)
-    // TODO--actually use this
-    val jointly = opts.collect{ case ("joint-compile", Left(n)) if (n > 0) => n }.toList match {
-      case Nil => 1
-      case x :: Nil => x
-      case xs => throw new IllegalArgumentException("Don't know what to do with multiple joint-compile args: " + xs.mkString(", "))
-    }
     
     // Let the caller specify what scala to use (if actually java, will need to change arguments)
     val scalaCmd = opts.collect{ case ("scala", Right(v)) if v != "" => v }.toList match {
