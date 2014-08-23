@@ -714,6 +714,6 @@ $NEW --> List[(Long,String)]( $ )
 
 
 (Long,String) collection.immutable.HashMap[Long,String]
-flags --> S BROKEN
+flags --> S M
 LET --> val
 $NEW --> collection.immutable.HashMap[Long,String]( $ )
