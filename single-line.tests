@@ -92,7 +92,7 @@ one ... x.`product` == x.`fold`(one)(_ * _)
 op ... Set(Try{x.`reduce`(op)}.toOption, Try{x.`reduceLeft`(op)}.toOption, Try{x.`reduceRight`(op)}.toOption, x.`reduceOption`(op), x.`reduceLeftOption`(op), x.`reduceRightOption`(op)).size == 1
 x.`size` == x.`count`(_ => true)
 zero ... x.`sum` == x.`fold`(zero)(_ + _)
-!PS !N !VIEW ... x.`to`[@CCN] theSameAs x
+x theSameAs x.`to`[List]
 x.`toArray` theSameAs x
 x.`toBuffer` theSameAs x
 x.`toIndexedSeq` theSameAs x
@@ -111,6 +111,9 @@ y S ... x.`++`(y).`size` <= x.size + y.size
 y S ... x.`++`(y).`size` == x.size + y.filter(yi => !x.`contains`(yi)).size
 y !S ... (x.`++`(y)).`take`(x.`size`) theSameAs x
 y !S ... (x.`++`(y)).`drop`(x.`size`) theSameAs y
+y ... x.`--`(y).`size` >= x.size - y.size
+y ... (x.`--`(y)) isPartOf x
+y ... val List(a,b,c) = List(x, y, x.`--`(y)).map(_.groupBy(identity).mapValues(_.size)); a.forall{ case (k,v) => v == b.getOrElse(k,0) + c.getOrElse(k,0) }
 y !RANGE !MUVU ... sameType(x, x.`++`(y))
 x.`buffered` theSameAs x
 pf ... x.`collect`(pf) theSameAs x.`filter`(pf.isDefinedAt).`map`(pf)
@@ -188,7 +191,8 @@ y ... x.`:::`(y) theSameAs y.`++`(x)
 y ... sameType(x, x.`:::`(y))
 n !ARRAY ... (n < 0) || (n >= x.`size`) || ((x: Any) match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
 n ARRAY ... (n < 0) || (n >= x.`size`) || { Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1) }
-// combinations goes here
+r ... x.`size` > 8 || { val n = x.`combinations`(r).size; ((r > x.size) implies (n == 0)) && x.combinations(r).toSet.size == n }
+r ... x.`size` > 8 || r == 0 || r > x.size || { val s = x.toVector; x.`combinations`(r).forall(_ isPartOf s) }
 y ... x.`containsSlice`(y) implies (y.`size` == 0 || (Iterator.from(0).map(x.`drop`).takeWhile(_.`nonEmpty`).exists(_.`take`(y.`size`) theSameAs y)))
 y ... val List(xg,yg,xdyg) = List(x,y,x.`diff`(y)).map(_.`groupBy`(identity).mapValues(_.size).toMap); xg.forall{ case (k,n) => val m = n - yg.getOrElse(k,0); (m > 0) implies (xdyg.getOrElse(k,0) == m) }
 val s = x.`toSet`; x.`distinct`.`size` == s.size && x.forall(s)
@@ -305,6 +309,7 @@ y !RANGE ... sameType(x, x.`&~`(y))
 a S ... x.`add`(a) == !x.`contains`(a)
 a S ... (if (x.`contains`(a)) 0 else 1) == { val x0 = x; x0.`add`(a); x0.`size` - x.`size` }
 a S ... val x0 = x; x0.`add`(a); x0.`contains`(a)
+S ... x theSameAs x.`keySet`
 a S ... val x0 = x; x0.`remove`(a); x0 isPartOf x
 a S ... val x0 = x; x0.`remove`(a); val k = x.`size` - x0.size; 0 <= k && k <= 1
 a S ... val x0 = x; x0.`remove`(a); !x0.`contains`(a)
@@ -312,6 +317,9 @@ p S ... val x0 = x; x0.`retain`(p); x0 theSameAs x.filter(p)
 a S ... val x0 = x; x0.`update`(a,true); x0 theSameAs x0.`+`(a)
 a S ... val x0 = x; x0.`update`(a,false); x0 theSameAs x0.`-`(a)
 y ... x.`|`(y) theSameAs x.`union`(y)
+x.`size` > 0 implies (x.`firstKey` == x.`min`)
+x.`size` > 0 implies (x.`lastKey` == x.`max`)
+S ... x.`size` > 8 || (x.`subsets`.toSet theSameAs (0 to x.`size`).map(i => x.toList.combinations(i).map(_.toSet)).reduce(_ ++ _).toSet)
 
 // Mutable-specific
 x.`clone` theSameAs x
@@ -326,6 +334,6 @@ LAZY r f ... { var k = 0; x.map{ xi => k += 1; f(xi) }.`take`(r).toVector; k <= 
 LAZY r f ... { var k = 0; x.flatMap{ xi => k += 1; List(xi, f(xi)) }.`take`(r).toVector; k <= math.max(@MINEVALS, (r+1)/2) }
 LAZY r pf ... { var k = 0; x.`collect`{ case xi if pf.isDefinedAt(xi) => k += 1; pf(xi) }.`take`(r).toVector; k <= math.max(@MINEVALS, r) }
 LAZY r p ... { var k = 0; x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).toVector; k <= math.max(@MINEVALS, r) }
-//LAZY r p ... { var k = 0; x.`filterNot`{ xi => if (!p(xi)) k += 1; p(xi) }.`take`(r).toVector; k <= math.max(@MINEVALS, r) }
+LAZY r p !BUGE ... { var k,l = 0; val q = (qi: @A) => !p(qi); x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).toVector; x.`filterNot`{ xi => if(!q(xi)) l += 1; q(xi) }.take(r).toVector; k==l }
 // Force is weird with stream views--it forces it out of a view to a stream, but that's still lazy.  Not sure if this is intended behavior?
 !STREAMVIEW ... { var i = 0; val y = x.map{ xi => i += 1; xi }.`force`; val j = i; var k = 0; y.foreach(_ => k += 1); x.`size` == k && j == i }

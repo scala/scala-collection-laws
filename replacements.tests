@@ -184,7 +184,7 @@ $NEW --> collection.immutable.Stack[Int]( $ : _*)
 
 
 Int collection.immutable.Stream[Int]
-flags --> LAZY ADEFINITE
+flags --> LAZY ADEFINITE BUGE
 LET --> val
 $NEW --> ( $ ).toStream
 DEFINITE --> false
