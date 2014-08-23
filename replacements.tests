@@ -71,6 +71,7 @@ ZERO --> 0
 DEFINITE --> true
 MINEVALS --> 0
 AGAIN --> true
+$INT --> ( $ )
 a --> $PRE(val ca = @CA) $FOR(a <- ca)
 b --> $PRE(val cb = @CB) $FOR(b <- cb)
 f --> $PRE(val f = @F)
@@ -653,3 +654,143 @@ Int collection.mutable.IndexedSeqView[Int,collection.mutable.IndexedSeq[Int]]
 flags --> VIEW LAZY MUVU BROKEN
 $NEW --> collection.mutable.IndexedSeq[Int]( $ : _*).view
 // Too messed up to take part in tests (at the moment)
+
+
+
+// The generic data supplied for collections that contain tuples (and maps are these)
+(Long,String) *
+X --> $NEW(0L -> "wishes", 1L -> "fishes", 2L -> "dishes") $NEW(Nil: _*) $NEW(7L -> "seven", 7L -> "eight") $NEW((0 to 44).map(i => i.toLong -> i.toString): _*)
+F --> ((_i: (Long,String)) => (_i._1 + 1) -> _i._2)
+GS --> List((_i: (Long,String)) => (_i._1+1) -> _i._2, (_i: (Long,String)) => _i._1 -> (_i._2 + _i._2))
+PROP --> ((_i: (Long,String)) => _i._1 < p_i._1)
+PF --> { case _i if _i._1 < pf_i._1 => (_i._1 + 1) -> _i._2 }
+YS --> (List[Range](4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => () => $NEW(y.map(yi => yi.toLong -> yi.toString): _*)))
+CA --> List[(Long,String)](0L -> "wishes", 0L -> "delicous", 9L -> "nine", 10L -> "ten")
+CB --> List[(Long,String)](0L -> "wishes", 1L -> "wishes", 10L -> "ten", 14L -> "fourteen")
+CM --> List[Int](-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)
+CN --> List[Int](-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
+CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
+OP --> +
+LET --> def
+ONE --> qNumeric.fromInt(1)
+ZERO --> qNumeric.fromInt(0)
+DEFINITE --> true
+MINEVALS --> 0
+AGAIN --> true
+$INT --> ( $ )._1.toInt
+a --> $PRE(val ca = @CA) $FOR(a <- ca)
+b --> $PRE(val cb = @CB) $FOR(b <- cb)
+f --> $PRE(val f = @F)
+g --> $PRE(val gs = @GS) $FOR(g <- gs)
+m --> $PRE(val cm = @CM) $FOR(m <- cm)
+n --> $PRE(val cn = @CN) $FOR(n <- cn)
+one --> $PRE(val one = @ONE)
+op --> $PRE(val op = (a1: @A, a2: @A) => a1 @OP a2)
+p --> $PRE(val ca = @CA) $FOR(p_i <- ca; p = @PROP)
+pf --> $PRE(val ca = @CA) $FOR(pf_i <- ca) $IN(val pf: PartialFunction[(Long,String),(Long,String)] = @PF)
+r --> $PRE(val cr = @CR) $FOR(r <- cr)
+x --> $PRE(@LET x = @X)
+y --> $PRE(val ys = @YS) $FOR(y_i <- ys) $IN(@LET y = y_i())
+z --> $PRE(val ca = @CA) $FOR(z <- ca)
+zero --> $PRE(val zero = @ZERO)
+instance --> $NEW(0L->"")
+doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
+fileHeader --> $LINE(package tests.generated.collection)
+           --> $LINE(import scala.util.Try)
+           --> $LINE(import laws.Laws.Implicits._)
+           --> $LINE(import laws.Laws.sameType)
+junitFileHeader --> $LINE(import org.junit.runner.RunWith)
+                --> $LINE(import org.junit.runners.JUnit4)
+                --> $LINE(import org.junit.Test)
+objectHeader --> $LINE(type Q = (Long,String))
+             --> $LINE(val allLetters = (32 to 126).map(_.toChar).mkString)
+             --> $LINE(implicit val qNumeric = new Numeric[Q]{ def compare(x: Q, y: Q) = (x._1 compare y._1) match { case 0 => x._2 compare y._2; case z => z }; def fromInt(i: Int) = i match { case 0 => 0L->""; case 1 => 1L->allLetters; case _ => i.toLong -> i.toString }; def minus(x: Q, y: Q) = (x._1 - y._1) -> (x._2.reverse diff y._2.reverse).reverse; def negate(x: Q) = (-x._1) -> x._2.reverse; def plus(x: Q, y: Q) = (x._1 + y._1) -> (x._2.toSet|y._2.toSet).toList.sorted.mkString; def times(x: Q, y: Q) = (x._1*y._1) -> (x._2.toSet&y._2.toSet).toList.sorted.mkString; def toDouble(x: Q) = x._1.toDouble; def toFloat(x: Q) = x._1.toFloat; def toInt(x: Q) = x._1.toInt; def toLong(x: Q) = x._1 })
+             --> $LINE(implicit class LsOps(ls: Q) { def <(lz: Q) = qNumeric.compare(ls, lz) < 0; def >(lz: Q) = qNumeric.compare(ls, lz) > 0; def +(lz: Q) = qNumeric.plus(ls, lz); def *(lz: Q) = qNumeric.times(ls, lz); def min(lz: Q) = if (qNumeric.compare(ls, lz) < 0) ls else lz; def max(lz: Q) = if (qNumeric.compare(ls, lz) < 0) lz else ls })
+
+
+(Long,String) collection.immutable.List[(Long,String)]
+LET --> val
+$NEW --> List[(Long,String)]( $ )
+
+
+(Long,String) collection.Map[Long,String]
+flags --> S M
+$NEW --> collection.Map[Long,String]( $ )
+
+
+(Long,String) collection.SortedMap[Long,String]
+flags --> S M
+$NEW --> collection.SortedMap[Long,String]( $ )
+
+
+(Long,String) collection.immutable.HashMap[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.HashMap[Long,String]( $ )
+
+
+(Long,String) collection.immutable.ListMap[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.ListMap[Long,String]( $ )
+
+
+(Long,String) collection.immutable.LongMap[String]
+// Immutable LongMap defines a transform that is nothing like other maps' transforms.  ILM flag is to throw it out.
+flags --> S M ILM N
+LET --> val
+$NEW --> collection.immutable.LongMap[String]( $ )
+
+
+(Long,String) collection.immutable.Map[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.Map[Long,String]( $ )
+
+
+(Long,String) collection.immutable.SortedMap[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.SortedMap[Long,String]( $ )
+
+
+(Long,String) collection.immutable.TreeMap[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.TreeMap[Long,String]( $ )
+
+
+(Long,String) collection.mutable.HashMap[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.HashMap[Long,String]( $ )
+
+
+(Long,String) collection.mutable.ListMap[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.ListMap[Long,String]( $ )
+
+
+(Long,String) collection.mutable.LongMap[String]
+flags --> S M N BUGF BUGG
+LET --> def
+$NEW --> collection.mutable.LongMap[String]( $ )
+
+
+(Long,String) collection.mutable.Map[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.Map[Long,String]( $ )
+
+
+(Long,String) collection.mutable.OpenHashMap[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.OpenHashMap[Long,String]( $ )
+
+
+(Long,String) collection.mutable.WeakHashMap[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.WeakHashMap[Long,String]( $ )

@@ -19,6 +19,9 @@ laws/MethodFinder.class : MethodFinder.scala
 gen : default
 	${G}; ${S} laws.Laws ${TESTS}
 
+quick : default
+	${PRERUN}; ${S} laws.Laws --changed ${RUN}
+
 run : default
 	${PRERUN}; ${S} laws.Laws ${RUN}
 
