@@ -9,9 +9,11 @@ To generate and run the tests, `make run`
 
 To generate, recompile even tests whose source hasn't changed, and run, `make full`
 
+To generate all the tests but run only the ones that have changed, `make quick`
+
 By default, it uses three threads at a time to compile/run (`--run=3`).  This can be altered in the makefile.
  
-If you want to only run tests that have been modified and therefore probably need to be recompiled, use `--changed` (this is not in the makefile)
+If you want to only run tests that have been modified and therefore probably need to be recompiled, use `--changed` (`quick` uses this)
  
 If you want to recompile everything whether or not the source was changed on this run, use `--recompile` (`full` uses this)
  

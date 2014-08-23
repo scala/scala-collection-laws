@@ -165,6 +165,9 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       case Left(error) => return Left(Vector("Could not create name for block starting at line ${replaces.myLine}",error))
     })
     
+    // Include any object header lines
+    lineMacro.argsOf(replaces.infos.get("objectHeader").map(_.values.mkString(" ")).getOrElse("")).foreach(whole += "  " + _)
+    
     // Include all the test methods
     methods.foreach{ case TestMethod(_, code, _) => whole += ""; code.foreach(whole += "  " + _) }
     

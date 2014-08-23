@@ -46,9 +46,9 @@
 f !S ... x.map(f) theSameAs { val y = collection.mutable.ArrayBuffer[@A](); x.foreach(y += _); y.map(f) }
 f S ... x.map(f) theSameAs { val y = collection.mutable.HashSet[@A](); x.foreach(y += _); y.map(f) }
 f !RANGE !MUVU !BUGA ... sameType(x, x.map(f))
-y !S ... x.flatMap(xi => y.toList.take(xi)) theSameAs { val z = collection.mutable.ArrayBuffer[@A](); x.foreach(xi => z ++= y.toList.take(xi)); z }
-y S ... x.flatMap(xi => y.toList.take(xi)) theSameAs { val z = collection.mutable.HashSet[@A](); x.foreach(xi => z ++= y.toList.take(xi)); z }
-y !MUVU !BUGA !RANGE ... sameType(x, x.flatMap(xi => y.toList.take(xi)))
+y !S ... x.flatMap(xi => y.toList.take($INT(xi))) theSameAs { val z = collection.mutable.ArrayBuffer[@A](); x.foreach(xi => z ++= y.toList.take($INT(xi))); z }
+y S ... x.flatMap(xi => y.toList.take($INT(xi))) theSameAs { val z = collection.mutable.HashSet[@A](); x.foreach(xi => z ++= y.toList.take($INT(xi))); z }
+y !MUVU !BUGA !RANGE ... sameType(x, x.flatMap(xi => y.toList.take($INT(xi))))
 p ... x.`exists`(p) == x.`find`(p).isDefined
 p ... x.`forall`(p) implies (x.`isEmpty` || x.`exists`(p))
 p ... var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(p)
@@ -74,7 +74,7 @@ p ... x.filter(p).`forall`(p) == true
 p !RANGE ... sameType(x, x.filter(p))
 
 // Why doesn't array work?!  Induces out-of-place ambiguous implicit conversion problem on for loop (booleanArrayOps & byteArrayOps)?!
-y !ARRAY ... x.flatMap(xi => y.toList.take(xi)) theSameAs x.map(xi => y.toList.take(xi)).`flatten`
+y !ARRAY ... x.flatMap(xi => y.toList.take($INT(xi))) theSameAs x.map(xi => y.toList.take($INT(xi))).`flatten`
 
 a op ... x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)
 a op ... x.`foldLeft`(a)(op) == x.`/:`(a)(op)
