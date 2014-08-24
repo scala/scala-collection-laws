@@ -195,7 +195,7 @@ a M ... x.`+`(a).`contains`(a._1)
 a !RANGE !MUVU !BUGF ... sameType(x, x.`+`(a))
 y ... x.`:::`(y) theSameAs y.`++`(x)
 y ... sameType(x, x.`:::`(y))
-n !ARRAY ... (n < 0) || (n >= x.`size`) || ((x: Any) match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
+n !ARRAY !M ... (n < 0) || (n >= x.`size`) || ((x: Any) match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
 n ARRAY ... (n < 0) || (n >= x.`size`) || { Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1) }
 r ... x.`size` > 8 || { val n = x.`combinations`(r).size; ((r > x.size) implies (n == 0)) && x.combinations(r).toSet.size == n }
 r ... x.`size` > 8 || r == 0 || r > x.size || { val s = x.toVector; x.`combinations`(r).forall(_ isPartOf s) }

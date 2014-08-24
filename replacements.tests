@@ -794,3 +794,71 @@ $NEW --> collection.mutable.OpenHashMap[Long,String]( $ )
 flags --> S M
 LET --> def
 $NEW --> collection.mutable.WeakHashMap[Long,String]( $ )
+
+
+
+// Flip tuples around to test AnyRef keys.
+(String,Long) *
+X --> $NEW("wishes" -> 0L, "fishes" -> 1L, "dishes" -> 2L) $NEW(Nil: _*) $NEW("seven" -> 7L, "seven" -> 8L) $NEW((0 to 44).map(i => i.toString -> i.toLong): _*)
+F --> ((_i: Q) => (_i._1 + 1) -> _i._2)
+GS --> List((_i: Q) => (_i._1+_i._1) -> _i._2, (_i: Q) => _i._1 -> (_i._2 + 1))
+PROP --> ((_i: Q) => (_i._1 compare p_i._1) < 0)
+PF --> { case _i if (_i._1 compare pf_i._1) < 0 => (_i._1 + "!") -> _i._2 }
+YS --> (List[Range](4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => () => $NEW(y.map(yi => yi.toString -> yi.toLong): _*)))
+CA --> List[(Long,String)](0L -> "wishes", 0L -> "delicous", 9L -> "nine", 10L -> "ten").map(_.swap)
+CB --> List[(Long,String)](0L -> "wishes", 1L -> "wishes", 10L -> "ten", 14L -> "fourteen").map(_.swap)
+CM --> List[Int](-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)
+CN --> List[Int](-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
+CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
+OP --> +
+LET --> def
+ONE --> qNumeric.fromInt(1)
+ZERO --> qNumeric.fromInt(0)
+DEFINITE --> true
+MINEVALS --> 0
+AGAIN --> true
+$INT --> (( $ )._1.map(_ - 32).sum % 32)
+a --> $PRE(val ca = @CA) $FOR(a <- ca)
+b --> $PRE(val cb = @CB) $FOR(b <- cb)
+f --> $PRE(val f = @F)
+g --> $PRE(val gs = @GS) $FOR(g <- gs)
+m --> $PRE(val cm = @CM) $FOR(m <- cm)
+n --> $PRE(val cn = @CN) $FOR(n <- cn)
+one --> $PRE(val one = @ONE)
+op --> $PRE(val op = (a1: @A, a2: @A) => a1 @OP a2)
+p --> $PRE(val ca = @CA) $FOR(p_i <- ca; p = @PROP)
+pf --> $PRE(val ca = @CA) $FOR(pf_i <- ca) $IN(val pf: PartialFunction[Q,Q] = @PF)
+r --> $PRE(val cr = @CR) $FOR(r <- cr)
+x --> $PRE(@LET x = @X)
+y --> $PRE(val ys = @YS) $FOR(y_i <- ys) $IN(@LET y = y_i())
+z --> $PRE(val ca = @CA) $FOR(z <- ca)
+zero --> $PRE(val zero = @ZERO)
+instance --> $NEW("" -> 0)
+doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
+fileHeader --> $LINE(package tests.generated.collection)
+           --> $LINE(import scala.util.Try)
+           --> $LINE(import laws.Laws.Implicits._)
+           --> $LINE(import laws.Laws.sameType)
+junitFileHeader --> $LINE(import org.junit.runner.RunWith)
+                --> $LINE(import org.junit.runners.JUnit4)
+                --> $LINE(import org.junit.Test)
+objectHeader --> $LINE(type Q = (String,Long))
+             --> $LINE(val allLetters = (32 to 126).map(_.toChar).mkString)
+             --> $LINE(implicit val qNumeric = new Numeric[Q]{ def compare(x: Q, y: Q) = (x._1 compare y._1) match { case 0 => x._2 compare y._2; case z => z }; def fromInt(i: Int) = i match { case 0 => ""->0L; case 1 => allLetters->1L; case _ => i.toString -> i.toLong }; def minus(x: Q, y: Q) = (x._1.reverse diff y._1.reverse).reverse -> (x._2 - y._2); def negate(x: Q) = x._1.reverse -> (-x._2); def plus(x: Q, y: Q) = (x._1.toSet|y._1.toSet).toList.sorted.mkString -> (x._2 + y._2); def times(x: Q, y: Q) = (x._1.toSet&y._1.toSet).toList.sorted.mkString -> (x._2*y._2); def toDouble(x: Q) = x._2.toDouble; def toFloat(x: Q) = x._2.toFloat; def toInt(x: Q) = x._2.toInt; def toLong(x: Q) = x._2 })
+             --> $LINE(implicit class LsOps(ls: Q) { def <(lz: Q) = qNumeric.compare(ls, lz) < 0; def >(lz: Q) = qNumeric.compare(ls, lz) > 0; def +(lz: Q) = qNumeric.plus(ls, lz); def *(lz: Q) = qNumeric.times(ls, lz); def min(lz: Q) = if (qNumeric.compare(ls, lz) < 0) ls else lz; def max(lz: Q) = if (qNumeric.compare(ls, lz) < 0) lz else ls })
+
+
+(String,Long) collection.immutable.List[(String,Long)]
+LET --> val
+$NEW --> List[(String,Long)]( $ )
+
+
+(String,Long) collection.Map[String,Long]
+flags --> S M
+$NEW --> collection.Map[String,Long]( $ )
+
+
+(String,Long) collection.mutable.AnyRefMap[String,Long]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.AnyRefMap[String,Long]( $ )
