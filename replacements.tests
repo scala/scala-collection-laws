@@ -713,7 +713,84 @@ LET --> val
 $NEW --> List[(Long,String)]( $ )
 
 
+(Long,String) collection.Map[Long,String]
+flags --> S M
+$NEW --> collection.Map[Long,String]( $ )
+
+
+(Long,String) collection.SortedMap[Long,String]
+flags --> S M
+$NEW --> collection.SortedMap[Long,String]( $ )
+
+
 (Long,String) collection.immutable.HashMap[Long,String]
 flags --> S M
 LET --> val
 $NEW --> collection.immutable.HashMap[Long,String]( $ )
+
+
+(Long,String) collection.immutable.ListMap[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.ListMap[Long,String]( $ )
+
+
+(Long,String) collection.immutable.LongMap[String]
+// Immutable LongMap defines a transform that is nothing like other maps' transforms.  ILM flag is to throw it out.
+flags --> S M ILM N
+LET --> val
+$NEW --> collection.immutable.LongMap[String]( $ )
+
+
+(Long,String) collection.immutable.Map[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.Map[Long,String]( $ )
+
+
+(Long,String) collection.immutable.SortedMap[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.SortedMap[Long,String]( $ )
+
+
+(Long,String) collection.immutable.TreeMap[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.TreeMap[Long,String]( $ )
+
+
+(Long,String) collection.mutable.HashMap[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.HashMap[Long,String]( $ )
+
+
+(Long,String) collection.mutable.ListMap[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.ListMap[Long,String]( $ )
+
+
+(Long,String) collection.mutable.LongMap[String]
+flags --> S M N BUGF BUGG
+LET --> def
+$NEW --> collection.mutable.LongMap[String]( $ )
+
+
+(Long,String) collection.mutable.Map[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.Map[Long,String]( $ )
+
+
+(Long,String) collection.mutable.OpenHashMap[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.OpenHashMap[Long,String]( $ )
+
+
+(Long,String) collection.mutable.WeakHashMap[Long,String]
+flags --> S M
+LET --> def
+$NEW --> collection.mutable.WeakHashMap[Long,String]( $ )

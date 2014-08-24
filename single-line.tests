@@ -65,7 +65,7 @@ z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z
 pf ... x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)
 val b = new collection.mutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x
 x theSameAs x.`companion`(x.toList: _*)
-!RANGE !SORTED !ARRAY !USESARRAY ... sameType(x, x.`companion`.empty[@A])
+!RANGE !SORTED !ARRAY !USESARRAY !N ... sameType(x, x.`companion`.empty[@A])
 p ... x.`count`(p) > 0 == x.`exists`(p)
 p ... (x.`count`(p) == x.`size`) == x.`forall`(p)
 p ... x.`count`(p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }
@@ -80,7 +80,7 @@ a op ... x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)
 a op ... x.`foldLeft`(a)(op) == x.`/:`(a)(op)
 a op ... x.`foldRight`(a)(op) == x.`:\`(a)(op)
 { val xx = x.`genericBuilder`[@A]; x.foreach{ xx += _ }; x theSameAs xx.result }
-!RANGE !SORTED !ARRAY !USESARRAY ... { val xx = x.`genericBuilder`[@A]; sameType(x, xx.result) }
+!RANGE !SORTED !ARRAY !USESARRAY !N ... { val xx = x.`genericBuilder`[@A]; sameType(x, xx.result) }
 !ADEFINITE ... x.`nonEmpty` implies (x.`hasDefiniteSize` == @DEFINITE)
 x.`isTraversableAgain` == @AGAIN
 Try{x.`max`}.toOption == Try{x.`reduce`(_ max _)}.toOption
@@ -118,7 +118,7 @@ y !M ... (x.`--`(y)) isPartOf x
 y M ... x.`--`(y.map(_._1)) isPartOf x
 y !M ... val List(a,b,c) = List(x, y, x.`--`(y)).map(_.groupBy(identity).mapValues(_.size)); a.forall{ case (k,v) => v == b.getOrElse(k,0) + c.getOrElse(k,0) }
 // Need -- that works for maps
-y !RANGE !MUVU ... sameType(x, x.`++`(y))
+y !RANGE !MUVU !BUGF ... sameType(x, x.`++`(y))
 x.`buffered` theSameAs x
 pf ... x.`collect`(pf) theSameAs x.`filter`(pf.isDefinedAt).`map`(pf)
 pf !RANGE !MUVU !BUGA ... sameType(x, x.`collect`(pf))
@@ -167,7 +167,7 @@ n ... x.`take`(n) isPartOf x
 n ... sameType(x, x.`take`(n))
 p ... x.`takeWhile`(p).`forall`(p)
 p ... x.`takeWhile`(p) isPartOf x
-p ... x.`takeWhile`(p).`size` + x.`dropWhile`(p).size == x.size
+p !BUGG ... x.`takeWhile`(p).`size` + x.`dropWhile`(p).size == x.size
 p ... sameType(x, x.`takeWhile`(p))
 y ... x.`zip`(y).map(_._1) theSameAs x.take(x.size min y.size)
 y ... x.`zip`(y).map(_._2) theSameAs y.take(x.size min y.size)
@@ -192,7 +192,7 @@ a !RANGE !MUVU ... sameType(x, x.`:+`(a))
 a ... val s = x.`+`(a).`size` - x.size; 0 <= s && s <= 1
 a !M ... x.`+`(a).`contains`(a)
 a M ... x.`+`(a).`contains`(a._1)
-a !RANGE !MUVU ... sameType(x, x.`+`(a))
+a !RANGE !MUVU !BUGF ... sameType(x, x.`+`(a))
 y ... x.`:::`(y) theSameAs y.`++`(x)
 y ... sameType(x, x.`:::`(y))
 n !ARRAY ... (n < 0) || (n >= x.`size`) || ((x: Any) match { case _: scala.collection.Seq[_] => Seq(x.`apply`(n)) theSameAs x.`drop`(n).`take`(1); case _ => true })
@@ -207,7 +207,7 @@ sameType(x, x.`reverse`)
 y ... x.`endsWith`(y) == (x.`drop`(math.max(0, x.`size`-y.size)) theSameAs y)
 g ... x.`groupBy`(g).keySet theSameAs x.map(g).toSet
 g ... x.`groupBy`(g).toMap.forall{ case (k,vs) => x.filter(xi => g(xi)==k) theSameAs vs }
-!ARRAY ... !x.`nonEmpty` || (x match { case _: scala.collection.Seq[_] => Seq(x.`head`) theSameAs x.`take`(1); case _ => true })
+!ARRAY !M ... !x.`nonEmpty` || (x match { case _: scala.collection.Seq[_] => Seq(x.`head`) theSameAs x.`take`(1); case _ => true })
 ARRAY ... !x.`nonEmpty` || (Seq(x.`head`) theSameAs x.`take`(1))
 x.`headOption` == Try{ x.`head` }.toOption
 n a !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }
@@ -219,7 +219,7 @@ p n !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`i
 p !ITERATOR ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
 p ITERATOR ... val k = x.`takeWhile`(xi => !p(xi)).`size`; x.`indexWhere`(p) match { case -1 => k == x.`size`; case q => q == k }
 x.`indices` == (0 until x.`size`)
-x.`size` == 0 || (x.`init` theSameAs x.`dropRight`(1))
+!BUGG ... x.`size` == 0 || (x.`init` theSameAs x.`dropRight`(1))
 x.`size` == 0 || (x.`init`.size == x.size - 1)
 x.`size` == 0 || (x.`init` isPartOf x)
 x.`size` == 0 || { val xx = x.`inits`.toVector.map(_.toVector); (xx zip xx.`tail`).`forall`{ case (a,b) => a.`size` - 1 == b.size && (b isPartOf a) } }
@@ -257,7 +257,7 @@ r !S ... r <= 0 || x.`size` <= 0 || (r >= x.`size` && { x.`sliding`(r).map(_.toV
 f ... x.`sortBy`(f) theSameAs x.`sortWith`((a,b) => f(a) < f(b))
 f ... val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList; (xx zip xx.drop(1)).forall{ case (a,b) => !(f(a) < f(b)) }
 x.`sorted` theSameAs x.`toArray`.sorted // Need to add a custom ordering here
-n ... val (x1,x2) = x.`splitAt`(n); (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
+n !BUGG ... val (x1,x2) = x.`splitAt`(n); (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
 n ... val (x1,x2) = x.`splitAt`(n); sameType(x1, x2) && sameType(x, x1)
 n y ... n < 0 || { x.`startsWith`(y,n) implies (x.`drop`(n).`take`(y.`size`) theSameAs y) }
 y ... x.`startsWith`(y) == x.startsWith(y,0)
@@ -265,7 +265,7 @@ x.`size` < 1 || { x.`tail` theSameAs x.`drop`(1) }
 !S ... x.`tails`.toList.map(_.toList) match { case x => (x zip x.tail).forall{ case (a :: b :: _, c :: _) => b == c; case (a,b) => b.isEmpty && a.size == 1 } }
 S !M ... x.`tails`.toList match { case x => (x zip x.tail).forall{ case (a,b) => (b subsetOf a) && b.size == a.size-1 } }
 S M ... x.`tails`.toList match { case x => (x zip x.tail).forall{ case (a,b) => (b.toSet subsetOf a.toSet) && b.size == a.size-1 } }
-n ... x.`takeRight`(n) theSameAs { val m = x.`size` - n; x.`drop`(m) }
+n !BUGG ... x.`takeRight`(n) theSameAs { val m = x.`size` - n; x.`drop`(m) }
 n !RANGE ... sameType(x, x.`takeRight`(n))
 n !RANGE !ARRAY ... n < 1 || x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ theSameAs x)
 n !RANGE ARRAY ... n < 1 || x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ theSameAs x)
@@ -292,8 +292,10 @@ a !M ... (x.`-`(a)) isPartOf x
 a M ... (x.`-`(a._1)) isPartOf x
 a !RANGE !M ... sameType(x, x.`-`(a))
 a M ... sameType(x, x.`-`(a._1))
-a ... val x0 = x; x0.`-=`(a) theSameAs x.`-`(a)
-y ... val x0 = x; x0.`--=`(y); val x1 = x; y.foreach(yi => x1.`-=`(yi)); x0 theSameAs x1
+a !M ... val x0 = x; x0.`-=`(a) theSameAs x.`-`(a)
+a M ... val x0 = x; x0.`-=`(a._1) theSameAs x.`-`(a._1)
+y !M ... val x0 = x; x0.`--=`(y); val x1 = x; y.foreach(yi => x1.`-=`(yi)); x0 theSameAs x1
+y M ... val x0 = x; x0.`--=`(y.map(_._1)); val x1 = x; for ((k,_) <- y) { x1.`-=`(k) }; x0 theSameAs x1
 a ... { val z = x; z.`append`(a); z } == x.`+=`(a)
 y ... { val z = x; z.`appendAll`(y); z } == x.`++=`(y)
 a ... { val z = x; z.`prepend`(a); z } == x.`+=:`(a)
@@ -305,12 +307,15 @@ n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; val a0 = x0.`remove`(n)
 n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0, x1 = x; x0.`remove`(n); x1.`remove`(n,1); x0 theSameAs x1 }
 x.`result` theSameAs x
 f !M ... val x0 = x; x0.`transform`(f); x0 theSameAs x.map(f)
-f M ... val x0 = x; x0.`transform`((a,b) => f((a,b))._2); x0 theSameAs x.map{ case (a,b) => a -> f((a,b))._2 }
+f M !ILM ... val x0 = x; x0.`transform`((a,b) => f((a,b))._2); x0 theSameAs x.map{ case (a,b) => a -> f((a,b))._2 }
 n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`trimEnd`(n); x0 theSameAs x.`dropRight`(n) }
 n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`trimStart`(n); x0 theSameAs x.`drop`(n) }
-n a ... n < 0 || n >= x.`size` || { x.`updated`(n,a) theSameAs (x.`take`(n).`:+`(a).`++`(x.`drop`(n+1))) }
-n a !RANGE ... n < 0 || n >= x.`size` || sameType(x, x.`updated`(n,a))
-n a ... n < 0 || n >= x.`size` || { val x0 = x; x0.`update`(n, a); x0 theSameAs x.`updated`(n,a) }
+n a !M ... n < 0 || n >= x.`size` || { x.`updated`(n,a) theSameAs (x.`take`(n).`:+`(a).`++`(x.`drop`(n+1))) }
+a M ... x.`updated`(a._1, a._2).`forall`{ case (k,v) => if (k == a._1) v == a._2 else x.`get`(k).exists(_ == v) }
+n a !RANGE !M ... n < 0 || n >= x.`size` || sameType(x, x.`updated`(n,a))
+a M !BUGF ... sameType(x, x.`updated`(a._1, a._2))
+n a !M ... n < 0 || n >= x.`size` || { val x0 = x; x0.`update`(n, a); x0 theSameAs x.`updated`(n,a) }
+a M ... val x0 = x; x0.`update`(a._1, a._2); x0 theSameAs x.`updated`(a._1, a._2)
 y ... x.`&`(y) isPartOf x
 y ... x.`forall`(xi => y.`contains`(xi) == x.`&`(y).contains(xi))
 y !RANGE ... sameType(x, x.`&`(y))
