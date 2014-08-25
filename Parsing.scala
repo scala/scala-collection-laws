@@ -181,6 +181,8 @@ object Parsing {
   }
   object Test {
     import scala.util._
+    val FlagRegex = """(\p{Upper}[\p{Upper}\d]*)""".r
+    val isFlag = (s: String) => s match { case FlagRegex(_) => true; case _ => false }
     
     /** Given a line from the file, try to parse out a single-line test, or produce an error message if it doesn't work. */
     def parseFrom(line: Line): Either[String, Test] = {
@@ -188,8 +190,8 @@ object Parsing {
       else if (line.sep != "...") Left(s"Wrong separator on line ${line.index}: ${line.sep}")
       else {
         val (params, rest1) = line.left.split("\\s+").filter(_.length > 0).partition(_.forall(_.isLower))
-        val (must, rest2) = rest1.partition(_.forall(_.isUpper))
-        val (mustnt, uhoh) = rest2.partition(s => (s startsWith "!") && (s drop 1).forall(_.isUpper))
+        val (must, rest2) = rest1.partition(isFlag)
+        val (mustnt, uhoh) = rest2.partition(s => (s startsWith "!") && isFlag(s drop 1))
         if (uhoh.nonEmpty) Left(s"Syntax error in line ${line.index}: identifier neither parameter (lower-case) nor flag (upper): ${uhoh.mkString(" ")}")
         else Right(new Test(line, params.toSet | Set("x"), must.toSet, mustnt.map(_.drop(1)).toSet))
       }

@@ -82,15 +82,15 @@ Tested 83 collections in 17 minutes, 26.1 seconds
 If we look at `single-line.tests`, we find that some lines are marked with flags indicating that there may be a bug in that test for some collections.  For instance:
 
 ```
-n m !BUGB ... n < 0 || m >= x.size || { sameType(x, x.`slice`(n, m)) }
+n m !SI8819 ... n < 0 || m >= x.size || { sameType(x, x.`slice`(n, m)) }
 ```
 
-This says that a two-argument `slice` should have the same type as the original collection.  And some collections in `replacements.texts` define this flag, so they should be skipped:
+This says that a two-argument `slice` should have the same type as the original collection.  And a collection in `replacements.texts` defines this flag, so it should be skipped:
 
 ```
 Int collection.immutable.Range
 X  --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64))
-flags --> N RANGE BUGB
+flags --> N RANGE SI8819
 LET --> val
 $NEW --> ( $ : collection.immutable.Range )
 ```
@@ -98,7 +98,7 @@ $NEW --> ( $ : collection.immutable.Range )
 If we regenerate and run the tests without this flag:
 
 ```
-scala -J-Xmx2G laws.Laws --deflag=BUGB --run=3 replacements.tests single-line.tests
+scala -J-Xmx2G laws.Laws --deflag=SI8819 --run=3 replacements.tests single-line.tests
 ```
 
 we find that the summary has changed:
@@ -118,7 +118,7 @@ If we scroll up through the output, we find the summary of tests for `Range`:
 !!!!!!!!!!
 ! 1 errors!
 ! 
-! Test line 147 with m = -1; n = 0; x = Range(0, 1, 2, 3) in group 1
+! Test line 162 with m = -1; n = 0; x = Range(0, 1, 2, 3) in group 1
 !   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x$1$$anonfun$apply$mcVI$sp$17.apply$mcVI$sp(Test_collection_immutable_Range.scala:394)
 !   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x$1$$anonfun$apply$mcVI$sp$17.apply(Test_collection_immutable_Range.scala:389)
 !   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x$1$$anonfun$apply$mcVI$sp$17.apply(Test_collection_immutable_Range.scala:389)
@@ -131,10 +131,10 @@ If we scroll up through the output, we find the summary of tests for `Range`:
 !!!!!!!!!!
 ```
 
-It says that the error is on test line 147; in `single-line.tests` we find that line 147 is indeed:
+It says that the error is on test line 162; in `single-line.tests` we find that line 147 is indeed:
 
 ```
-n m !BUGB ... n < 0 || m >= x.size || { sameType(x, x.`slice`(n, m)) }
+n m !SI8819 ... n < 0 || m >= x.size || { sameType(x, x.`slice`(n, m)) }
 ```
 
 Furthermore, it tells us what values of the parameters uncovered the error.  We fire up a REPL to test:
