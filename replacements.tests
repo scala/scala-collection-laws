@@ -672,6 +672,8 @@ CN --> List[Int](-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70
 CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
 OP --> +
 LET --> def
+K --> Long
+V --> String
 ONE --> qNumeric.fromInt(1)
 ZERO --> qNumeric.fromInt(0)
 DEFINITE --> true
@@ -817,6 +819,8 @@ ZERO --> qNumeric.fromInt(0)
 DEFINITE --> true
 MINEVALS --> 0
 AGAIN --> true
+K --> String
+V --> Long
 $INT --> (( $ )._1.map(_ - 32).sum % 32)
 a --> $PRE(val ca = @CA) $FOR(a <- ca)
 b --> $PRE(val cb = @CB) $FOR(b <- cb)
