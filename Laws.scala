@@ -349,7 +349,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
   /** Compile and run a single test, collecting any output.
     * The exit code should indicate whether a step succeeded or failed.
     */
-  def executeTest(tf: TestFile, recompile: Boolean = false): Execution = {
+  def executeTest(tf: TestFile, recompile: Boolean, runTest: Boolean): Execution = {
     def compile() = {
       val path = tf.file.getCanonicalFile.getPath
       println("Compiling " + path)
@@ -364,7 +364,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     
     // First see if we need to compile and bail if it doesn't work
     val comp = if (!tf.written && !recompile) Execution.empty else compile()
-    if (comp.failed) return comp
+    if (comp.failed || !runTest) return comp
       
     // Then run, but if we didn't compile and the run fails, try compiling and re-running
     run() match {
@@ -379,7 +379,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     * If there's no progress on any executor for ten minutes, we'll try to just abandon
     * them (and return None instead of Some[Execution] as for something that ran).
     */
-  def executeTests(tfs: Vector[TestFile], executors: Int = 1, recompile: Boolean = false): Vector[(TestFile, Option[Execution])] = {
+  def executeTests(tfs: Vector[TestFile], executors: Int = 1, recompile: Boolean = false, runTest: Boolean = true): Vector[(TestFile, Option[Execution])] = {
     import concurrent._
     import duration._
     import ExecutionContext.Implicits.global
@@ -387,9 +387,12 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     // Accumulate finished test runs here
     val answers = Vector.newBuilder[(TestFile, Option[Execution])]
     
+    def exec(tf: TestFile) = tf -> Future(executeTest(tf, recompile, runTest))
+
     // Maintain separate lists of running tasks and pending tasks
-    var running = tfs.take(1 max executors).map(tf => tf -> Future(executeTest(tf, recompile)))
+    var running = tfs.take(1 max executors).map(exec)
     var remaining = tfs.drop(running.length)
+    
     
     while (running.nonEmpty) {
       Try{ Await.ready( Future.firstCompletedOf(running.map(_._2)), Duration("10 min") ) } match {
@@ -397,12 +400,12 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
           // Nothing happened for ten minutes--throw everyone away and try a new batch
           // Expect that this is very rare; otherwise you'll send the machine load through the roof.
           answers ++= running.map{ case (tf, _) => tf -> None }
-          running = remaining.take(1 max executors).map(tf => tf -> Future(executeTest(tf, recompile)))
+          running = remaining.take(1 max executors).map(exec)
           remaining = remaining drop running.length
         case _ =>
           // firstCompletedOf assures us that something's finished
           val (done, undone) = running.partition(_._2.isCompleted)
-          val extra = remaining.take(done.length min (1 max executors)).map(tf => tf -> Future(executeTest(tf, recompile)))
+          val extra = remaining.take(done.length min (1 max executors)).map(exec)
           remaining = remaining.drop(extra.length)
           
           // Write the completed tests to stdout in addition to saving them
@@ -726,7 +729,7 @@ object Laws {
       // Only run the tests if the option --run was given (--run=n says how many processes to spawn simultaneously)
       val n = 1 max nr.left.toOption.getOrElse(1L).toInt
       val tstart = System.nanoTime
-      val ran = laws.executeTests(tfs, n, opts.exists(_._1 == "recompile")).sortBy(_._1.qualified)
+      val ran = laws.executeTests(tfs, n, opts.exists(_._1 == "recompile"), opts.forall(_._1 != "compile-only")).sortBy(_._1.qualified)
       val elapsed = 1e-9*(System.nanoTime - tstart)
       
       // When we reach here everything that will run has, so we just need to report on it

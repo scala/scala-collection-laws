@@ -22,6 +22,9 @@ gen : default
 quick : default
 	${PRERUN}; ${S} laws.Laws --changed ${RUN}
 
+build : default
+	${PRERUN}; ${S} laws.Laws --compile-only ${RUN}
+
 run : default
 	${PRERUN}; ${S} laws.Laws ${RUN}
 
