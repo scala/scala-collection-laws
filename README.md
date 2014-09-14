@@ -3,6 +3,12 @@ scala-collections-laws
 
 Partially automatic generation of tests for the Scala collections library.
 
+### Warning
+
+The Stream test will not complete unless you use a version of Scala with SI-6827 patched.  If your normal scala isn't that up to date, use --scala= when running tests to get a version with the fixed library.
+
+## How to use
+
 To generate the tests, `make`
 
 To generate and run the tests, `make run`

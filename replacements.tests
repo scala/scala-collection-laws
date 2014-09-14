@@ -53,7 +53,7 @@
 
 // The generic data supplied for collections that contain Ints
 Int *
-X --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64)) $NEW(List[Int](0,1,2,0,1,2))
+X --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64)) $NEW(List[Int](0,1,2,0,1,1,1,2)) $NEW((0 to 0))
 F --> ((_i: Int) => _i + 1)
 GS --> List((_i: Int) => (_i%2), (_i: Int) => math.signum(_i), (_i: Int) => (_i/2))
 PROP --> ((_i: @A) => _i < p_i)
@@ -185,7 +185,7 @@ $NEW --> collection.immutable.Stack[Int]( $ : _*)
 
 
 Int collection.immutable.Stream[Int]
-flags --> LAZY ADEFINITE SI8627
+flags --> LAZY ADEFINITE
 LET --> val
 $NEW --> ( $ ).toStream
 DEFINITE --> false
