@@ -3,11 +3,13 @@ package laws
 import scala.language.implicitConversions
 import scala.language.higherKinds
 
+import java.io.File
+
 import scala.util._
 import laws.Parsing._
 
 /** Generates and runs single-line collections tests that may be viewed as laws that collections should obey. */
-class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: String, deflag: Set[String], scalaEnv: Laws.ScalaEnv) {
+class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag: Set[String]) {
   import Laws._
   
   /** A method generated for testing. */
@@ -70,7 +72,6 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     
     // Now we have all the code, so we just have to add headers and indentation and stuff
     val whole = Vector.newBuilder[String]
-    if (junit) lineMacro.argsOf(replaces.infos.get("junitMethodPrefix").map(_.values.mkString(" ")).getOrElse("")).foreach(whole += _)
     val methodName = "test_" + tests.params.toList.sorted.mkString("_")
     whole += s"def $methodName() {"
     
@@ -104,9 +105,9 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
   case class TestFile(
     title: String, pkg: String, code: Vector[String],
     unvisited: Option[Set[String]], lines: Set[Int],
-    written: Boolean = false
+    dir: File, written: Boolean = false
   ) {
-    lazy val file = new java.io.File("generated-tests/Test_" + title + ".scala")
+    lazy val file = new File(dir, "Test_" + title + ".scala")
     lazy val qualified = (pkg match { case "" => pkg; case _ => pkg + "." }) + "Test_" + title
     def write() = copy(written = freshenFile(file, code))
   }
@@ -115,7 +116,7 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     * plus a map that lets us look up which methods are available for that collection, generate
     * a test file (or error messages that tell us what went wrong).
     */
-  def synthFile(testses: Vector[Tests], replaces: Replacements, oracle: Map[String, Set[String]]): Either[Vector[String], TestFile] = {
+  def synthFile(testses: Vector[Tests], replaces: Replacements, oracle: Map[String, Set[String]], dir: File): Either[Vector[String], TestFile] = {
     // Find what methods are available (bailing out if there are errors)
     val myMethods = replaces("@NAME") match {
       case Right(Vector(name)) => oracle.get(name) match {
@@ -156,7 +157,6 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     val whole = Vector.newBuilder[String]
     whole += autoComment
     lineMacro.argsOf(replaces.infos.get("fileHeader").map(_.values.mkString(" ")).getOrElse("")).foreach(whole += _)
-    if (junit) lineMacro.argsOf(replaces.infos.get("junitFileHeader").map(_.values.mkString(" ")).getOrElse("")).foreach(whole += _)
     whole += ""
     whole += (replaces("@NAME") match {
       // Order is important here!  Only the single-entry vector case is good.
@@ -171,23 +171,21 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     // Include all the test methods
     methods.foreach{ case TestMethod(_, code, _) => whole += ""; code.foreach(whole += "  " + _) }
     
-    // If it's not to be used as jUnit tests, create a main method that runs everything
-    if (!junit) {
-      whole += ""
-      whole += "  def main(args: Array[String]) {"
-      whole += "    val tests: Vector[() => Unit] = Vector("
-      methods.map("      " + _.name + " _").mkString(",\n").split("\n").foreach(whole += _)
-      whole += "    )"
-      whole += "    val results = tests.map(f => Try(f()))"
-      whole += "    val errors = results.collect{ case scala.util.Failure(t) => t }"
-      whole += "    if (errors.nonEmpty) {"
-      whole += "      println(errors.length + \" errors for " + title + "!\")"
-      whole += "      errors.foreach{ e => println; laws.Laws.explainException(e).take(10).foreach(println); }"
-      whole += "      sys.exit(1)"
-      whole += "    }"
-      whole += "    println(\"All tests passed for " + title + "\")"
-      whole += "  }"
-    }
+    // Create a main method that runs everything
+    whole += ""
+    whole += "  def main(args: Array[String]) {"
+    whole += "    val tests: Vector[() => Unit] = Vector("
+    methods.map("      " + _.name + " _").mkString(",\n").split("\n").foreach(whole += _)
+    whole += "    )"
+    whole += "    val results = tests.map(f => Try(f()))"
+    whole += "    val errors = results.collect{ case scala.util.Failure(t) => t }"
+    whole += "    if (errors.nonEmpty) {"
+    whole += "      println(errors.length + \" errors for " + title + "!\")"
+    whole += "      errors.foreach{ e => println; laws.Laws.explainException(e).take(10).foreach(println); }"
+    whole += "      sys.exit(1)"
+    whole += "    }"
+    whole += "    println(\"All tests passed for " + title + "\")"
+    whole += "  }"
     whole += "}"
     
     // Find the package name from the fileHeader info
@@ -198,8 +196,12 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
       
     // We have successfully created a test file.
     Right(TestFile(
-      title, pkg, whole.result,
-      Some(unvisited.toSet), methods.map(_.lines).reduceOption(_ ++ _).getOrElse(Set())
+      title, 
+      pkg,
+      whole.result,
+      Some(unvisited.toSet),
+      methods.map(_.lines).reduceOption(_ ++ _).getOrElse(Set()),
+      dir
     ))
   }
   
@@ -253,8 +255,25 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     Right(whole.result)
   }
   
-  /** Generate the Instances.scala file, compile it if necessary, and via reflection load it to get method info */
-  def getMethodOracle(replaceses: Vector[Replacements], recompile: Boolean = false): Either[Vector[String], Map[String, Set[String]]] = {
+  /** Generate the Instances.scala file if it isn't visible, otherwise via reflection load it to get method info */
+  def getOrCreateMethodOracle(replaceses: Vector[Replacements], generate: Option[File]): Either[Vector[String], Map[String, Set[String]]] = {
+    // Load map with reflection or catch the mistake and say what went wrong
+    val wrong: Throwable = {
+      try {
+        val obj = Class.forName("laws.Instances$").getDeclaredConstructors.headOption.map{ c => c.setAccessible(true); c.newInstance() }.get
+        val meth = Class.forName("laws.Instances$").getDeclaredMethods.find(_.getName == "mapped").get
+        val ans = Right(meth.invoke(obj).asInstanceOf[Map[String, Set[String]]])
+        // If laws.Instances isn't around, we'll have bailed out with an exception by this point
+        // S
+        return (
+          if (generate.isEmpty) ans
+          else Left(Vector("Stale laws.Instances found visible to generator for Scala.instances??"))
+        )
+      }
+      catch { case t: Throwable => t }
+    }
+    
+    // If we got here, we do not have laws.Instances available, and we weren't supposed to, so we proceed.
     // Make the code or bail if something went wrong
     val instanceCode = synthInstances(replaceses) match {
       case Left(v) => return Left("Could not create code for Instances.scala:" +: v)
@@ -262,39 +281,22 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     }
     
     // Create the file (or bail if something went wrong)
-    val target = new java.io.File("Instances.scala")
-    val changed = Try{ freshenFile(target, instanceCode) } match {
-      case Failure(t) => return Left(s"Could not write file ${target.getCanonicalFile.getPath}" +: explainException(t))
-      case Success(b) => b
+    
+    val target = generate match {
+      case Some(x) if x.getName.endsWith("Instances.scala") => x
+      case Some(x) if x.isDirectory => new File(x, "Instances.scala")
+      case Some(x) => return Left(Vector("Target for Instances.scala incorrect: " + x.getPath))
+      case None => return Left(Vector("Should never reach here?!"))
     }
     
-    // If the file's contents changed, we have to recompile
-    if (changed || recompile) {
-      Try {
-        println("Compiling Instances.scala.")
-        scala.sys.process.Process(scalaEnv.compile("Instances.scala"), (new java.io.File(".")).getCanonicalFile).!
-      } match {
-        case Failure(t) => return Left(s"Could not compile Instances.scala" +: explainException(t))
-        case Success(exitcode) if (exitcode != 0) => return Left(Vector(s"Failed to compile Instances.scala; exit code $exitcode"))
-        case _ =>
-      }
-    }
-    
-    // Should have gone okay, so load map with reflection or catch the mistake and say what went wrong
-    try {
-      val obj = Class.forName("laws.Instances$").getDeclaredConstructors.headOption.map{ c => c.setAccessible(true); c.newInstance() }.get
-      val meth = Class.forName("laws.Instances$").getDeclaredMethods.find(_.getName == "mapped").get
-      Right(meth.invoke(obj).asInstanceOf[Map[String, Set[String]]])
-    }
-    catch {
-      case t: Throwable => 
-        if (!recompile) getMethodOracle(replaceses, true)
-        else Left("Could not instantiate Instances:" +: explainException(t))
+    Try{ freshenFile(target, instanceCode) } match {
+      case Failure(t) => Left(s"Could not write file ${target.getCanonicalFile.getPath}" +: explainException(t))
+      case Success(b) => Right(Map.empty)
     }
   }
   
-  lazy val loadedTestses = Tests.read(linetestsFilename)
-  lazy val loadedReplacementses = Replacements.read(replacementsFilename).right.map{ rs =>
+  lazy val loadedTestses = Tests.read(linetestsRaw)
+  lazy val loadedReplacementses = Replacements.read(replacementsRaw).right.map{ rs =>
     rs.map{ r => r. // Strip out any flags from command-line that you want to ignore
       params.get("flags").
       map(rp => rp -> rp.value.split("\\s+").toSet).
@@ -311,41 +313,47 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
   }
   
   /** Loads all the files/info needed and generates the tests, including writing the files if their contents have changed. */
-  def generateTests(): Either[Vector[String], Vector[TestFile]] = {
+  def generateTests(target: Either[File, File]): Either[Vector[String], Vector[TestFile]] = {
     // Load single-line tests (or bail)
     val testses = loadedTestses match {
-      case Left(e) => return Left(s"Could not read tests filename $linetestsFilename" +: e)
+      case Left(e) => return Left(s"Could not read $singleLineName" +: e)
       case Right(ts) => ts
     }
     
     // Load replacements for each collection (or bail)
     val replaceses = loadedReplacementses match {
-      case Left(e) => return Left(s"Could not read replacements filename $replacementsFilename" +: e)
+      case Left(e) => return Left(s"Could not read $replacementsName" +: e)
       case Right(rs) => rs
     }
     
-    // Load and possibly compile Instances to get available methods (or bail)
-    val oracle = getMethodOracle(replaceses) match {
+    // Load or generate Instances (or bail)
+    val oracle = getOrCreateMethodOracle(replaceses, target.left.toOption) match {
       case Left(e) => return Left(s"Could not acquire available methods:" +: e)
       case Right(ms) => ms
     }
     
-    // Create contents of files and write them (or collect errors and bail)
-    replaceses.map{ reps => synthFile(testses, reps, oracle) } match { case fs =>
-      val gs = fs.map{
-        case Right(f) => Try{ f.write } match {
-          case Failure(t) => Left(("Could not write to "+f.file.getCanonicalFile.getPath) +: explainException(t))
-          case Success(f) => Right(f)
+    target match {
+      case Left(_) => Right(Vector.empty[TestFile])
+      case Right(dir) if (!dir.isDirectory) => Left(Vector(dir.getPath + " is not a directory--no place to put generated tests!"))
+      case Right(dir) =>
+        // Create contents of files and write them (or collect errors and bail)
+        replaceses.map{ reps => synthFile(testses, reps, oracle, dir) } match { case fs =>
+          val gs = fs.map{
+            case Right(f) => Try{ f.write } match {
+              case Failure(t) => Left(("Could not write to "+f.file.getCanonicalFile.getPath) +: explainException(t))
+              case Success(f) => Right(f)
+            }
+            case x => x
+          }
+          gs.collect{ case Left(e) => e }.reduceOption(_ ++ _) match {
+            case Some(e) => return Left(s"Could not create code for all test files" +: e)
+            case None => Right(gs.collect{ case Right(f) => f })  // Important that this is gs so we know which files were written out!
+          }
         }
-        case x => x
-      }
-      gs.collect{ case Left(e) => e }.reduceOption(_ ++ _) match {
-        case Some(e) => return Left(s"Could not create code for all test files" +: e)
-        case None => Right(gs.collect{ case Right(f) => f })  // Important that this is gs so we know which files were written out!
-      }
     }
   }  
   
+  /*
   /** Compile and run a single test, collecting any output.
     * The exit code should indicate whether a step succeeded or failed.
     */
@@ -424,11 +432,15 @@ class Laws(junit: Boolean, replacementsFilename: String, linetestsFilename: Stri
     
     answers.result
   }
-  
+  */
 }
 
 
 object Laws {
+  // Constants
+  val singleLineName = "single-line.tests"
+  val replacementsName = "replacements.tests"
+
   // Macros are a convenient way to delimit separate commands to go in different contexts
   val preMacro = ReplaceMacro(Line.empty, "$PRE", "", "")
   val forMacro = ReplaceMacro(Line.empty, "$FOR", "", "")
@@ -515,7 +527,7 @@ object Laws {
   /** Takes a filename and the desired contents; if the two already match, return false.
     * Otherwise, write the desired contents and return true.
     */
-  def freshenFile(file: java.io.File, lines: Vector[String]) = {
+  def freshenFile(file: File, lines: Vector[String]) = {
     val existing = if (!file.exists) Vector() else scala.io.Source.fromFile(file) |> { x => val ans = x.getLines.toVector; x.close; ans }
     if (lines == existing) false
     else {
@@ -530,6 +542,7 @@ object Laws {
   /** Convert an exception into a bunch of lines that can be passed around as a Vector[String] */
   def explainException(t: Throwable): Vector[String] = Option(t.getMessage).toVector ++ t.getStackTrace.map("  " + _.toString).toVector
 
+  /*
   /** Enum type for different type of external executions */
   sealed trait ExecutionType {}
   /** Ran something of an unknown type */
@@ -598,6 +611,7 @@ object Laws {
     /** Returns the command-line which will run the files listed in ss */
     def run(ss: String*): Vector[String] = ((scala +: scalaArgs) ++ ss.toSeq).toVector
   }
+  */
   
   /** Creates the tests and may run them, depending on command-line options.
     */
@@ -613,6 +627,7 @@ object Laws {
     
     val testLines = getResource("/single-line.tests")
     val replaceLines = getResource("/replacements.tests")
+    
     
     println(testLines.length)
     println(replaceLines.takeRight(3).mkString("\n"))

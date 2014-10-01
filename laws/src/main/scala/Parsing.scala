@@ -135,24 +135,16 @@ object Parsing {
     
     val empty = new Lines(Vector.empty[Line])
     
-    /** Optionally reads a file into a `Lines`. */
-    def read(f: java.io.File): Option[Lines] =
-      Try{ io.Source.fromFile(f) }.
-      map{ src => src -> Try { new Lines(src.getLines.toVector.zipWithIndex.map{ case (s,n) => Line.bare(s,n+1) }) } }.
-      flatMap{ case (s,t) => Try{ s.close }; t }.toOption
+    /** Reads a  bunch of text into `Lines`. */
+    def read(xs: Vector[String]): Lines =
+      new Lines(xs.zipWithIndex.map{ case (s,n) => Line.bare(s, n+1) })
       
-    /** Optionally reads the file referred to by a string into a `Lines` */
-    def read(s: String): Option[Lines] = read(new java.io.File(s))
-    
     /** Optionally reads a file and parses it for arrows and dots, treating `blanks` successive blanks as different chunks (see `tokenize`) */
-    def parsed(f: java.io.File, blanks: Int): Option[Vector[Lines]] = read(f).map(_.tokenize(blanks).map(_.decomment.parsed.compact.trim).filter(_.lines.length > 0))
-    /** Optionally reads the file referred to by a string, parses for arrows and dots, and chunks on `blanks` successive empty lines (see `tokenize`) */
-    def parsed(s: String, blanks: Int): Option[Vector[Lines]] = parsed(new java.io.File(s), blanks)
+    def parsed(xs: Vector[String], blanks: Int): Vector[Lines] = 
+      read(xs).tokenize(blanks).map(_.decomment.parsed.compact.trim).filter(_.lines.length > 0)
     
     /** Optionally reads and parses a file into a single chunk (no `tokenize`) */
-    def parsed(f: java.io.File): Option[Lines] = read(f).map(_.decomment.parsed.compact.trim)
-    /** Optionally reads and parses the file referred to by a string into a single chunk (no `tokenize`) */
-    def parsed(s: String): Option[Lines] = parsed(new java.io.File(s))
+    def parsed(xs: Vector[String]): Lines = read(xs).decomment.parsed.compact.trim
   }
 
   /** `Test` encapsulates a single-line test.
@@ -229,12 +221,8 @@ object Parsing {
       )
     }
     
-    /** Parse a file into `Tests` grouped by common parameters (or deliver error message(s)) */
-    def read(f: java.io.File): Either[Vector[String], Vector[Tests]] =
-      Lines.parsed(f).map(parseFrom).getOrElse(Left(Vector(s"Couldn't read ${f.getPath}")))
-      
-    /** Parse the file referred to by a string into `Tests` grouped by common parameters (or deliver error message(s)) */
-    def read(s: String): Either[Vector[String], Vector[Tests]] = read(new java.io.File(s))
+    /** Parse a bunch of text into `Tests` grouped by common parameters (or deliver error message(s)) */
+    def read(xs: Vector[String]): Either[Vector[String], Vector[Tests]] = parseFrom(Lines.parsed(xs))
   }
   
   /** A `line` that describes a replacement, plus the `key` to replace parsed from that line */
@@ -429,11 +417,8 @@ object Parsing {
       }
     }
     
-    def read(f: java.io.File): Either[Vector[String], Vector[Replacements]] = Lines.parsed(f, 2) match {
-      case None => Left(Vector("Could not read data from "+f.getPath))
-      case Some(lss) => Replacements.parseFrom(lss)
-    }
-    def read(s: String): Either[Vector[String], Vector[Replacements]] = Replacements.read(new java.io.File(s))
+    def read(xs: Vector[String]): Either[Vector[String], Vector[Replacements]] = 
+      Replacements.parseFrom(Lines.parsed(xs, 2))
   }
  
   
