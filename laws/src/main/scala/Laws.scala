@@ -157,10 +157,11 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
     val whole = Vector.newBuilder[String]
     whole += autoComment
     lineMacro.argsOf(replaces.infos.get("fileHeader").map(_.values.mkString(" ")).getOrElse("")).foreach(whole += _)
+    whole += "import laws.Laws.{RunnableLawsTest, RunnableLawsResult}"
     whole += ""
     whole += (replaces("@NAME") match {
       // Order is important here!  Only the single-entry vector case is good.
-      case Right(Vector(x)) => title = simple(x); s"object Test_$title {"
+      case Right(Vector(x)) => title = simple(x); s"object Test_$title extends RunnableLawsTest {"
       case Right(xs) => return Left("Could not decide between alternative names for block starting at line ${replaces.myLine}" +: xs)
       case Left(error) => return Left(Vector("Could not create name for block starting at line ${replaces.myLine}",error))
     })
@@ -171,20 +172,28 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
     // Include all the test methods
     methods.foreach{ case TestMethod(_, code, _) => whole += ""; code.foreach(whole += "  " + _) }
     
-    // Create a main method that runs everything
+    // Create a run method that runs everything
     whole += ""
-    whole += "  def main(args: Array[String]) {"
-    whole += "    val tests: Vector[() => Unit] = Vector("
-    methods.map("      " + _.name + " _").mkString(",\n").split("\n").foreach(whole += _)
+    whole += "  def run(): RunnableLawsResult = {"
+    whole += "    val tests: Vector[(() => Unit, Set[Int])] = Vector("
+    methods.map(m => "      (" + m.name + " _, Set[Int](" + m.lines.mkString(", ") + "))").mkString(",\n").split("\n").foreach(whole += _)
     whole += "    )"
-    whole += "    val results = tests.map(f => Try(f()))"
+    whole += "    val results = tests.map{ case (f, ns) => Try{ f(); ns } }"
     whole += "    val errors = results.collect{ case scala.util.Failure(t) => t }"
-    whole += "    if (errors.nonEmpty) {"
-    whole += "      println(errors.length + \" errors for " + title + "!\")"
-    whole += "      errors.foreach{ e => println; laws.Laws.explainException(e).take(10).foreach(println); }"
+    whole += "    val successes = results.collect{ case scala.util.Success(s) => s }"
+    whole += "    RunnableLawsResult(errors, successes.fold(Set.empty[Int])(_ | _), \"" + title + "\")"
+    whole += "  }"
+    
+    // Create a main method that can be used for a standalone run
+    whole += "  "
+    whole += "  def main(args: Array[String]) {"
+    whole += "    val ran = run()"
+    whole += "    if (ran.errors.nonEmpty) {"
+    whole += "      println(ran.errors.length + \" errors for \" + ran.title + \"!\")"
+    whole += "      ran.errors.foreach{ e => println; laws.Laws.explainException(e).take(10).foreach(println); }"
     whole += "      sys.exit(1)"
     whole += "    }"
-    whole += "    println(\"All tests passed for " + title + "\")"
+    whole += "    println(\"All tests passed for \" + ran.title)"
     whole += "  }"
     whole += "}"
     
@@ -452,6 +461,9 @@ object Laws {
 
   type Once[A] = TraversableOnce[A]
   
+  case class RunnableLawsResult(errors: Vector[Throwable], lines: Set[Int], title: String);
+  trait RunnableLawsTest { def run(): RunnableLawsResult }
+  
   /** It's nice to have pipe available. */
   implicit class PipeEverythingForCryingOutLoud[A](val underlying: A) extends AnyVal {
     def |>[B](f: A => B): B = f(underlying)
@@ -528,7 +540,6 @@ object Laws {
     * Otherwise, write the desired contents and return true.
     */
   def freshenFile(file: File, lines: Vector[String]) = {
-    println("Doing something to "+ file.getCanonicalFile.getPath)
     val existing = if (!file.exists) Vector() else scala.io.Source.fromFile(file) |> { x => val ans = x.getLines.toVector; x.close; ans }
     if (lines == existing) false
     else {
