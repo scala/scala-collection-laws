@@ -1,7 +1,15 @@
-name := "collections-laws-tests"
+def genTests(cp: Classpath, out: File, main: Option[String], run: ScalaRun, s: TaskStreams): Seq[File] = {
+  // IO.delete(out)
+  // IO.createDirectory(out)
+  val args = out.getAbsolutePath :: Nil
+  val mainClass = main getOrElse "No main class defined for tests generator"
+  toError(run.run(mainClass, cp.files, args, s.log))
+  (out ** "*.scala").get
+}
 
-version := "0.2.0"
-
-scalaVersion := "2.11.2"
-
-libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
+(sourceGenerators in Compile) <+= (
+  fullClasspath in Compile in inst,
+  sourceManaged in Compile,
+  mainClass in Compile in inst,
+  runner, streams
+) map (genTests _)
