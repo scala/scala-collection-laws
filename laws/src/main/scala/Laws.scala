@@ -354,10 +354,26 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
             }
             case x => x
           }
-          gs.collect{ case Left(e) => e }.reduceOption(_ ++ _) match {
+          val tests = gs.collect{ case Left(e) => e }.reduceOption(_ ++ _) match {
             case Some(e) => return Left(s"Could not create code for all test files" +: e)
-            case None => Right(gs.collect{ case Right(f) => f })  // Important that this is gs so we know which files were written out!
+            case None => gs.collect{ case Right(f) => f }  // Important that this is gs so we know which files were written out!
           }
+          val all = Vector.newBuilder[String]
+          all += "package tests.generated.collection"
+          all += "import laws.Laws.{RunnableLawsTest, RunnableLawsResult}"
+          all += "object Test_All {"
+          all += "  val tests = Vector[RunnableLawsTest]("
+          tests.map("    Test_" + _.title).mkString(",\n").split('\n').foreach(all += _)
+          all += "  )"
+          all += ""
+          all += "  def main(args: Array[String]) {"
+          all += "    val results = tests.map(_.run())"
+          all += "    println(results.count(_.errors.nonEmpty) + \" errors\")"
+          all += "    println(results.count(_.errors.isEmpty) + \" successful\")"
+          all += "  }"
+          all += "}"
+          freshenFile(new File(dir, "Test_All.scala"), all.result)
+          Right(tests)
         }
     }
   }  
