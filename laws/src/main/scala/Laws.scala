@@ -602,11 +602,22 @@ object Laws {
   /** Creates the tests and may run them, depending on command-line options.
     */
   def main(args: Array[String]) {
-    // Parse arguments: anything starting with -- is an option, unless
-    // it appears after a bare -- in argument list (standard GNU style).
-    // Options of the form --blah=foo have a Right("foo") associated with them
-    // Options of the form --blah=7 have a Left(7) associated with them
-    // Options without = have a Right("").
+    def getResource(r: String) = Try{
+      val in = io.Source.fromInputStream(this.getClass.getResourceAsStream("/single-line.tests"))
+      try { in.getLines.toVector }
+      finally { in.close() }
+    } match {
+      case Success(lines) => lines
+      case Failure(x) => x.printStackTrace; sys.exit(1)
+    }
+    
+    val testLines = getResource("/single-line.tests")
+    val replaceLines = getResource("/replacements.tests")
+    
+    println(testLines.length)
+    println(replaceLines.takeRight(3).mkString("\n"))
+    
+    /*
     val (optable, literal) = args.span(_ != "--")
     val opts = optable.filter(_ startsWith "--").map(_.drop(2)).map{ x =>
       val i = x.indexOf('=')
@@ -760,5 +771,6 @@ object Laws {
       if (unaccounted > 0)
         println(s"  Huh?  Couldn't figure out what happened to $unaccounted runs.")
     }
+    */
   }
 }
