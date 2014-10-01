@@ -528,6 +528,7 @@ object Laws {
     * Otherwise, write the desired contents and return true.
     */
   def freshenFile(file: File, lines: Vector[String]) = {
+    println("Doing something to "+ file.getCanonicalFile.getPath)
     val existing = if (!file.exists) Vector() else scala.io.Source.fromFile(file) |> { x => val ans = x.getLines.toVector; x.close; ans }
     if (lines == existing) false
     else {
@@ -617,7 +618,7 @@ object Laws {
     */
   def main(args: Array[String]) {
     def getResource(r: String) = Try{
-      val in = io.Source.fromInputStream(this.getClass.getResourceAsStream("/single-line.tests"))
+      val in = io.Source.fromInputStream(this.getClass.getResourceAsStream(r))
       try { in.getLines.toVector }
       finally { in.close() }
     } match {
@@ -625,16 +626,12 @@ object Laws {
       case Failure(x) => x.printStackTrace; sys.exit(1)
     }
     
-    val testLines = getResource("/single-line.tests")
-    val replaceLines = getResource("/replacements.tests")
+    val testLines = getResource("/" + singleLineName)
+    val replaceLines = getResource("/" + replacementsName)
     
-    
-    println(testLines.length)
-    println(replaceLines.takeRight(3).mkString("\n"))
-    
-    /*
     val (optable, literal) = args.span(_ != "--")
-    val opts = optable.filter(_ startsWith "--").map(_.drop(2)).map{ x =>
+    val (optish, notoptish) = optable.partition(_ startsWith "--")
+    val opts = optish.map(_.drop(2)).map{ x =>
       val i = x.indexOf('=')
       if (i < 0) x -> Right("")
       else {
@@ -646,7 +643,26 @@ object Laws {
         }
       }
     }
-    val fnames = optable.filterNot(_ startsWith "--") ++ literal.drop(1)
+    val target = (notoptish ++ literal.dropWhile(_ == "--")).toList match {
+      case f :: Nil => new File(f)
+      case Nil =>
+        throw new IllegalArgumentException("No output target provided.")
+      case fs =>
+        throw new IllegalArgumentException("Only one output should be provided.  Found ${fs.length}:\n" + fs.map("  " + _).mkString("\n"))
+    }
+    
+    
+    def whichever(f: File) = 
+      if (opts exists (_._1 equalsIgnoreCase "Instances")) Left(f)
+      else Right(f)
+      
+    val laws = new Laws(replaceLines, testLines, opts.collect{ case ("deflag", Right(flag)) => flag }.toSet)
+    laws.generateTests(whichever(target)) match {
+      case Left(x) => x.foreach(println); sys.exit(1)
+      case Right(x) =>
+    }
+    
+    /*
     
     if (fnames.length != 2) throw new IllegalArgumentException("Need two arguments--replacements file and single-line tests file")
     
