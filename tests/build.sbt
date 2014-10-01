@@ -1,4 +1,4 @@
-name := "collections-laws-instances"
+name := "collections-laws-tests"
 
 version := "0.2.0"
 
