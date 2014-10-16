@@ -5,9 +5,38 @@ Partially automatic generation of tests for the Scala collections library.
 
 ### Warning
 
-The Stream test will not complete unless you use a version of Scala with SI-6827 patched.  If your normal scala isn't that up to date, use --scala= when running tests to get a version with the fixed library.
+The Stream test will not complete unless you use a version of Scala with SI-6827 patched.
 
-## How to use
+## Usage
+
+The collections tests now are a sbt project.
+
+From the root directory you should be able to compile everything with
+
+```bash
+sbt -mem 4096 tests/compile
+```
+
+which will compile and run the sub-projects `laws` and `inst`, generate all the tests, and compile them.
+
+(This will take about 12 minutes, though exactly how long will depend on the machine.)
+
+You can then run the tests with
+
+```bash
+sbt -mem 4096 "tests/runMain tests.generated.collection.Test_All"
+```
+
+which will take about two minutes and state something not so terribly helpful like
+
+```
+1 errors
+100 successful
+```
+
+when it is done.  (This will be improved, obviously, to give useful information about errors, if any.)
+
+## How to use the non-current non-sbt branch (historical)
 
 To generate the tests, `make`
 
@@ -35,7 +64,7 @@ To specify arguments, use `--scala-args=arg1` `--scala-args=arg2` etc. (one `--s
 
 `Laws.scala` will create and compile `Instances.scala`, and will create a whole bunch of source in `generated-tests` and class files in `tests/generated/collection` (be warned).
 
-### A mini-walkthrough of detecting failed tests and verifying a bug
+### A mini-walkthrough of detecting failed tests and verifying a bug (non-sbt branch, historical)
 
 If we execute a freshly cloned copy:
 
