@@ -36,7 +36,7 @@ which will take about two minutes and state something not so terribly helpful li
 
 when it is done.  (This will be improved, obviously, to give useful information about errors, if any.)
 
-## How to use the non-current non-sbt branch (historical)
+## How to use the non-current pre-sbt branch (historical)
 
 To generate the tests, `make`
 

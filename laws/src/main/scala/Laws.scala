@@ -368,8 +368,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
           all += ""
           all += "  def main(args: Array[String]) {"
           all += "    val results = tests.map(_.run())"
-          all += "    println(results.count(_.errors.nonEmpty) + \" errors\")"
-          all += "    println(results.count(_.errors.isEmpty) + \" successful\")"
+          all += "    laws.Laws.reportResults(results)"
           all += "  }"
           all += "}"
           freshenFile(new File(dir, "Test_All.scala"), all.result)
@@ -479,6 +478,84 @@ object Laws {
   
   case class RunnableLawsResult(errors: Vector[Throwable], lines: Set[Int], title: String);
   trait RunnableLawsTest { def run(): RunnableLawsResult }
+  
+  private val bigWall = "#####"
+  private val smallWall = "=/|\\="
+  private def boxPrint(in: Vector[String], wall: String, wallSize: Int = 10) = {
+    require(wall.length == 5)
+    val boxed = Vector.newBuilder[String]
+    val qq = wall.substring(2,3) + " "
+    boxed += wall.substring(1,2) + (if (wallSize > 1) wall.substring(0,1)*(wallSize-1) else "")
+    in.foreach{ s => boxed += qq + s }
+    boxed += wall.substring(3,4) + (if (wallSize > 1) wall.substring(4,5)*(wallSize-1) else "")
+    boxed.result
+  }
+  
+  def reportResults(results: Vector[RunnableLawsResult]): Int = {
+    val (errors, successes) = results.partition(_.errors.nonEmpty)
+    val asserted = errors.map(e => e.copy(errors = e.errors.collect{ case a: AssertionError => a })).filter(_.errors.nonEmpty)
+    val crashes = errors.map(e => e.copy(errors = e.errors.filter{ case a: AssertionError => false; case _ => true })).filter(_.errors.nonEmpty)
+    
+    val lineSuccess = results.flatMap(_.lines.toList).groupBy(identity).map{ case (k,v) => k -> v.size }
+    val successPerCollection = lineSuccess.map(_._2).sum / lineSuccess.size
+    val successSummary = s"${successes.length} collections passed ${lineSuccess.size} tests (avg $successPerCollection each)"
+    
+    val failureSummary = s"${errors.length} collections failed (${crashes.length} with crashes, ${asserted.length} with failed assertions)"
+    val assertedWithLines = asserted.map{ a =>
+      a.errors.map(_.getMessage.split("\\s+").drop(2).headOption.flatMap{ x => Try{ x.toInt }.toOption }) -> a
+    }
+    val longCrashSummary = {
+      val msg = Vector.newBuilder[String]
+      msg += s"${crashes.length} collections crashed during tests with an unanticipated exception:"
+      crashes.foreach{ c =>
+        msg += s"  ${c.title}"
+      }
+      msg += "Details follow."
+      var ndetails = 0
+      val details = crashes.
+        map{ c => 
+          val errorList = c.errors.map(explainException).reduceOption((l,r) => (l :+ "") ++ r)
+          ndetails += 1
+          boxPrint(errorList.getOrElse(Vector.empty), smallWall)
+        }.
+        reduceOption((l,r) => (l :+ "") ++ r).
+        getOrElse(Vector.empty)
+      msg ++= (if (ndetails > 1) boxPrint(details, bigWall, 20) else details)
+      msg += ""
+      msg += ""
+      msg.result
+    }
+    val longAssertionSummary = {
+      val msg = Vector.newBuilder[String]
+      msg += s"${asserted.length} collections failed assertions:"
+      assertedWithLines.foreach{ case (ns, a) =>
+        msg += s"  ${a.title} on lines ${ns.mkString(" ")}"
+      }
+      msg += "Details follow."
+      var ndetails = 0
+      val details = assertedWithLines.
+        map{ case (ns, a) =>
+          val errorList = (a.errors zip ns).
+            map{ case (t,n) => s"Test line $n:" +: (explainException(t).take(3) :+ "...") }.
+            reduceOption((l,r) => (l :+ "") ++ r)
+          ndetails += 1
+          boxPrint(errorList.getOrElse(Vector.empty), smallWall)
+        }.
+        reduceOption((l,r) => (l :+ "") ++ r).
+        getOrElse(Vector.empty)
+      msg ++= (if (ndetails > 1) boxPrint(details, bigWall, 20) else details)
+      msg += ""
+      msg += ""
+      msg.result
+    }
+    
+    if (crashes.nonEmpty) longCrashSummary.foreach(println)
+    if (asserted.nonEmpty) longAssertionSummary.foreach(println)
+    if (errors.nonEmpty) println(failureSummary)
+    println(successSummary)
+    
+    if (errors.nonEmpty) 1 else 0  // Recommended exit code
+  }
   
   /** It's nice to have pipe available. */
   implicit class PipeEverythingForCryingOutLoud[A](val underlying: A) extends AnyVal {
