@@ -27,14 +27,37 @@ You can then run the tests with
 sbt -mem 4096 "tests/runMain tests.generated.collection.Test_All"
 ```
 
-which will take about two minutes and state something not so terribly helpful like
+which will take about two minutes and state something like
 
 ```
-1 errors
-100 successful
+2 collections failed (0 with crashes, 2 with failed assertions)
+99 collections passed 312 tests (avg 52 each)
 ```
 
-when it is done.  (This will be improved, obviously, to give useful information about errors, if any.)
+when it is done.  If there are errors, you will see error messages summarized by
+type and lines above the final summary, which look like so:
+
+```
+2 collections failed assertions:
+  collection_immutable_Range on lines 162
+  collection_immutable_Stream_Int_ on lines 376
+Details follow.
+####################
+# /=========
+# | Test line 162 with m = -1; n = 0; x = Range(0, 1, 2, 3) in group 1
+# |   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x$1$$anonfun$apply$mcVI$sp$21.apply$mcVI$sp(Test_collection_immutable_Range.scala:399)
+# |   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x$1$$anonfun$apply$mcVI$sp$21.apply(Test_collection_immutable_Range.scala:394)
+# | ...
+# \=========
+# 
+# /=========
+# | Test line 376 with p = <function1>; r = 0; x = Stream(0, 1, 2, 3) in group 1
+# |   tests.generated.collection.Test_collection_immutable_Stream_Int_$$anonfun$test_p_r_x$2$$anonfun$apply$67.apply$mcVI$sp(Test_collection_immutable_Stream_Int_.scala:1690)
+# |   tests.generated.collection.Test_collection_immutable_Stream_Int_$$anonfun$test_p_r_x$2$$anonfun$apply$67.apply(Test_collection_immutable_Stream_Int_.scala:1687)
+# | ...
+# \=========
+####################
+```
 
 ## How to use the non-current pre-sbt branch (historical)
 

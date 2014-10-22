@@ -464,6 +464,7 @@ object Laws {
   // Constants
   val singleLineName = "single-line.tests"
   val replacementsName = "replacements.tests"
+  val deflagMapName = "deflag-version.map"
 
   // Macros are a convenient way to delimit separate commands to go in different contexts
   val preMacro = ReplaceMacro(Line.empty, "$PRE", "", "")
@@ -529,14 +530,14 @@ object Laws {
       val msg = Vector.newBuilder[String]
       msg += s"${asserted.length} collections failed assertions:"
       assertedWithLines.foreach{ case (ns, a) =>
-        msg += s"  ${a.title} on lines ${ns.mkString(" ")}"
+        msg += s"  ${a.title} on lines ${ns.flatten.mkString(" ")}"
       }
       msg += "Details follow."
       var ndetails = 0
-      val details = assertedWithLines.
-        map{ case (ns, a) =>
-          val errorList = (a.errors zip ns).
-            map{ case (t,n) => s"Test line $n:" +: (explainException(t).take(3) :+ "...") }.
+      val details = asserted.
+        map{ a =>
+          val errorList = a.errors.
+            map{ t => explainException(t).take(3) :+ "..." }.
             reduceOption((l,r) => (l :+ "") ++ r)
           ndetails += 1
           boxPrint(errorList.getOrElse(Vector.empty), smallWall)
@@ -721,17 +722,28 @@ object Laws {
   /** Creates the tests and may run them, depending on command-line options.
     */
   def main(args: Array[String]) {
-    def getResource(r: String) = Try{
+    def getResourceImpl(r: String, die: Boolean) = Try{
       val in = io.Source.fromInputStream(this.getClass.getResourceAsStream(r))
       try { in.getLines.toVector }
       finally { in.close() }
     } match {
-      case Success(lines) => lines
-      case Failure(x) => x.printStackTrace; sys.exit(1)
+      case Success(lines) => Some(lines)
+      case Failure(x) => 
+        if (die) {
+          x.printStackTrace
+          sys.exit(1)
+        } 
+        else None
     }
+    
+    def getResource(r: String) = getResourceImpl(r, true).orNull
+    def getResourceOptionally(r: String) = getResourceImpl(r, false)
     
     val testLines = getResource("/" + singleLineName)
     val replaceLines = getResource("/" + replacementsName)
+    val deflagLines = getResourceOptionally("/" + deflagMapName).getOrElse(Vector.empty)
+    
+    deflagLines.foreach(println)
     
     val (optable, literal) = args.span(_ != "--")
     val (optish, notoptish) = optable.partition(_ startsWith "--")
@@ -755,157 +767,32 @@ object Laws {
         throw new IllegalArgumentException("Only one output should be provided.  Found ${fs.length}:\n" + fs.map("  " + _).mkString("\n"))
     }
     
+    val deflags = 
+      opts.collect{ case ("deflag", Right(flag)) => flag }.toSet |
+      opts.collectFirst{ case ("versionID", Right(id)) => id }.fold(Set.empty[String]){ ver =>
+        val deflagMaps = Lines.anykeyParsed(deflagLines).ap(_.filter(_.sep == "-->"))
+        val relevantMaps = deflagMaps.lines.map{ line =>
+          val score = (line.left zip ver).takeWhile{ case (l,r) => l == r }.length
+          (if (score == ver.length) score+1 else score) -> line
+        }.toList
+        relevantMaps.sortBy(- _._1) match {
+          case m :: mm :: rest if m._1 == mm._1 && m._1 > 0 =>
+            throw new IllegalArgumentException("Cannot deflag for version $ver because both ${m._2.left} and ${mm._2.left} match equally")
+          case m :: rest if m._1 > 0 =>
+            m._2.rights.toSet
+          case x => println(x); Set.empty[String]
+        }
+      }
     
     def whichever(f: File) = 
       if (opts exists (_._1 equalsIgnoreCase "Instances")) Left(f)
       else Right(f)
       
-    val laws = new Laws(replaceLines, testLines, opts.collect{ case ("deflag", Right(flag)) => flag }.toSet)
+    val laws = new Laws(replaceLines, testLines, deflags)
     laws.generateTests(whichever(target)) match {
       case Left(x) => x.foreach(println); sys.exit(1)
       case Right(x) =>
     }
     
-    /*
-    
-    if (fnames.length != 2) throw new IllegalArgumentException("Need two arguments--replacements file and single-line tests file")
-    
-    // Remove these flags from collections--an easy way to test if known bugs have been fixed!
-    val deflag = opts.collect{ case ("deflag", Right(v)) if v != "" => v }.toSet
-    
-    // Compile these many files jointly (first try--compile-time errors will retry one by one)
-    // TODO--actually use this
-    val jointly = opts.collect{ case ("joint-compile", Left(n)) if (n > 0) => n }.toList match {
-      case Nil => 1
-      case x :: Nil => x
-      case xs => throw new IllegalArgumentException("Don't know what to do with multiple joint-compile args: " + xs.mkString(", "))
-    }
-    
-    // Let the caller specify what scala to use (if actually java, will need to change arguments)
-    val scalaCmd = opts.collect{ case ("scala", Right(v)) if v != "" => v }.toList match {
-      case cmds @ List(x, y, _*) =>
-        throw new IllegalArgumentException("Don't know what to do with more than one version of scala specified: " + cmds.mkString(", "))
-      case cmd :: Nil            => cmd
-      case Nil                   => "scala"
-    }
-    
-    // And what scalac to use
-    val scalacCmd = opts.collect{ case ("scalac", Right(v)) if v != "" => v}.toList match {
-      case cmds @ List(x, y, _*) =>
-        throw new IllegalArgumentException("Don't know what to do with more than one version of scalac specified: " + cmds.mkString(", "))
-      case cmd :: Nil            => cmd
-      case Nil                   => "scalac"
-    }
-
-    // Let the caller specify what scala arguments to use
-    val scalaArgs = opts.collect{ case ("scala-args", Right(v)) if v != "" => v }.toList match {
-      case Nil => "-J-Xmx1G" :: Nil
-      case cmds => cmds
-    }
-    
-    // And what scalac arguments to use
-    val scalacArgs = opts.collect{ case ("scalac-args", Right(v)) if v != "" => v }.toList match {
-      case Nil => "-J-Xmx1G" :: Nil
-      case cmds => cmds
-    }
-    
-    val scalaEnv = ScalaEnv(scalaCmd, scalaArgs, scalacCmd, scalacArgs)
-
-    // Get the instance that does all the work (save for summarizing)
-    val laws = new Laws(false, fnames(0), fnames(1), deflag, scalaEnv)
-    
-    val tfs: Vector[laws.TestFile] = laws.generateTests match {
-      case Left(e) =>
-        // If we weren't able to generate tests, bail out
-        e.foreach(println)
-        sys.exit(1)
-        
-      case Right(rs) =>
-        // Tests were created, so gather some summary statistics and babble about what happened
-        var allLines = Set[Int]()
-        rs.foreach{ r =>
-          allLines |= r.lines
-          println(s"Created ${r.lines.size} single-line tests for")
-          println(s"  ${r.title}")
-          for (u <- r.unvisited if u.nonEmpty) {
-            println(s"  ${u.size} methods not tested:")
-            // All this is just for prettyprinting method names
-            val i = u.toList.sorted.iterator
-            var s = "  "
-            while (i.hasNext) {
-              val t = {
-                val x = i.next
-                val more = 11 - (x.length % 11)
-                x + " "*more
-              }
-              if (s.length == 2) s += t
-              else if (s.length + t.length > 79) {
-                println(s)
-                s = "  " + t
-              }
-              else s += t
-            }
-            if (s.length > 2) println(s)
-            // Done prettyprinting
-          }
-          println
-        }
-        
-        val unusedLines = 
-          laws.loadedTestses.right.toOption.
-          map(_.flatMap(_.underlying.filter(x => !allLines.contains(x.line.index)))).
-          getOrElse(Vector())
-        
-        println("Generated " + rs.length + " test files.")
-        if (unusedLines.nonEmpty) {
-          // Report which tests weren't used at all (an unused test is probably an indication of some sort of mistake)
-          println(s"${unusedLines.length} test lines were not used for any collection: ")
-          unusedLines.toList.sortBy(_.line.index).foreach{ ul =>
-            val text = f"${ul.line.index}%-3d ${ul.line.whole}"
-            if (text.length < 78) println("  " + text)
-            else println("  " + text.take(74) + "...")
-          }
-        }
-        
-        // If we want only new tests, filter out only ones whose source changed
-        if (opts.exists(_._1 == "changed")) rs.filter(_.written) else rs
-    }
-    
-    opts.find(_._1 == "run").foreach{ case (_, nr) =>
-      // Only run the tests if the option --run was given (--run=n says how many processes to spawn simultaneously)
-      val n = 1 max nr.left.toOption.getOrElse(1L).toInt
-      val tstart = System.nanoTime
-      val ran = laws.executeTests(tfs, n, opts.exists(_._1 == "recompile"), opts.forall(_._1 != "compile-only")).sortBy(_._1.qualified)
-      val elapsed = 1e-9*(System.nanoTime - tstart)
-      
-      // When we reach here everything that will run has, so we just need to report on it
-      println
-      println("========= Summary of Test Run =========")
-      println(f"Tested ${ran.length} collections in ${humanReadableTime(elapsed)}")
-      
-      val succeeded = ran.collect{ case (tf, Some(e)) if !e.failed => (tf,e) }
-      println(s"  ${succeeded.length} collections passed")
-      
-      val ranButFailed = ran.collect{ case (tf, Some(e)) if e.failed && e.et == RunTest => (tf,e) }
-      println(s"  ${ranButFailed.length} collections failed")
-      ranButFailed.foreach{ case (tf, _) => println("    " + tf.qualified) }
-      
-      val didntCompile = ran.collect{ case (tf, Some(e)) if e.failed && e.et == CompileTest => (tf,e) }
-      println(s"  ${didntCompile.length} collections failed to compile")
-      didntCompile.foreach{ case (_, e) => println("    " + e.command.mkString(" ")) }
-      
-      // These ones are really bad--maybe should limit the number, or provide guidance on how to compile/run by hand?
-      val didntEvenFinish = ran.collect{ case (tf, None) => tf }
-      if (didntEvenFinish.nonEmpty) {
-        println("  ${didntEvenFinish.length} collections got stuck!  Better try these by hand.")
-        didntEvenFinish.foreach{ tf => println("    " + tf.qualified) }
-      }
-      
-      // Something weird happened if the previous cases don't add up
-      val unaccounted = ran.length - (succeeded.length + ranButFailed.length + didntCompile.length + didntEvenFinish.length)
-      if (unaccounted > 0)
-        println(s"  Huh?  Couldn't figure out what happened to $unaccounted runs.")
-    }
-    */
   }
 }
