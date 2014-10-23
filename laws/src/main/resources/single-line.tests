@@ -373,6 +373,6 @@ LAZY r f ... { var k = 0; x.map{ xi => k += 1; f(xi) }.`take`(r).toVector; k <= 
 LAZY r f ... { var k = 0; x.flatMap{ xi => k += 1; List(xi, f(xi)) }.`take`(r).toVector; k <= math.max(@MINEVALS, (r+1)/2) }
 LAZY r pf ... { var k = 0; x.`collect`{ case xi if pf.isDefinedAt(xi) => k += 1; pf(xi) }.`take`(r).toVector; k <= math.max(@MINEVALS, r) }
 LAZY r p ... { var k = 0; x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).toVector; k <= math.max(@MINEVALS, r) }
-LAZY r p ... { var k,l = 0; val q = (qi: @A) => !p(qi); x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).toVector; x.`filterNot`{ xi => if(!q(xi)) l += 1; q(xi) }.take(r).toVector; k==l }
+!TWOELEVENTWO LAZY r p ... { var k,l = 0; val q = (qi: @A) => !p(qi); x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).toVector; x.`filterNot`{ xi => if(!q(xi)) l += 1; q(xi) }.take(r).toVector; k==l }
 // Force is weird with stream views--it forces it out of a view to a stream, but that's still lazy.  Not sure if this is intended behavior?
 !STREAMVIEW ... { var i = 0; val y = x.map{ xi => i += 1; xi }.`force`; val j = i; var k = 0; y.foreach(_ => k += 1); x.`size` == k && j == i }

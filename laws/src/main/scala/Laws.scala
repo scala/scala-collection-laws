@@ -417,9 +417,10 @@ object Laws {
     val asserted = errors.map(e => e.copy(errors = e.errors.collect{ case a: AssertionError => a })).filter(_.errors.nonEmpty)
     val crashes = errors.map(e => e.copy(errors = e.errors.filter{ case a: AssertionError => false; case _ => true })).filter(_.errors.nonEmpty)
     
-    val lineSuccess = results.flatMap(_.lines.toList).groupBy(identity).map{ case (k,v) => k -> v.size }
-    val successPerCollection = lineSuccess.map(_._2).sum / lineSuccess.size
-    val successSummary = s"${successes.length} collections passed ${lineSuccess.size} tests (avg $successPerCollection each)"
+    val lineSuccess = results.flatMap(_.lines.toList).groupBy(identity).map{ case (k,v) => v.size }
+    val successPerCollection = lineSuccess.sum / lineSuccess.size
+    val successSummary =
+      s"${successes.length} collections passed ${lineSuccess.size} tests (avg $successPerCollection each, ${lineSuccess.sum} total)"
     
     val missingLines = results.map(_.lines).foldLeft(inputLines)(_ diff _).toList.sorted
     val missingLinesSummary = s"Test lines ${missingLines.mkString(", ")} were not used."
@@ -597,8 +598,6 @@ object Laws {
     val replaceLines = getResource("/" + replacementsName)
     val deflagLines = getResourceOptionally("/" + deflagMapName).getOrElse(Vector.empty)
     
-    deflagLines.foreach(println)
-    
     val (optable, literal) = args.span(_ != "--")
     val (optish, notoptish) = optable.partition(_ startsWith "--")
     val opts = optish.map(_.drop(2)).map{ x =>
@@ -634,7 +633,7 @@ object Laws {
             throw new IllegalArgumentException("Cannot deflag for version $ver because both ${m._2.left} and ${mm._2.left} match equally")
           case m :: rest if m._1 > 0 =>
             m._2.rights.toSet
-          case x => println(x); Set.empty[String]
+          case x => Set.empty[String]
         }
       }
     

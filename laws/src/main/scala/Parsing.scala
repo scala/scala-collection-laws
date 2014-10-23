@@ -43,7 +43,7 @@ object Parsing {
   object Line {
     /** Pattern that parsed lines must obey */
     def mkSepRegex(sep: String) = ("""^((?:\s|\w|!|\$)+)(""" + java.util.regex.Pattern.quote(sep) + """)(.*)""").r
-    def anyKeyRegex(sep: String) = ("""^(?:\s*)(\S+)(?:\s+)(""" + java.util.regex.Pattern.quote(sep) + """)(?:\s+)(.*)""").r
+    def anyKeyRegex(sep: String) = ("""^(?:\s*)(\S+)(?:\s+)(""" + java.util.regex.Pattern.quote(sep) + """)(?:\s*)(.*)""").r
     /** Tap separator */
     val JustTab = """\t""".r
     /** Whitespace separator */
