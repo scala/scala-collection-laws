@@ -36,18 +36,24 @@ object Parsing {
       
     /** This line parsed with a default delimiter if it's not yet parsed; otherwise just identity */
     def parsed = if (isSplit) this else Line.apply(left, index)
+
+    /** This line parsed with a default delimiter, allowing any key, if it's not yet parsed; otherwise just identity */
+    def anykeyParsed = if (isSplit) this else Line.anykey(left, index)
   }
   object Line {
     /** Pattern that parsed lines must obey */
     def mkSepRegex(sep: String) = ("""^((?:\s|\w|!|\$)+)(""" + java.util.regex.Pattern.quote(sep) + """)(.*)""").r
+    def anyKeyRegex(sep: String) = ("""^(?:\s*)(\S+)(?:\s+)(""" + java.util.regex.Pattern.quote(sep) + """)(?:\s*)(.*)""").r
     /** Tap separator */
     val JustTab = """\t""".r
     /** Whitespace separator */
     val AllWhite = """^\s*$""".r
     /** Long right arrow separator */
     val ArrowRegex = mkSepRegex("-->")
+    val AnykeyArrowRegex = anyKeyRegex("-->")
     /** Triple dots separator */
     val DotsRegex = mkSepRegex("...")
+    val AnykeyDotsRegex = anyKeyRegex("...")
     
     val emptyRight = Vector("")
     val empty = new Line("", "", emptyRight, -1)
@@ -63,6 +69,15 @@ object Parsing {
       case ArrowRegex(l, s, r) => new Line(l, s,  Vector(r),  i)
       case DotsRegex(l, s, r)  => new Line(l, s,  Vector(r),  i)
       case x                   => new Line(x, "", emptyRight, i)
+    }
+    
+    /** Given a string and a line number, try to parse it with either arrow or dots separators 
+      * but allow any non-whitespace key.  Also, separate the right-hand side by whitespace.
+      */
+    def anykey(s: String, i: Int): Line = s match {
+      case AnykeyArrowRegex(l,s,r) => new Line(l, s, Vector(r.split("\\s+"): _*).filter(_.nonEmpty), i)
+      case AnykeyDotsRegex(l,s,r)  => new Line(l, s, Vector(r.split("\\s+"): _*).filter(_.nonEmpty), i)
+      case x                       => new Line(x, "", emptyRight, i)
     }
     
     /** Given a string and line number, try to parse it with custom separators; if that doesn't work keep it unparsed */
@@ -119,6 +134,9 @@ object Parsing {
     /** Finds separators for any lines that haven't already been parsed */
     def parsed = map(_.parsed)
     
+    /** Finds separators for any lines that haven't already been parsed; allow any key on the left. */
+    def anykeyParsed = map(_.anykeyParsed)
+    
     /** Glues together lines with continuation pattern `...` or `-->` at same position but with whitespace before.  Parsed lines only. */
     def compact = ap(ls => (Vector.empty[Line] /: ls){ (v,line) => 
       v.lastOption.flatMap(_ merge line) match {
@@ -145,6 +163,9 @@ object Parsing {
     
     /** Optionally reads and parses a file into a single chunk (no `tokenize`) */
     def parsed(xs: Vector[String]): Lines = read(xs).decomment.parsed.compact.trim
+    
+    /** Optionally reads and parses a file into a single chunk (no `tokenize`); allow any key on the left */
+    def anykeyParsed(xs: Vector[String]): Lines = read(xs).decomment.anykeyParsed.compact.trim
   }
 
   /** `Test` encapsulates a single-line test.

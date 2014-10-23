@@ -1,15 +1,9 @@
-def genTests(cp: Classpath, out: File, main: Option[String], run: ScalaRun, s: TaskStreams): Seq[File] = {
-  // IO.delete(out)
+(sourceGenerators in Compile) += Def.task {
+  val out = (sourceManaged in Compile).value
   if (!out.exists) IO.createDirectory(out)
-  val args = out.getAbsolutePath :: Nil
-  val mainClass = main getOrElse "No main class defined for tests generator"
-  toError(run.run(mainClass, cp.files, args, s.log))
+  val args = out.getAbsolutePath :: ("--versionID=" + (scalaVersion in Compile).value) :: Nil
+  val runTarget = (mainClass in Compile in inst).value getOrElse "No main class defined for tests generator"
+  val classPath = (fullClasspath in Compile in inst).value
+  toError(runner.value.run(runTarget, classPath.files, args, streams.value.log))
   (out ** "*.scala").get
-}
-
-(sourceGenerators in Compile) <+= (
-  fullClasspath in Compile in inst,
-  sourceManaged in Compile,
-  mainClass in Compile in inst,
-  runner, streams
-) map (genTests _)
+}.taskValue

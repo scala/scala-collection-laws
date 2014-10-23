@@ -1,0 +1,27 @@
+// This file contains lists of flags to ignore based on Scala version.
+//
+// Version string goes on the left.  Then an arrow, then the flags to disable on the right.
+// If the version is not an exact match
+//    * The mapping with the longest initial match wins
+//    * If there is still a tie, the shortest version string here wins
+// Thus, if Scala 2.11.3 is used and this file has only 2.11.2 and 2.11 mappings,
+// 2.11 will win because although both match the initial 4 characters, "2.11" is
+// shorter than "2.11.2".
+//
+// It may seem strange to only disable flags instead of being able to add them.  There is
+// a good reason: a flag goes on both a collection _and_ a source line, which enables
+// or disables the test line for exactly that collection.  Adding flags is problematic
+// because you'd need to specify which collection(s) needed the flags.  If flags are always
+// removed based on Scala version, you can define good or problematic pairs in the single-line
+// and replacements file, and then knock out that pairing by referring to the flag here.
+//
+// For instance, if a test fails on 2.11.0, you could add
+//    2.11.0 -->
+// here, mark the problematic pair with BUG2110 on the collection and !BUG2110 on the
+// test, then add BUG2110 to every _other_ version string in this file.
+
+2.11.2 -->
+2.11   --> TWOELEVENTWO
+2.12   --> TWOELEVENTWO
+
+
