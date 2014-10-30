@@ -369,7 +369,8 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
           all += ""
           all += "  def main(args: Array[String]) {"
           all += "    val results = tests.map(_.run())"
-          all += "    laws.Laws.reportResults(results, lines)"
+          all += "    val exitcode = laws.Laws.reportResults(results, lines)"
+          all += "    if (exitcode != 0) sys.exit(exitcode)"
           all += "  }"
           all += "}"
           freshenFile(new File(dir, "Test_All.scala"), all.result)
@@ -644,7 +645,32 @@ object Laws {
     val laws = new Laws(replaceLines, testLines, deflags)
     laws.generateTests(whichever(target)) match {
       case Left(x) => x.foreach(println); sys.exit(1)
-      case Right(x) =>
+      case Right(x) if x.size > 0 => 
+        println(s"Created tests for ${x.size} conditions.  Method coverage:")
+        x.foreach{ test =>
+          val missing = test.unvisited match {
+            case Some(x) => if (x.size==0) "" else s"; missed ${x.size}:"
+            case None => ""
+          }
+          println(s"${test.title} (${if (test.written) "NEW" else "old"})$missing")
+          var indent = 0
+          val spots = List(4, 19, 34, 49, 64)
+          test.unvisited.filter(_.nonEmpty).foreach{uns =>
+            uns.foreach{ un =>
+              val extra = " "*spots.find(_ > indent).map(_ - indent).getOrElse(80)
+              if (indent + extra.length + un.length + 1 >= 80) {
+                print(s"\n    $un")
+                indent = 4 + un.length
+              }
+              else {
+                print(s"$extra$un")
+                indent += extra.length + un.length
+              }
+            }
+            println
+          }
+        }
+      case _ =>
     }
     
   }
