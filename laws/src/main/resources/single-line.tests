@@ -389,4 +389,18 @@ zero n !M !S ... x.`applyOrElse`(n, (_: Int) => zero) == (if (x.`isDefinedAt`(n)
 zero n !M !S !SI8950 ... x.`applyOrElse`(n, (_: Int) => zero) == tryO(x.`apply`(n)).getOrElse(zero)
 n !M !S ... x.`isDefinedAt`(n) == x.`lift`(n).isDefined
 n !M !S ... { val pf: PartialFunction[Int,Int] = { case x if (x%2)==0 => x+3 }; x.`orElse`(pf).`lift`(n) == (if (x.`isDefinedAt`(n)) Some(x.`apply`(n)) else if (pf.isDefinedAt(n)) Some(pf(n)) else None) }
-n zero f !M !S ... { var a0 = zero; x.`runWith`(a0 = _)(n) == x.`isDefinedAt`(n) && (x.isDefinedAt(n) implies x.`apply`(n) == a0) }
+n zero !M !S ... { var a0 = zero; x.`runWith`(a0 = _)(n) == x.`isDefinedAt`(n) && (x.isDefinedAt(n) implies x.`apply`(n) == a0) }
+// Set types index with collection type and return booleans
+a !M S ... { val f = (b: Boolean) => !b; tryO(((i: @A) => f(x.`apply`(i))).apply(a)) == tryO((x.`andThen`(f)).apply(a)) }
+a f !M S ... tryO(((i: @A) => x.`apply`(f(i))).apply(a)) == tryO((x.`compose`(f)).apply(a))
+// Map types index with first half of collection type and return second half
+a hv M ... tryO(((i: @K) => hv(x.`apply`(i))).apply(a._1)) == tryO((x.`andThen`(hv)).apply(a._1))
+a hk M ... tryO(((i: @K) => x.`apply`(hk(i))).apply(a._1)) == tryO((x.`compose`(hk)).apply(a._1))
+a M ... x.`isDefinedAt`(a._1) == x.`contains`(a._1)
+a M ... x.`isDefinedAt`(a._1) implies tryO(x.`apply`(a._1)).isDefined
+zero a M ... x.`applyOrElse`(a._1, (_: @K) => zero._2) == (if (x.`isDefinedAt`(a._1)) x.`apply`(a._1) else zero._2)
+zero a M ... x.`applyOrElse`(a._1, (_: @K) => zero._2) == tryO(x.`apply`(a._1)).getOrElse(zero._2)
+a M ... x.`isDefinedAt`(a._1) == x.`lift`(a._1).isDefined
+a M ... x.`get`(a._1) == x.`lift`(a._1)
+a M ... { val pf: PartialFunction[@K, @V] = { case x if (x.## % 2) == 0 => a._2 }; x.`orElse`(pf).`lift`(a._1) == (if (x.`isDefinedAt`(a._1)) Some(x.`apply`(a._1)) else if (pf.isDefinedAt(a._1)) Some(pf(a._1)) else None) }
+a zero M ... { var v0 = zero._2; x.`runWith`(v0 = _)(a._1) == x.`isDefinedAt`(a._1) && (x.isDefinedAt(a._1) implies x.`apply`(a._1) == v0) }
