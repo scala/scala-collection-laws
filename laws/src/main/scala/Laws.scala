@@ -6,6 +6,7 @@ import scala.language.higherKinds
 import java.io.File
 
 import scala.util._
+import scala.collection.mutable.{AnyRefMap => RMap}
 import laws.Parsing._
 
 /** Generates and runs single-line collections tests that may be viewed as laws that collections should obey. */
@@ -178,7 +179,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
     whole += "    val tests: Vector[(() => Unit, Set[Int])] = Vector("
     methods.map(m => "      (" + m.name + " _, Set[Int](" + m.lines.mkString(", ") + "))").mkString(",\n").split("\n").foreach(whole += _)
     whole += "    )"
-    whole += "    val results = tests.map{ case (f, ns) => Try{ f(); ns } }"
+    whole += "    val results = tests.map{ case (f, ns) => scala.util.Try{ f(); ns } }"
     whole += "    val errors = results.collect{ case scala.util.Failure(t) => t }"
     whole += "    val successes = results.collect{ case scala.util.Success(s) => s }"
     whole += "    RunnableLawsResult(errors, successes.fold(Set.empty[Int])(_ | _), \"" + title + "\")"
@@ -548,6 +549,12 @@ object Laws {
     }
   }
   
+  /** Catches _EVERYTHING_ */
+  def tryE[A](f: => A): Either[Throwable, A] = try { Right(f) } catch { case t: Throwable => Left(t) }
+  
+  /** Catches _EVERYTHING_ and you don't know what it was */
+  def tryO[A](f: => A): Option[A] = try { Some(f) } catch { case t: Throwable => None }
+  
   /** Uses class tags to verify that two collection types are the same type */
   def sameType[A,B[A],C,D[C]](ba: B[A], dc: D[C])(implicit evba: scala.reflect.ClassTag[B[A]], evdc: scala.reflect.ClassTag[D[C]]) = {
     evba == evdc
@@ -572,7 +579,31 @@ object Laws {
   }
   
   /** Convert an exception into a bunch of lines that can be passed around as a Vector[String] */
-  def explainException(t: Throwable): Vector[String] = Option(t.getMessage).toVector ++ t.getStackTrace.map("  " + _.toString).toVector
+  def explainException(t: Throwable): Vector[String] = Option(t.getMessage).toVector ++ { t match {
+    case so: StackOverflowError => 
+      // Stack overflows are really long, so don't print the boring repetitive part in the middle
+      val trace = so.getStackTrace.map("  " + _.toString)
+      val seen = RMap[String, Int]()
+      var front, i, k = 0
+      while (k < 3 && front < trace.length) {
+        val line = trace(front)
+        seen += line -> { k = seen.getOrElse(line,0) + 1; k }
+        front += 1
+      }
+      var back = trace.length - 1
+      k = 0
+      seen.clear
+      while (k < 3 && back >= 0) {
+        val line = trace(back)
+        seen += line -> { k = seen.getOrElse(line,0) + 1; k }
+        back -= 1
+      }
+      val redacted =
+        if (front >= back - 1) trace
+        else ((trace.slice(0,front+1) :+ s"  ... lines ${front+1} to ${back-1} ...") ++ trace.slice(back,trace.length-1))
+      redacted.toVector
+    case _ => t.getStackTrace.map("  " + _.toString).toVector
+  }}
 
   
   /** Creates the tests or the Instances.scala file, depending on command-line options.
@@ -645,18 +676,18 @@ object Laws {
     val laws = new Laws(replaceLines, testLines, deflags)
     laws.generateTests(whichever(target)) match {
       case Left(x) => x.foreach(println); sys.exit(1)
-      case Right(x) if x.size > 0 => 
-        println(s"Created tests for ${x.size} conditions.  Method coverage:")
-        x.foreach{ test =>
+      case Right(tests) if tests.size > 0 => 
+        println(s"Created tests for ${tests.size} conditions.  Method coverage:")
+        tests.sortBy(_.title).foreach{ test =>
           val missing = test.unvisited match {
-            case Some(x) => if (x.size==0) "" else s"; missed ${x.size}:"
+            case Some(x) => if (x.size==0) "complete" else s"missed ${x.size}:"
             case None => ""
           }
-          println(s"${test.title} (${if (test.written) "NEW" else "old"})$missing")
+          println(s"${test.title} (${if (test.written) "NEW" else "old"}); $missing")
           var indent = 0
           val spots = List(4, 19, 34, 49, 64)
           test.unvisited.filter(_.nonEmpty).foreach{uns =>
-            uns.foreach{ un =>
+            uns.toList.sorted.foreach{ un =>
               val extra = " "*spots.find(_ > indent).map(_ - indent).getOrElse(80)
               if (indent + extra.length + un.length + 1 >= 80) {
                 print(s"\n    $un")
