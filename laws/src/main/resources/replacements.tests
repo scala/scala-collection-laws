@@ -88,9 +88,9 @@ y --> $PRE(val ys = @YS) $FOR(y_i <- ys) $IN(@LET y = y_i())
 z --> $PRE(val ca = @CA) $FOR(z <- ca)
 zero --> $PRE(val zero = @ZERO)
 instance --> $NEW((0 to 0))
-doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
+doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix viewToString
 fileHeader --> $LINE(package tests.generated.collection)
-           --> $LINE(import scala.util.Try)
+           --> $LINE(import laws.Laws.{tryE, tryO})
            --> $LINE(import laws.Laws.Implicits._)
            --> $LINE(import laws.Laws.sameType)
 junitFileHeader --> $LINE(import org.junit.runner.RunWith)
@@ -523,7 +523,7 @@ $NEW --> Seq[Int]( $ : _*).view.filter(_ > 4)
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]FlatMapped
-flags --> VIEW LAZY SI8474
+flags --> VIEW LAZY SI8474 SI8951
 LET --> val
 $NEW --> Seq[Int]( $ : _*).view.flatMap(i => Seq(i, i+2))
 
@@ -560,7 +560,7 @@ $NEW --> Seq[Int]( $ : _*).view.reverse
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Sliced
-flags --> VIEW LAZY SI8474
+flags --> VIEW LAZY SI8474 SI8950
 LET --> val
 $NEW --> Seq[Int]( $ : _*).view.drop(2)
 
@@ -601,7 +601,7 @@ $NEW --> Stream[Int]( $ : _*).view.filter(_ > 4)
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]FlatMapped
-flags --> VIEW LAZY ADEFINITE SI8474 STREAMVIEW
+flags --> VIEW LAZY ADEFINITE SI8474 SI8951 STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.flatMap(i => Stream(i, i+2))
 
@@ -638,7 +638,7 @@ $NEW --> Stream[Int]( $ : _*).view.reverse
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Sliced
-flags --> VIEW LAZY ADEFINITE SI8474 STREAMVIEW
+flags --> VIEW LAZY ADEFINITE SI8474 SI8950 STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.drop(2)
 
@@ -665,7 +665,7 @@ GS --> List((_i: (Long,String)) => (_i._1+1) -> _i._2, (_i: (Long,String)) => _i
 PROP --> ((_i: (Long,String)) => _i._1 < p_i._1)
 PF --> { case _i if _i._1 < pf_i._1 => (_i._1 + 1) -> _i._2 }
 YS --> (List[Range](4 to 8, 0 until 0, 0 to 3, 1 to 20 by 3, -64 to 0, 2 to 3, 0 to 1).map(y => () => $NEW(y.map(yi => yi.toLong -> yi.toString): _*)))
-CA --> List[(Long,String)](0L -> "wishes", 0L -> "delicous", 9L -> "nine", 10L -> "ten")
+CA --> List[(Long,String)](0L -> "wishes", 0L -> "delicious", 9L -> "nine", 10L -> "ten")
 CB --> List[(Long,String)](0L -> "wishes", 1L -> "wishes", 10L -> "ten", 14L -> "fourteen")
 CM --> List[Int](-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)
 CN --> List[Int](-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
@@ -698,7 +698,7 @@ zero --> $PRE(val zero = @ZERO)
 instance --> $NEW(0L->"")
 doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
 fileHeader --> $LINE(package tests.generated.collection)
-           --> $LINE(import scala.util.Try)
+           --> $LINE(import laws.Laws.{tryE, tryO})
            --> $LINE(import laws.Laws.Implicits._)
            --> $LINE(import laws.Laws.sameType)
 junitFileHeader --> $LINE(import org.junit.runner.RunWith)
@@ -840,7 +840,7 @@ zero --> $PRE(val zero = @ZERO)
 instance --> $NEW("" -> 0)
 doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
 fileHeader --> $LINE(package tests.generated.collection)
-           --> $LINE(import scala.util.Try)
+           --> $LINE(import laws.Laws.{tryE, tryO})
            --> $LINE(import laws.Laws.Implicits._)
            --> $LINE(import laws.Laws.sameType)
 junitFileHeader --> $LINE(import org.junit.runner.RunWith)

@@ -55,6 +55,7 @@ y !MUVU !SI6462 !RANGE ... sameType(x, x.flatMap(xi => y.toList.take($INT(xi))))
 p ... x.`exists`(p) == x.`find`(p).isDefined
 p ... x.`forall`(p) implies (x.`isEmpty` || x.`exists`(p))
 p ... var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(p)
+x.`repr` theSameAs x
 x.`toIterator` theSameAs x
 x.`toStream` theSameAs x
 x.`toTraversable` theSameAs x
@@ -86,13 +87,13 @@ a op ... x.`foldRight`(a)(op) == x.`:\`(a)(op)
 !RANGE !SORTED !ARRAY !USESARRAY !N ... { val xx = x.`genericBuilder`[@A]; sameType(x, xx.result) }
 !ADEFINITE ... x.`nonEmpty` implies (x.`hasDefiniteSize` == @DEFINITE)
 x.`isTraversableAgain` == @AGAIN
-Try{x.`max`}.toOption == Try{x.`reduce`(_ max _)}.toOption
-f ... Try{x.`maxBy`(f)}.toOption == Try{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }.toOption
-Try{x.`min`}.toOption == Try{x.`reduce`(_ min _)}.toOption
-f ... Try{x.`minBy`(f)}.toOption == Try{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }.toOption
+tryO{x.`max`} == tryO{x.`reduce`(_ max _)}
+f ... tryO{x.`maxBy`(f)} == tryO{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }
+tryO{x.`min`} == tryO{x.`reduce`(_ min _)}
+f ... tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }
 x.`nonEmpty` == x.`exists`(_ => true)
 one ... x.`product` == x.`fold`(one)(_ * _)
-op ... Set(Try{x.`reduce`(op)}.toOption, Try{x.`reduceLeft`(op)}.toOption, Try{x.`reduceRight`(op)}.toOption, x.`reduceOption`(op), x.`reduceLeftOption`(op), x.`reduceRightOption`(op)).size == 1
+op ... Set(tryO{x.`reduce`(op)}, tryO{x.`reduceLeft`(op)}, tryO{x.`reduceRight`(op)}, x.`reduceOption`(op), x.`reduceLeftOption`(op), x.`reduceRightOption`(op)).size == 1
 x.`size` == x.`count`(_ => true)
 zero ... x.`sum` == x.`fold`(zero)(_ + _)
 x theSameAs x.`to`[List]
@@ -108,7 +109,7 @@ x.`toVector` theSameAs x
 p !S ... val y = new collection.mutable.ArrayBuffer[@A]; x.`withFilter`(p).foreach(y += _); y theSameAs x.filter(p)
 p S ... val y = new collection.mutable.HashSet[@A]; x.`withFilter`(p).foreach(y += _); y theSameAs x.filter(p)
 x.`hasNext` == x.`nonEmpty`
-x.`hasNext` implies Try{ x.`next` }.isSuccess
+x.`hasNext` implies tryO{ x.`next` }.isDefined
 y !S ... x.`++`(y).`size` == x.size + y.size
 y S ... x.`++`(y).`size` <= x.size + y.size
 y S !M ... x.`++`(y).`size` == x.size + y.filter(yi => !x.`contains`(yi)).size
@@ -212,7 +213,7 @@ g ... x.`groupBy`(g).keySet theSameAs x.map(g).toSet
 g ... x.`groupBy`(g).toMap.forall{ case (k,vs) => x.filter(xi => g(xi)==k) theSameAs vs }
 !ARRAY !M ... !x.`nonEmpty` || (x match { case _: scala.collection.Seq[_] => Seq(x.`head`) theSameAs x.`take`(1); case _ => true })
 ARRAY ... !x.`nonEmpty` || (Seq(x.`head`) theSameAs x.`take`(1))
-x.`headOption` == Try{ x.`head` }.toOption
+x.`headOption` == tryO{ x.`head` }
 n a !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }
 a !ITERATOR ... x.`indexOf`(a) == x.`indexOf`(a,0)
 a ITERATOR ... { val k = x.`takeWhile`(_ != a); x.`indexOf`(a) match { case -1 => k.`size` == x.size; case kk => x.`drop`(kk).`next` == a } }
@@ -237,7 +238,7 @@ y ... y.`size` == 0 || { val i = x.`lastIndexOfSlice`(y); !x.`drop`(math.max(0,i
 y r ... y.`size` == 0 || { val i = x.`lastIndexOfSlice`(y,r); !x.`take`(r).`drop`(math.max(0,i+1)).`containsSlice`(y) && ((i >= 0) implies (i <= r && (x.`drop`(i).`take`(y.size) theSameAs y))) }
 p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexWhere`(p) == -1; case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexWhere(p) } }
 p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)
-x.`lastOption` == Try{ x.`last` }.toOption
+x.`lastOption` == tryO{ x.`last` }
 n ... x.`lengthCompare`(n).signum == (x.`size` compare n).signum
 !ITERATOR ... val xx = x.map(_.toString); xx eq xx.`mapConserve`(identity)
 x.`size` > 8 || x.`permutations`.size == x.toVector.groupBy(identity).map{ case (_,vs) => vs.size }.scanLeft((x.size,0)){ (c,i) => (c._1 - c._2, i) }.map{ case (n,k) => (1L to k).map(n+1 - _).product / (1L to k).product }.product
@@ -376,3 +377,16 @@ LAZY r p ... { var k = 0; x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).t
 !TWOELEVENTWO LAZY r p ... { var k,l = 0; val q = (qi: @A) => !p(qi); x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).toVector; x.`filterNot`{ xi => if(!q(xi)) l += 1; q(xi) }.take(r).toVector; k==l }
 // Force is weird with stream views--it forces it out of a view to a stream, but that's still lazy.  Not sure if this is intended behavior?
 !STREAMVIEW ... { var i = 0; val y = x.map{ xi => i += 1; xi }.`force`; val j = i; var k = 0; y.foreach(_ => k += 1); x.`size` == k && j == i }
+
+// Tests for collections that extend Function1 or PartialFunction
+// Assume that we index with integers unless we're a map/set type
+n f !M !S !SI8951 ... (tryE(((i: Int) => f(x.`apply`(i))).apply(n)), tryE((x.`andThen`(f)).apply(n))) match
+                  ... { case (Right(a), Right(b)) => a == b; case (Right(_), Left(_)) | (Left(_), Right(_)) => false; case (Left(so: StackOverflowError), _) => false; case (_, Left(so: StackOverflowError)) => false; case _ => true } 
+n f !M !S SI8951 ... tryO(((i: Int) => f(x.`apply`(i))).apply(n)) == tryO((x.`andThen`(f)).apply(n))
+n !M !S ... { val f = (i: Int) => 3+i; val fx = (i: Int) => x.`apply`(f(i)); def ff(i: Int) = (x.`compose`(f)).apply(i); tryO(fx(n)) == tryO(ff(n)) }
+n !M !S ... x.`isDefinedAt`(n) implies tryO(x.`apply`(n)).isDefined
+zero n !M !S ... x.`applyOrElse`(n, (_: Int) => zero) == (if (x.`isDefinedAt`(n)) x.`apply`(n) else zero)
+zero n !M !S !SI8950 ... x.`applyOrElse`(n, (_: Int) => zero) == tryO(x.`apply`(n)).getOrElse(zero)
+n !M !S ... x.`isDefinedAt`(n) == x.`lift`(n).isDefined
+n !M !S ... { val pf: PartialFunction[Int,Int] = { case x if (x%2)==0 => x+3 }; x.`orElse`(pf).`lift`(n) == (if (x.`isDefinedAt`(n)) Some(x.`apply`(n)) else if (pf.isDefinedAt(n)) Some(pf(n)) else None) }
+n zero f !M !S ... { var a0 = zero; x.`runWith`(a0 = _)(n) == x.`isDefinedAt`(n) && (x.isDefinedAt(n) implies x.`apply`(n) == a0) }
