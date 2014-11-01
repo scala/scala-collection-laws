@@ -700,7 +700,7 @@ y --> $PRE(val ys = @YS) $FOR(y_i <- ys) $IN(@LET y = y_i())
 z --> $PRE(val ca = @CA) $FOR(z <- ca)
 zero --> $PRE(val zero = @ZERO)
 instance --> $NEW(0L->"")
-doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
+doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix addString mkString
 fileHeader --> $LINE(package tests.generated.collection)
            --> $LINE(import laws.Laws.{tryE, tryO})
            --> $LINE(import laws.Laws.Implicits._)
@@ -846,7 +846,7 @@ y --> $PRE(val ys = @YS) $FOR(y_i <- ys) $IN(@LET y = y_i())
 z --> $PRE(val ca = @CA) $FOR(z <- ca)
 zero --> $PRE(val zero = @ZERO)
 instance --> $NEW("" -> 0)
-doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix
+doNotVerifyMethods --> foreach map flatMap filter seq par equals hashCode toString canEqual stringPrefix addString mkString
 fileHeader --> $LINE(package tests.generated.collection)
            --> $LINE(import laws.Laws.{tryE, tryO})
            --> $LINE(import laws.Laws.Implicits._)
