@@ -360,6 +360,9 @@ M ... x.`values`.toSet theSameAs x.`valuesIterator`.toSet
 a M ... x.`put`(a._1, a._2+a._2).isDefined == x.`contains`(a._1)
 a M ... val x0 = x; x0.`put`(a._1, a._2+a._2); x0.`apply`(a._1) == a._2+a._2
 a M ... x.`contains`(a._1) implies x.`put`(a._1, a._2 + a._2).exists(_ == x.`apply`(a._1))
+zero M ... tryO(x.`default`(zero._1)).isEmpty
+a M ... tryO(x.`withDefault`(_ => a._2)).isDefined
+zero a M ... tryO(x.`withDefault`(_ => zero._2).`apply`(a._1)) == tryO(if (x.`contains`(a._1)) x(a._1) else zero._2)
 
 // Mutable-specific
 x.`clone` theSameAs x
