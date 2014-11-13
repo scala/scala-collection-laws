@@ -422,7 +422,7 @@ object Laws {
     val lineSuccess = results.flatMap(_.lines.toList).groupBy(identity).map{ case (k,v) => v.size }
     val successPerCollection = lineSuccess.sum / lineSuccess.size
     val successSummary =
-      s"${successes.length} collections passed ${lineSuccess.size} tests (avg $successPerCollection each, ${lineSuccess.sum} total)"
+      s"${successes.length} collections run against suite of ${lineSuccess.size} tests (${lineSuccess.sum} total)"
     
     val missingLines = results.map(_.lines).foldLeft(inputLines)(_ diff _).toList.sorted
     val missingLinesSummary = s"Test lines ${missingLines.mkString(", ")} were not used."
