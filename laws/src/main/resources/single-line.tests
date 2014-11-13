@@ -66,6 +66,7 @@ x.`toTraversable` theSameAs x
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b1) == z
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z
 !SI7128 !S n m r ... n < 0 || { val arr = new Array[@A](r); x.`copyToArray`(arr, n, m); (arr.drop(n).take(m) zip x.toList).forall{ case (x,y) => x==y } }
+!SI7128 S n m r ... n < 0 || { val arr = new Array[@A](r); x.`copyToArray`(arr, n, m); val c = arr.drop(n).take(m min x.`size`);  val cs = c.toSet; c.size == cs.size && (cs subsetOf x.toSet) }
 pf ... x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)
 val b = new collection.mutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x
 x theSameAs x.`companion`(x.toList: _*)
@@ -157,7 +158,6 @@ y n m ... (n <= x.`size`) implies (x.`patch`(n, y, m).`take`(n) theSameAs x.take
 y n m ... (n <= x.`size`) implies (x.`patch`(n, y, m).`drop`(n).`take`(y.`size`) theSameAs y)
 y n m !SI8474 ... (n <= x.`size`) implies (x.`patch`(n, y, m).`drop`((0 max n)+y.`size`) theSameAs x.`drop`((0 max n)+(0 max m)))
 y ... (x `sameElements` y) == (x theSameAs y)
-// scanLeft and scanRight go here
 n m ... n < 0 || m >= x.size || { x.`slice`(n, m).`size` == (0 max ((0 max m)-n)) }
 n m !S ... n < 0 || m >= x.size || { x.`slice`(n, m) theSameAs x.`drop`(n).`take`((0 max m)-n) }
 n m !SI8819 ... n < 0 || m >= x.size || { sameType(x, x.`slice`(n, m)) }
@@ -255,6 +255,12 @@ y ... sameType(x, x.`reverse_:::`(y))
 op !S one ... x.`scan`(one)((a,b) => op(a,b)) theSameAs x.toList.scanLeft(one)((a,b) => op(a,b))
 op !S one ... x.`scanLeft`(one)((a,b) => op(a,b)) theSameAs { val ab = collection.mutable.ArrayBuffer(one); x.foreach(xi => ab += (op(ab.last, xi))); ab }
 op !S one ... x.`scanRight`(one)((a,b) => op(a,b)) theSameAs x.toList.reverse.scanLeft(one)((a,b) => op(a,b)).reverse
+S ... { val y = x.`scan`("")((s,xi) => s.toString + xi.toString).toList.sortBy(_.toString.length); (y zip y.tail).forall{ case (a,b) => b.toString.startsWith(a.toString) } }
+S ... x.`scan`("")((s,xi) => s.toString + xi.toString).toList.sortBy(_.toString.length).lastOption.forall{ yN => yN.toString.groupBy(identity) == x.map(_.toString).mkString.groupBy(identity) }
+S ... { val y = x.`scanLeft`(Set[@A]())((s,xi) => s + xi).toList.sortBy(_.size); (y zip y.tail).forall{ case (a,b) => a subsetOf b} }
+S ... x.`scanLeft`(Set[@A]())((s,xi) => s + xi).toList.sortBy(_.size).lastOption.forall(_ == x.toSet)
+S ... { val y = x.`scanRight`(Set[@A]())((xi,s) => s + xi).toList.sortBy(_.size); (y zip y.tail).forall{ case (a,b) => a subsetOf b} && y.lastOption.forall(_ == x.toSet) }
+S ... x.`scanRight`(Set[@A]())((xi,s) => s + xi).toList.sortBy(_.size).lastOption.forall(_ == x.toSet)
 p n ... n <= 0 || x.`segmentLength`(p,n) == x.`drop`(n).`takeWhile`(p).`size`
 r ... r <= 0 || x.`sliding`(r).`size` == (if (x.nonEmpty) math.max(0,x.`size`-r)+1 else 0)
 r !S ... r <= 0 || x.`size` <= 0 || (r >= x.`size` && { x.`sliding`(r).map(_.toVector).toVector == Vector(x.toVector) }) || { val vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) == Vector.range(0, 1+vx.size-r).map(i => vx.slice(i,i+r)) }
@@ -329,6 +335,7 @@ y !RANGE ... sameType(x, x.`&~`(y))
 
 // Set-specific
 a S !M ... x.`add`(a) == !x.`contains`(a)
+a S !M ... (if (x.`contains`(a)) 0 else 1) == { (x.`+`(a)).size - x.`size` }
 a S !M ... (if (x.`contains`(a)) 0 else 1) == { val x0 = x; x0.`add`(a); x0.`size` - x.`size` }
 a S !M ... val x0 = x; x0.`add`(a); x0.`contains`(a)
 S !M ... x theSameAs x.`keySet`
@@ -344,6 +351,8 @@ y ... x.`|`(y) theSameAs x.`union`(y)
 S ... x.`size` > 8 || (x.`subsets`.toSet theSameAs (0 to x.`size`).map(i => x.toList.combinations(i).map(_.toSet)).reduce(_ ++ _).toSet)
 
 // Map specific
+a M ... (if (x.`contains`(a._1)) 0 else 1) == { (x.`+`(a)).size - x.`size` }
+a M ... x.`contains`(a._1) implies (x.`+`(a).get(a._1) == Some(a._2))
 a M ... x.`applyOrElse`(a._1, (_: @K) => a._2 + a._2) == x.`getOrElse`(a._1, a._2+a._2)
 p M ... x.`filterKeys`(k => p((k, x.`apply`(k)))) theSameAs x.filter(p)
 a M ... x.`getOrElse`(a._1, a._2 + a._2) == x.`get`(a._1).getOrElse(a._2+a._2)
@@ -380,6 +389,7 @@ LAZY r p ... { var k = 0; x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).t
 !TWOELEVENTWO LAZY r p ... { var k,l = 0; val q = (qi: @A) => !p(qi); x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).toVector; x.`filterNot`{ xi => if(!q(xi)) l += 1; q(xi) }.take(r).toVector; k==l }
 // Force is weird with stream views--it forces it out of a view to a stream, but that's still lazy.  Not sure if this is intended behavior?
 !STREAMVIEW ... { var i = 0; val y = x.map{ xi => i += 1; xi }.`force`; val j = i; var k = 0; y.foreach(_ => k += 1); x.`size` == k && j == i }
+!STREAMVIEW ... x.`force`.`hasDefiniteSize`
 
 // Tests for collections that extend Function1 or PartialFunction
 // Assume that we index with integers unless we're a map/set type
