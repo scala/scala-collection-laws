@@ -222,16 +222,113 @@ This procedure is documented below in the "Creating a new law" section.
 
 
 
-### Annotating or removing collections bugs
+### Dealing with collections bugs
 
 The collections tests will not pass successfully if even a single error is found.
 This requires the entire test-suite to avoid any existing bugs in the source code.
 
 The convention for bugs is to place the issue number in the `flags` line of the
 affected collection(s) in the format `SI1234` (no dash) in the file `replacements.tests`
-in `laws/src/main/resources`.
+in `laws/src/main/resources`.  The offending test is then marked with `!SI1234`.
+This states to not run the test if the offending flag is present in the collection.
 
-TODO: add more content.
+#### Adding new bugs
+
+If the collections are changed in a way that makes a test fail, but the change
+is important, one may wish to simply add a new bug.  After entering the bug in
+the issue tracker, find the failing collection(s) in `replacements.tests`.  You
+will find something like
+
+```
+Int collection.SortedSet[Int]
+flags --> S SORTED
+$NEW --> (collection.SortedSet.empty[Int] ++ $ )
+```
+
+Just add the issue number to the `flags` line, or create the line if it doesn't
+exist.  Note--there must be no blank lines between the name of the collection
+and the various settings applied to it!
+
+Good:
+
+```
+Int collection.SortedSet[Int]
+flags --> S SORTED SI1234
+$NEW --> (collection.SortedSet.empty[Int] ++ $ )
+```
+
+Bad:
+
+```
+Int collection.SortedSet[Int]
+
+flags --> S SORTED SI1234
+$NEW --> (collection.SortedSet.empty[Int] ++ $ )
+```
+
+Then, in `single-line.tests` find the offending line(s) and mark them to reject
+that flag.
+
+Before:
+
+```
+S !M ... x theSameAs x.`keySet`
+```
+
+After:
+
+```
+S !M !SI1234 ... x theSameAs x.`keySet`
+```
+
+Run the tests again, and the `keySet` law will no longer be run on `SortedSet`.
+
+
+#### Testing existing bugs
+
+After a bug has been fixed, it could (potentially) be removed from collections
+tests.  However, ideally, scala-collections-tests should succeed without error
+on the latest released version of Scala.  To allow this, do the following.
+
+1. Use a local copy of Scala as described in Catching a Regression.
+
+2. Use a local copy of scala-reflect.jar as described in Catching a Regression.
+Make sure you do not commit `laws/build.sbt`.
+
+3. In the file `laws/src/main/resources/deflag-version.map`, make sure there is
+a line corresponding to the latest Scala release and to the next release:
+
+```
+2.11.4 -->
+2.11.x -->
+```
+
+4. Change `scalaVersion in ThisBuild` in the (root) `build.sbt` to the next
+release version.
+
+5. Add any flags you want to try removing in `deflag-version.map`:
+
+```
+2.11.x --> SI1234
+```
+
+(This change is reasonable to commit, since presumably everyone using 2.11.x will
+find the bug fixed.)
+
+If the bug is in fact fixed, the convention is to mark it with the name of the last
+release where it is still present:  `SI1234` becomes `SI1234IN11X4`.  For now you
+must use only caps or numbers (and start with a letter).
+
+#### Removing existing bugs
+
+If you find that a bug has been fixed in the latest released version of Scala,
+you may wish to remove the flag.  Simply find all instances in `single-line.tests`,
+`replacements.tests`, and `deflag-version.map` and delete them.
+
+If this would make a line test have nothing before the `...`, delete `...` as well.
+If it leaves `flags -->` empty in a `replacements.tests` collection, delete the
+`flags` line.  You may also wish to delete previously released versions from the
+list in `deflag-version.map`.
 
 
 ### Adding or altering laws
@@ -241,16 +338,150 @@ any change that alters the line numbers will result in a lot of recompilation.  
 you're trying to go through test cycles quickly, try to get the file into the right
 shape first, then work on content.
 
-TODO: add more content.
+First, read the comments at the top of `single-line.tests`.  These contain brief
+instructions on how the file is formatted and what the convention for various
+variables means.  In brief, a law is a line of the form
 
-#### Altering an existing laws
+```
+requirements ... code with `methods` to test marked in `backticks`
+```
 
-TODO: this section
+If there are no requirements, the `...` should be omitted.  Any collection that
+contains the methods marked in backticks will have that test run, unless it fails
+to meet the other requirements.
+
+The requirements are a mix of variables (lower case) that are to be provided by
+text replacement, and flags that must either be present on the collection to test
+(`FLAG`) or must be absent (`!FLAG`).
+
+For example, this line:
+
+```
+y !S ... x.`++`(y).`size` == x.size + y.size
+```
+
+has a requirements section that says a variable `y` must be provided (which, by
+convention and as specified in `replacements.tests`, is a collection of the same
+type as being tested), and that the collection must not contain flag `S`, which
+is used on set-like collections.
+
+The code section specifies that the `size` and `++` methods must be present, and
+defines a law that says non-set-like collections when joined must have exactly
+as many elements as in the two original collections.
+
+Note that whitespace in `single-line.tests` is irrelevant to the generated code
+save for which line numbers are produced.  Comments are stripped off before code
+is generated.
+
+#### Altering an existing law
+
+Altering an existing law is typically easier than writing a new one.  Let's suppose
+we see this line:
+
+```
+M ... x.`keys`.toSet theSameAs x.`keySet`
+```
+
+and decide that we should use equality rather than `theSameAs` to compare the
+two different ways of coming up with a set of keys for a map.  We try
+the following:
+
+```
+M ... x.`keys`.toSet = x.`keySet`
+```
+
+And generate a whole mess of compilation errors that look like
+
+```
+[error] /wherever/scala-collections-laws/tests/target/scala-2.11/src_managed/main/Test_collection_Map_Long_String_.scala:1022: value toSet_= is not a member of Iterable[Long]
+[error]       if (!{x.keys.toSet = x.keySet}) { throw new AssertionError("Test line 364 with "+message) }
+[error]                    ^
+```
+
+because, of course, we meant `==` instead of `=`.  (As a general rule, it's a good
+idea to try out the test in the REPL first--define any variables you might need,
+then paste the line in.)
+
+Note that the error messages refer to the lines in generated code, which you can
+inspect (in `tests/target/scala-2.11/src_managed/main`) if you need to see the
+context.
+
+In any case, once we fix the law to be
+
+```
+M ... x.`keys`.toSet == x.`keySet`
+```
+
+the tests pass.
 
 #### Adding a new law
 
-TODO: this section
+To add a new law, you need to decide on the requirements--which sorts of input
+are required? are any flags needed?--in addition to writing the law and
+decorating the appropriate method names with backquotes.
 
+Let's suppose we want to add a new law to test that foldLeft really operates
+from left to right.  If this is true, then the last element inspected should
+be the last element in the collection.  We thus conceive of the law like so:
+
+```
+x.foldLeft(?)((a,b) => b) == x.last
+```
+
+What goes in place of `?`?  We decide that any old element of the type that belongs
+in the collection is okay--we don't really need to test variants--so we pick
+`zero`.  It also seems like this isn't appropriate for sets and maps, so we use
+the `!S` flag.  Our first try at a test looks like this:
+
+```
+zero !S ... x.`foldLeft`(zero)((a,b) => b) == x.last
+```
+
+which we put at the end of `single-line.tests`.  (In general it's good to group
+tests by topic when possible.)
+
+We try compiling this but
+
+```
+[error] /home/kerrr/code/scala/typesafe/scala-collections-laws/tests/target/scala-2.11/src_managed/main/Test_collection_Iterator_Int_.scala:1943: value last is not a member of Iterator[Int]
+[error]       if (!{x.foldLeft(zero)((a,b) => b) == x.last}) { throw new AssertionError("Test line 422 with "+message) }
+[error]                                               ^
+```
+
+Oops!  We need to annotate _all_ the methods that are required, and we forgot `last`.  We backquote `last`, and get
+
+```
+67 collections crashed during tests with an unanticipated exception:
+  collection_immutable_IndexedSeq_Int_
+    (lots more here)
+  collection_immutable_List__String_Long__
+Details follow.
+####################
+# /=========
+# | empty.last
+# |   scala.collection.immutable.Vector.last(Vector.scala:197)
+# |   tests.generated.collection.Test_collection_immutable_IndexedSeq_Int_$.test_x_zero(Test_collection_immutable_IndexedSeq_Int_.scala:2677)
+# |      (lots more here)
+# \=========
+#
+# (lots more like the above)
+####################
+```
+
+because empty collections are tested also.  So we try
+
+```
+zero !S ... x.`foldLeft`(zero)((a,b) => b) == x.`lastOption`.getOrElse(zero)
+```
+
+and the tests pass.
+
+(This law is not in the collections tests because it's not really comprehensive
+enough; it's better to check that all elements are visited in order.)
+
+#### Removing a law
+
+Delete it.  When tests are run, it will report one fewer test.  That's it!
 
 
 ### Adding or altering collections

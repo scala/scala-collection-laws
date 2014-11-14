@@ -18,8 +18,9 @@
 
 // Flags describing the test are upper case, also listed on the left of "..."
 //    A means "array-like" in that it isn't actually a subclass of TraversableOnce
+//    M means "map-like" in that it has two type parameters and elements are tuples of those
 //    N means "no free type parameters" (i.e. x cannot hold a different type)
-//    S means "set-like" in that duplicates are not required to be stored
+//    S means "set-like" in that duplicates are not required to be stored (maps are also S)
 //    U means "unordered" so indexing, dropping, etc. will not necessarily agree with each other
 // Flags can either be positive or negative
 //    a positive flag is just the name of the flag; to run this test a collection must also have this flag
@@ -41,6 +42,13 @@
 //   isPartOf checks whether the LHS is a subset of the RHS
 //   implies is true when the LHS is false, or when both LHS and RHS are true
 //   impliedBy is the opposite of implies (i.e. a implies b is the same as b impliedBy a)
+// And three useful methods:
+//   sameType(a, b) checks that the Scala compiler believes the two arguments
+//     to be of the same type
+//   tryO(expr) returns Some(result) if there is no exception, or None if there
+//     is an exception.  Unlike scala.util.Try, it catches all throwables, no exceptions (pun intended).
+//   tryE(expr) returns Right(result) or Left(throwable) on exception.
+//     Like tryO, it catches everything.
 
 // A double slash indicates a comment.  These will be stripped off of the end of any source code.
 // ********************************************************
