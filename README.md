@@ -443,7 +443,7 @@ tests by topic when possible.)
 We try compiling this but
 
 ```
-[error] /home/kerrr/code/scala/typesafe/scala-collections-laws/tests/target/scala-2.11/src_managed/main/Test_collection_Iterator_Int_.scala:1943: value last is not a member of Iterator[Int]
+[error] /wherever/scala-collections-laws/tests/target/scala-2.11/src_managed/main/Test_collection_Iterator_Int_.scala:1943: value last is not a member of Iterator[Int]
 [error]       if (!{x.foldLeft(zero)((a,b) => b) == x.last}) { throw new AssertionError("Test line 422 with "+message) }
 [error]                                               ^
 ```
@@ -486,4 +486,168 @@ Delete it.  When tests are run, it will report one fewer test.  That's it!
 
 ### Adding or altering collections
 
-TODO: This section
+Collections are specified in `replacements.tests` in `laws/src/main/resources`.
+The file essentially consists of mappings that drive text-based replacements that
+generate the test files (hence the name).
+
+Each collection must be separated from the others by at least two lines of complete
+whitespace (no comments).  Read the comments at the top of the file for an outline
+of the different features and customs of the replacements.
+
+For our purposes it is sufficient to know that there is a _generic mapping_ that
+applies to all collections that contain a particular type, e.g.
+
+```
+// The generic data supplied for collections that contain Ints
+Int *
+X --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64)) $NEW(List[Int](0,1,2,0,1,1,1,2)) $NEW((0 to 0))
+F --> ((_i: Int) => _i + 1)
+  (more lines here)
+```
+
+This says that these mappings are the generic ones for elements of type `Int` (`*`
+means any collection).  The line starting with `X` defines the different collection contents
+tested--six variants produced from ranges via the `$NEW` macro (to be defined later).
+The next line, starting with `F`, will produce an `Int => Int` function when expanded.
+
+Further down, these expansions are mapped into variables by lower case mappings:
+
+```
+f --> $PRE(val f = @F)
+```
+
+which says to provide variable `f` by generating a val in the preamble of the test
+(i.e. before the loops over different conditions).
+
+All the specific collections appear below the generic definition.  Each individual
+collection variant looks something like
+
+```
+Int collection.immutable.TreeSet[Int]
+flags --> S SORTED SI6462
+LET --> val
+$NEW --> collection.immutable.TreeSet[Int]( $ : _* )
+```
+
+The first line says the collection holds `Int`s and that the type of the collection
+is `collection.immutable.TreeSet[Int]`.  This also specifies the filename
+(all non-alphanumeric characters will change into underscores) unless the `NAME`
+mapping is given.  `flags` select which laws to run.  `LET` is either `val` or `def`,
+depending on whether the collection might be side-effecting; `immutable.TreeSet` is
+immutable, so it's safe to store it in a val.  (Otherwise it will be regenerated
+each time it is used.)  Finally the `$NEW` line specifies how to generate a
+`TreeSet` from the `X` variants given in the generic mappings.  Here, the companion
+object apply method will do the trick (with varargs forwarding).
+
+#### Creating a new collection
+
+Let us suppose we want to try adding `Option` to the collections tests since it
+shares a number of methods with collections.  Somewhere below the `Int *`
+generic section, and above the next generic section, we add the following:
+
+```
+Int Option[Int]
+LET --> val
+$NEW --> ( $ .headOption )
+```
+
+Unfortunately, too many tests really require a collection, and we get many
+compilation errors looking like:
+
+```
+[error] /wherever/scala-collections-laws/tests/target/scala-2.11/src_managed/main/Test_Option_Int_.scala:359: Cannot prove that List[Int] <:< Option[B].
+[error]         if (!{x.flatMap(xi => y.toList.take(( xi ))) theSameAs x.map(xi => y.toList.take(( xi ))).flatten}) { throw new AssertionError("Test line 90 with "+message) }
+[error]                                                                                                   ^
+```
+
+At this point, the sensible strategy is to not try, rather than retrofit all the offending tests.
+
+We delete the lines **and run `sbt clean` to remove the generated source files**.  Removing
+a test without running clean will leave the stale source file lying around to cause problems.
+(You could also delete the file manually.)
+
+Instead we try to test a map with a given default value.  In the
+`(Long,String) *` section we add
+
+```
+(Long,String) collection.immutable.Map[Long,String]
+flags --> S M
+LET --> val
+$NEW --> collection.immutable.Map[Long,String]( $ ).withDefaultValue("")
+```
+
+But this doesn't work:
+
+```
+[error] /wherever/scala-collections-laws/inst/target/scala-2.11/src_managed/main/Instances.scala:94: inst_collection_immutable_Map_Long_String_ is already defined as value inst_collection_immutable_Map_Long_String_
+[error]   val inst_collection_immutable_Map_Long_String_ = (classOf[collection.immutable.Map[Long,String]], collection.immutable.Map[Long,String]( 0L->"" ).withDefaultValue(""))
+```
+
+because we already have a `collection.immutable.Map[Long,String]` without a default value.
+
+To solve this, we set the `NAME` mapping:
+
+```
+NAME --> collection.immutable.Map[Long,String]WithDefaultValue
+```
+
+Note that spaces aren't allowed.  Now that it has a distinct name it gets distinct
+variables and file names and the compilation proceeds.  However, a test fails:
+
+```
+1 collections failed assertions:
+  collection_immutable_Map_Long_String_WithDefaultValue on lines 380
+Details follow.
+/=========
+| Test line 380 with x = Map(0 -> wishes, 1 -> fishes, 2 -> dishes); zero = (0,) in group 1
+|   tests.generated.collection.Test_collection_immutable_Map_Long_String_WithDefaultValue$.test_x_zero(Test_collection_immutable_Map_Long_String_WithDefaultValue.scala:1365)
+|   tests.generated.collection.Test_collection_immutable_Map_Long_String_WithDefaultValue$$anonfun$25.apply$mcV$sp(Test_collection_immutable_Map_Long_String_WithDefaultValue.scala:1415)
+| ...
+\=========
+```
+
+Line 380 is
+
+```
+zero M ... tryO(x.`default`(zero._1)).isEmpty
+```
+
+which, in retrospect, is exactly what we expect: our new collection does not
+throw an exception (and thus give `None` in `tryO`) for its default.
+
+If we wanted to make this test succeed, we could write a second test to check
+defaults that are there and add a flag to pick the correct test.  More general,
+though, would be to add a mapping in the generic `(Long,String) *` section
+
+```
+DVAL --> None
+```
+
+and override it in our new collection variant with
+
+```
+DVAL --> Some("")
+```
+
+and then change the test to
+
+```
+zero M ... tryO(x.`default`(zero._1)) == @DVAL
+```
+
+The default-value collection is of limited use, however, since there is a specific
+`withDefaultValue` law, and the implementations of default values tend to be very
+straightforward.
+
+So it is best to leave out this collection and leave the tests as they are.
+
+
+
+
+#### Creating a new contained type (generic + specific)
+
+This is a little trickier.  Use the existing patterns as a guide, and be aware
+that each collection you want included must be copied each time.  (If it becomes
+necessary to test many different data types, this restriction could be lifted.)
+
+Mostly--good luck!  You're on your own!
