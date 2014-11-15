@@ -215,7 +215,7 @@ r ... x.`size` > 8 || r == 0 || r > x.size || { val s = x.toVector; x.`combinati
 y ... x.`containsSlice`(y) implies (y.`size` == 0 || (Iterator.from(0).map(x.`drop`).takeWhile(_.`nonEmpty`).exists(_.`take`(y.`size`) theSameAs y)))
 y ... val List(xg,yg,xdyg) = List(x,y,x.`diff`(y)).map(_.`groupBy`(identity).mapValues(_.size).toMap); xg.forall{ case (k,n) => val m = n - yg.getOrElse(k,0); (m > 0) implies (xdyg.getOrElse(k,0) == m) }
 val s = x.`toSet`; x.`distinct`.`size` == s.size && x.forall(s)
-n !S ... x.`dropRight`(n) theSameAs x.`take`(x.`size` - n)
+nx !S ... x.`dropRight`(nx) theSameAs x.`take`(x.`size` - math.max(0, nx))
 sameType(x, x.`reverse`)
 y ... x.`endsWith`(y) == (x.`drop`(math.max(0, x.`size`-y.size)) theSameAs y)
 g ... x.`groupBy`(g).keySet theSameAs x.map(g).toSet
@@ -284,7 +284,7 @@ x.`size` < 1 || { x.`tail` theSameAs x.`drop`(1) }
 !S ... x.`tails`.toList.map(_.toList) match { case x => (x zip x.tail).forall{ case (a :: b :: _, c :: _) => b == c; case (a,b) => b.isEmpty && a.size == 1 } }
 S !M ... x.`tails`.toList match { case x => (x zip x.tail).forall{ case (a,b) => (b subsetOf a) && b.size == a.size-1 } }
 S M ... x.`tails`.toList match { case x => (x zip x.tail).forall{ case (a,b) => (b.toSet subsetOf a.toSet) && b.size == a.size-1 } }
-n !SI8815 ... x.`takeRight`(n) theSameAs { val m = x.`size` - n; x.`drop`(m) }
+nx !SI8815 ... x.`takeRight`(nx) theSameAs { val m = x.`size` - math.max(0, nx); x.`drop`(m) }
 n !RANGE ... sameType(x, x.`takeRight`(n))
 n !RANGE !ARRAY ... n < 1 || x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ theSameAs x)
 n !RANGE ARRAY ... n < 1 || x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ theSameAs x)
