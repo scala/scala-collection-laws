@@ -8,6 +8,7 @@
 //   f is a function that maps from one value to another of the type held by x
 //   m is a number of a size suitable for indexing into the collection.  May be negative.  Use n first if you only need one.
 //   n is a number of a size suitable for indexing into the collection.  May be negative.
+//   nx is any integer number including corner cases such as Int.MinValue and Int.MaxValue
 //   one is the value one (if it can be supplied by the type held by x)
 //   op is a commutative two-argument function (e.g. +)
 //   p is a predicate on types held by x (returns true/false)
