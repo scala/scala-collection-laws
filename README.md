@@ -11,6 +11,11 @@ between collections operations that should be true.
 These laws are then applied to a set of collection variants which are specified by
 a simple of textual replacement macro language.
 
+## Latest changes
+
+ * Branching macros (choose which replacement based on a flag).
+See section "Altering collections in a way that causes many tests to fail".
+
 ## Quick start
 
 Clone the repository and run
@@ -479,6 +484,7 @@ and the tests pass.
 (This law is not in the collections tests because it's not really comprehensive
 enough; it's better to check that all elements are visited in order.)
 
+
 #### Removing a law
 
 Delete it.  When tests are run, it will report one fewer test.  That's it!
@@ -641,7 +647,60 @@ straightforward.
 
 So it is best to leave out this collection and leave the tests as they are.
 
+#### Altering collections in a way that causes many tests to fail
 
+Sometimes one finds a whole new class of bugs that one wants to test--corner
+cases in inputs, for example--but it causes many test/collection pairs to fail.
+These tests ideally would only be run in versions after the released version.
+So we would like to gate the change by flags, but flags only disable or enable
+a test at a time.
+
+To solve this problem there are _flag-gated macros_.  Rules for these are placed
+in the appropriate position in `replacements.tests`:
+
+```
+MACRONAME? --> FlagTrueOption FlagFalseOption
+```
+
+which can be used like so in `single-line.laws` (or in other macros in `replacements.tests`).
+
+```
+foo(x) == @MACRONAME?FLAGNAME
+```
+
+For example, if we wanted to change the particular values for `CR` (which is the source
+of values for the `r` variable) in the generic `Int *` section, but this caused crashes
+before 2.11.4, we might do the following.
+
+First, we modify
+
+```
+CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
+```
+
+to
+
+```
+CR --> @CRPICK?OLDCR
+CRPICK? --> @CROLD @CRNEW
+CROLD --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
+CRNEW --> List[Int](0, 1, 2, 5, 15, 28, 33, 104, 999)
+```
+
+(We could also put the two options on the `CRPICK?` line, but it's easier to go
+back to a single version if we do it this way.)
+
+We also add the default flag
+
+```
+flags --> OLDCR
+```
+
+to the `Int *` section, which will add that flag to every collection, and
+finally append `OLDCR` to every version of Scala that should pass the tests
+in `deflag-versions.map`.
+
+**Note: this is awkward, so it will change soon.**
 
 
 #### Creating a new contained type (generic + specific)

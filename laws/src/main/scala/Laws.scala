@@ -133,7 +133,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
     replaces.infos.get("doNotVerifyMethods").foreach(unvisited --= _.values)
     
     // Flags in the replacements specify which tests to run
-    val flags = replaces.params.get("flags").map(_.value).getOrElse("").split("\\s+").filter(_.nonEmpty).toSet
+    val flags = replaces.flagsParameter
     
     // Cut out tests that aren't supposed to run based on flags and which methods are available
     // (secretly keep track of which were requested to be used at the same time)
