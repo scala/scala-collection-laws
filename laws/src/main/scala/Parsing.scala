@@ -356,11 +356,11 @@ object Parsing {
     infos: Map[String, ReplaceInfo],
     header: Option[Replacements.HeaderLine]
   ) {
-    import Replacements.mergeMap
+    import Replacements.{mergeMap, mergeMapWithFlags}
     
     /** Combines two sets of replacements into a unified whole */
     def merge(r: Replacements) = new Replacements(
-      mergeMap(params, r.params),
+      mergeMapWithFlags(params, r.params),
       mergeMap(substs, r.substs),
       mergeMap(branches, r.branches),
       mergeMap(expands, r.expands),
@@ -397,7 +397,12 @@ object Parsing {
       }
     }
     
-    lazy val flagsParameter = params.get("flags").map(_.value).getOrElse("").split("\\s+").filter(_.nonEmpty).toSet
+    lazy val flagsParameter =
+      params.get("flags").map(_.value).getOrElse("").split("\\s+").map{ f =>
+        if (f startsWith "-") ""
+        else if (f startsWith "+") f.drop(1)
+        else f
+      }.filter(_.nonEmpty).toSet
     
     def myLine = header.map(_.line.index.toString).getOrElse("unknown")
   }
@@ -417,6 +422,20 @@ object Parsing {
     def mergeMap[V](a: Map[String, V], b: Map[String, V]): Map[String, V] =
       if (b.keys.forall(a contains _)) a
       else a ++ b.filterKeys(k => !(a contains k))
+    
+    def mergeMapWithFlags(a: Map[String, ReplaceParam], b: Map[String, ReplaceParam]): Map[String, ReplaceParam] = {
+      val mostly = mergeMap(a,b)
+      if ((a contains "flags") && (b contains "flags")) {
+        val fa = a("flags")
+        val fb = b("flags")
+        val anames = fa.value.split("\\s+")
+        val aset = anames.map{ s => if ((s startsWith "-") || (s startsWith "+")) s drop 1 else s }
+        val bnames = fb.value.split("\\s+")
+        val merged = anames ++ bnames.filter(s => !aset.contains(if ((s startsWith "-") || (s startsWith "+")) s drop 1 else s))
+        mostly + ("flags" -> fa.copy(value = merged.mkString(" ")))
+      }
+      else mostly
+    }
       
     def parseFrom(lines: Lines): Either[Vector[String], Replacements] = {
       val parsed = lines.underlying.map(Replacer.parseFrom)

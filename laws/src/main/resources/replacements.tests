@@ -682,6 +682,7 @@ DEFINITE --> true
 MINEVALS --> 0
 AGAIN --> true
 $INT --> ( $ )._1.toInt
+flags --> TESTME
 a --> $PRE(val ca = @CA) $FOR(a <- ca)
 b --> $PRE(val cb = @CB) $FOR(b <- cb)
 f --> $PRE(val f = @F)

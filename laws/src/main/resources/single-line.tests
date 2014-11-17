@@ -425,3 +425,5 @@ a M ... x.`isDefinedAt`(a._1) == x.`lift`(a._1).isDefined
 a M ... x.`get`(a._1) == x.`lift`(a._1)
 a M ... { val pf: PartialFunction[@K, @V] = { case x if (x.## % 2) == 0 => a._2 }; x.`orElse`(pf).`lift`(a._1) == (if (x.`isDefinedAt`(a._1)) Some(x.`apply`(a._1)) else if (pf.isDefinedAt(a._1)) Some(pf(a._1)) else None) }
 a zero M ... { var v0 = zero._2; x.`runWith`(v0 = _)(a._1) == x.`isDefinedAt`(a._1) && (x.isDefinedAt(a._1) implies x.`apply`(a._1) == v0) }
+
+TESTME ILM ... true

@@ -683,7 +683,7 @@ object Laws {
             case Some(x) => if (x.size==0) "complete" else s"missed ${x.size}:"
             case None => ""
           }
-          println(s"${test.title} (${if (test.written) "NEW" else "old"}); $missing")
+          println(s"${test.title}"/* (${if (test.written) "NEW" else "old"})*/+s"; $missing")  // Something is wrong with test.written?
           var indent = 0
           val spots = List(4, 19, 34, 49, 64)
           test.unvisited.filter(_.nonEmpty).foreach{uns =>
