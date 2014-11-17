@@ -133,7 +133,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
     replaces.infos.get("doNotVerifyMethods").foreach(unvisited --= _.values)
     
     // Flags in the replacements specify which tests to run
-    val flags = replaces.params.get("flags").map(_.value).getOrElse("").split("\\s+").filter(_.nonEmpty).toSet
+    val flags = replaces.flagsParameter
     
     // Cut out tests that aren't supposed to run based on flags and which methods are available
     // (secretly keep track of which were requested to be used at the same time)
@@ -683,7 +683,7 @@ object Laws {
             case Some(x) => if (x.size==0) "complete" else s"missed ${x.size}:"
             case None => ""
           }
-          println(s"${test.title} (${if (test.written) "NEW" else "old"}); $missing")
+          println(s"${test.title}"/* (${if (test.written) "NEW" else "old"})*/+s"; $missing")  // Something is wrong with test.written?
           var indent = 0
           val spots = List(4, 19, 34, 49, 64)
           test.unvisited.filter(_.nonEmpty).foreach{uns =>
