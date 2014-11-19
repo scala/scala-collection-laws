@@ -246,6 +246,27 @@ object Parsing {
     def read(xs: Vector[String]): Either[Vector[String], Vector[Tests]] = parseFrom(Lines.parsed(xs))
   }
   
+  /** Flags that may be either positive or negative (extracted from a ReplaceParam) */
+  case class Flags(pos: Set[String], neg: Set[String]) extends Function1[String, Boolean] {
+    /** Check a string against the flags that are present (i.e. `pos`). */
+    def apply(s: String) = pos contains s
+    /** Add the flags on the RHS as long as they're not already mentioned */
+    def :++(f: Flags) = Flags(pos | (f.pos diff neg), neg | (f.neg diff pos))
+  }
+  object Flags {
+    def empty = Flags(Set(), Set())
+    def parseFromLine(line: Line, explicit: Boolean = false): Either[String, Flags] = {
+      // Don't assume the right side has been parsed apart, so rebuild and split it.
+      val all = line.rights.mkString(" ").split("\\s+").filter(_.length > 0)
+      val neg = all.filter(_ startsWith "-").map(_.drop(1)).toSet
+      val pos = all.filter(_ startsWith "+").map(_.drop(1)).toSet
+      val other = all.filter(x => !((x startsWith "+") | (x startsWith "-"))).toSet
+      if (!line.isSplit) Left("Line ${line.index} was supposed to have a separator but none was found.")
+      else if (other.nonEmpty && explicit) Left("Line ${line.index} is missing + or - on these flags: " + other.mkString(" "))
+      else Right(Flags(pos | other, neg))
+    }
+  }
+  
   /** A `line` that describes a replacement, plus the `key` to replace parsed from that line */
   sealed trait Replacer {
     def line: Line
@@ -348,6 +369,7 @@ object Parsing {
     * @param infos - Keywords with both upper and lower case, used as flags and directives not actual replacements
     */
   case class Replacements(
+    flags: Flags,
     params: Map[String, ReplaceParam],
     substs: Map[String, ReplaceSubst],
     branches: Map[String, ReplaceBranch],
@@ -356,11 +378,12 @@ object Parsing {
     infos: Map[String, ReplaceInfo],
     header: Option[Replacements.HeaderLine]
   ) {
-    import Replacements.{mergeMap, mergeMapWithFlags}
+    import Replacements.mergeMap
     
-    /** Combines two sets of replacements into a unified whole */
+    /** Combines two sets of replacements into a unified whole (left side takes priority) */
     def merge(r: Replacements) = new Replacements(
-      mergeMapWithFlags(params, r.params),
+      flags :++ r.flags,
+      mergeMap(params, r.params),
       mergeMap(substs, r.substs),
       mergeMap(branches, r.branches),
       mergeMap(expands, r.expands),
@@ -369,13 +392,17 @@ object Parsing {
       header orElse r.header
     )
     
+    /** Apply the entire set of replacements to a string, generating a vector of all expansions.
+      * To avoid infinite loops, replacements cannot be more than 7 layers deep.
+      * If there are no alternatives in the expansion, a single string will be returned in the vector.
+      */
     def apply(s: String): Either[String, Vector[String]] = {
       def inner(ss: Vector[String], depth: Int): Option[Vector[String]] = {
         val next = ss.flatMap{ s =>
           val s1 = if (!s.contains("$")) s else (s /: macros){ (si, m) => m._2.macroOn(si) }
           val s2 =
             if (!s1.contains("@")) s1
-            else if (s1.contains("?")) (s1 /: branches){ (si, sb) => sb._2.subOn(si, flagsParameter) }
+            else if (s1.contains("?")) (s1 /: branches){ (si, sb) => sb._2.subOn(si, flags) }
             else (s1 /: substs){ (si, sb) => sb._2.subOn(si) }
           val ss3 = 
             if (!s2.contains("@")) Vector(s2)
@@ -396,18 +423,11 @@ object Parsing {
         case None => Left("Expansion of string did not terminate: " + s)
       }
     }
-    
-    lazy val flagsParameter =
-      params.get("flags").map(_.value).getOrElse("").split("\\s+").map{ f =>
-        if (f startsWith "-") ""
-        else if (f startsWith "+") f.drop(1)
-        else f
-      }.filter(_.nonEmpty).toSet
-    
+
     def myLine = header.map(_.line.index.toString).getOrElse("unknown")
   }
   object Replacements {
-    val empty = new Replacements(Map(), Map(), Map(), Map(), Map(), Map(), None)
+    val empty = new Replacements(Flags.empty, Map(), Map(), Map(), Map(), Map(), Map(), None)
     
     sealed trait HeaderLine { def line: Line; def typ: String }
     final case class Wildcard(val line: Line, val typ: String) extends HeaderLine
@@ -423,32 +443,22 @@ object Parsing {
       if (b.keys.forall(a contains _)) a
       else a ++ b.filterKeys(k => !(a contains k))
     
-    def mergeMapWithFlags(a: Map[String, ReplaceParam], b: Map[String, ReplaceParam]): Map[String, ReplaceParam] = {
-      val mostly = mergeMap(a,b)
-      if ((a contains "flags") && (b contains "flags")) {
-        val fa = a("flags")
-        val fb = b("flags")
-        val anames = fa.value.split("\\s+")
-        val aset = anames.map{ s => if ((s startsWith "-") || (s startsWith "+")) s drop 1 else s }
-        val bnames = fb.value.split("\\s+")
-        val merged = anames ++ bnames.filter(s => !aset.contains(if ((s startsWith "-") || (s startsWith "+")) s drop 1 else s))
-        mostly + ("flags" -> fa.copy(value = merged.mkString(" ")))
-      }
-      else mostly
-    }
-      
     def parseFrom(lines: Lines): Either[Vector[String], Replacements] = {
       val parsed = lines.underlying.map(Replacer.parseFrom)
       val errors = parsed.collect{ case Left(msg) => msg }
       if (errors.nonEmpty) Left(errors)
       else {
-        val params = parsed.collect{ case Right(rp: ReplaceParam) => rp.key -> rp }.toMap
+        val paramsWithFlags = parsed.collect{ case Right(rp: ReplaceParam) => rp.key -> rp }.toMap
+        val params = paramsWithFlags //.filter(_._1 != "flags")
         val substs = parsed.collect{ case Right(rs: ReplaceSubst) => rs.key -> rs }.toMap
         val branches = parsed.collect{ case Right(rb: ReplaceBranch) => rb.key -> rb }.toMap
         val expands = parsed.collect{ case Right(re: ReplaceExpand) => re.key -> re }.toMap
         val macros = parsed.collect{ case Right(rm: ReplaceMacro) => rm.key -> rm }.toMap
         val infos = parsed.collect{ case Right(ri: ReplaceInfo) => ri.key -> ri }.toMap
-        Right(new Replacements(params, substs, branches, expands, macros, infos, None))
+        paramsWithFlags.get("flags").map(rp => Flags.parseFromLine(rp.line)).getOrElse(Right(Flags.empty)) match {
+          case Right(flags) => Right(new Replacements(flags, params, substs, branches, expands, macros, infos, None))
+          case Left(s) => Left(Vector(s))
+        }
       }
     }
     
