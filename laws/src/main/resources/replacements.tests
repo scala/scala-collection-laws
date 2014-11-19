@@ -63,7 +63,8 @@ CA --> List[Int](-70, -64, -14, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40,
 CB --> List[Int](-70, -64, -15, -14, -13, -1, 0, 1, 2, 3, 12, 22, 40, 63, 64, 70)
 CM --> List[Int](-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)
 CN --> List[Int](-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
-CX --> List[Int](Int.MinValue, Int.MinValue + 1, Int.MinValue / 2, -67, -11, -2, -1, 0, 1, 3, 4, 6, 11, 13, 22, 40, 63, 64, 70, Int.MaxValue / 2, Int.MaxValue - 1, Int.MaxValue)
+CX --> @PICKCX?OLDCN
+PICKCX? --> @CN List[Int](Int.MinValue, Int.MinValue + 1, Int.MinValue / 2, -67, -11, -2, -1, 0, 1, 3, 4, 6, 11, 13, 22, 40, 63, 64, 70, Int.MaxValue / 2, Int.MaxValue - 1, Int.MaxValue)
 CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
 OP --> + *
 LET --> def
@@ -187,7 +188,7 @@ $NEW --> collection.immutable.Stack[Int]( $ : _*)
 
 
 Int collection.immutable.Stream[Int]
-flags --> LAZY ADEFINITE TWOELEVENTWO
+flags --> LAZY ADEFINITE BUG2114
 LET --> val
 $NEW --> ( $ ).toStream
 DEFINITE --> false
@@ -673,7 +674,8 @@ CA --> List[(Long,String)](0L -> "wishes", 0L -> "delicious", 9L -> "nine", 10L 
 CB --> List[(Long,String)](0L -> "wishes", 1L -> "wishes", 10L -> "ten", 14L -> "fourteen")
 CM --> List[Int](-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)
 CN --> List[Int](-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
-CX --> List[Int](Int.MinValue, Int.MinValue + 1, Int.MinValue / 2, -67, -11, -2, -1, 0, 1, 3, 4, 6, 11, 13, 22, 40, 63, 64, 70, Int.MaxValue / 2, Int.MaxValue - 1, Int.MaxValue)
+CX --> @PICKCX?OLDCN
+PICKCX? --> @CN List[Int](Int.MinValue, Int.MinValue + 1, Int.MinValue / 2, -67, -11, -2, -1, 0, 1, 3, 4, 6, 11, 13, 22, 40, 63, 64, 70, Int.MaxValue / 2, Int.MaxValue - 1, Int.MaxValue)
 CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
 OP --> +
 LET --> def
@@ -821,7 +823,8 @@ CA --> List[(Long,String)](0L -> "wishes", 0L -> "delicous", 9L -> "nine", 10L -
 CB --> List[(Long,String)](0L -> "wishes", 1L -> "wishes", 10L -> "ten", 14L -> "fourteen").map(_.swap)
 CM --> List[Int](-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 39, 40, 41, 64, 65, 66)
 CN --> List[Int](-2, -1, 0, 1, 2, 3, 4, 5, 6, 11, 12, 13, 14, 22, 40, 63, 64, 70)
-CX --> List[Int](Int.MinValue, Int.MinValue + 1, Int.MinValue / 2, -67, -11, -2, -1, 0, 1, 3, 4, 6, 11, 13, 22, 40, 63, 64, 70, Int.MaxValue / 2, Int.MaxValue - 1, Int.MaxValue)
+CX --> @PICKCX?OLDCN
+PICKCX? --> @CN List[Int](Int.MinValue, Int.MinValue + 1, Int.MinValue / 2, -67, -11, -2, -1, 0, 1, 3, 4, 6, 11, 13, 22, 40, 63, 64, 70, Int.MaxValue / 2, Int.MaxValue - 1, Int.MaxValue)
 CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
 OP --> +
 LET --> def

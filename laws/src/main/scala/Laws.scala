@@ -10,8 +10,10 @@ import scala.collection.mutable.{AnyRefMap => RMap}
 import laws.Parsing._
 
 /** Generates and runs single-line collections tests that may be viewed as laws that collections should obey. */
-class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag: Set[String]) {
+class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], globalFlags: Parsing.Flags) {
   import Laws._
+  
+  def deflag = globalFlags.neg
   
   /** A method generated for testing. */
   case class TestMethod(name: String, code: Vector[String], lines: Set[Int])
@@ -133,7 +135,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
     replaces.infos.get("doNotVerifyMethods").foreach(unvisited --= _.values)
     
     // Flags in the replacements specify which tests to run
-    val flags = replaces.flagsParameter
+    val flags = replaces.flags.pos
     
     // Cut out tests that aren't supposed to run based on flags and which methods are available
     // (secretly keep track of which were requested to be used at the same time)
@@ -307,19 +309,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], deflag
   
   lazy val loadedTestses = Tests.read(linetestsRaw)
   lazy val loadedReplacementses = Replacements.read(replacementsRaw).right.map{ rs =>
-    rs.map{ r => r. // Strip out any flags from command-line that you want to ignore
-      params.get("flags").
-      map(rp => rp -> rp.value.split("\\s+").toSet).
-      filter{ case (_,flags) => (flags & deflag).nonEmpty }.
-      map{ case(rp, flags) => 
-        val x = flags diff deflag
-        r.copy(params = r.params.updated("flags", rp.copy(value = x.mkString(" "))))
-      }.
-      getOrElse(r)
-    }.filter{ r =>
-      // If the flag BROKEN exists, omit this collection
-      r.params.get("flags").map(_.value.split("\\s+").toSet).filter(_.contains("BROKEN")).isEmpty
-    }
+    rs.map{ r => r.copy(flags = globalFlags :++ r.flags) }.filter{ r => !r.flags("BROKEN") }
   }
   
   /** Loads all the files/info needed and generates the tests, including writing the files if their contents have changed. */
@@ -386,7 +376,7 @@ object Laws {
   // Constants
   val singleLineName = "single-line.tests"
   val replacementsName = "replacements.tests"
-  val deflagMapName = "deflag-version.map"
+  val flagMapName = "flag-versions.map"
 
   // Macros are a convenient way to delimit separate commands to go in different contexts
   val preMacro = ReplaceMacro(Line.empty, "$PRE", "", "")
@@ -609,6 +599,7 @@ object Laws {
   /** Creates the tests or the Instances.scala file, depending on command-line options.
     */
   def main(args: Array[String]) {
+    /** Gets lines of text from a file on the classpath */
     def getResourceImpl(r: String, die: Boolean) = Try{
       val in = io.Source.fromInputStream(this.getClass.getResourceAsStream(r))
       try { in.getLines.toVector }
@@ -628,8 +619,9 @@ object Laws {
     
     val testLines = getResource("/" + singleLineName)
     val replaceLines = getResource("/" + replacementsName)
-    val deflagLines = getResourceOptionally("/" + deflagMapName).getOrElse(Vector.empty)
+    val flagLines = getResourceOptionally("/" + flagMapName).getOrElse(Vector.empty)
     
+    // Command-line option handling, long-form GNU style
     val (optable, literal) = args.span(_ != "--")
     val (optish, notoptish) = optable.partition(_ startsWith "--")
     val opts = optish.map(_.drop(2)).map{ x =>
@@ -644,6 +636,8 @@ object Laws {
         }
       }
     }
+    
+    // There should be exactly one target (the directory in which to write the generated file(s))
     val target = (notoptish ++ literal.dropWhile(_ == "--")).toList match {
       case f :: Nil => new File(f)
       case Nil =>
@@ -652,28 +646,36 @@ object Laws {
         throw new IllegalArgumentException("Only one output should be provided.  Found ${fs.length}:\n" + fs.map("  " + _).mkString("\n"))
     }
     
-    val deflags = 
-      opts.collect{ case ("deflag", Right(flag)) => flag }.toSet |
-      opts.collectFirst{ case ("versionID", Right(id)) => id }.fold(Set.empty[String]){ ver =>
-        val deflagMaps = Lines.anykeyParsed(deflagLines).ap(_.filter(_.sep == "-->"))
-        val relevantMaps = deflagMaps.lines.map{ line =>
-          val score = (line.left zip ver).takeWhile{ case (l,r) => l == r }.length
-          (if (score == ver.length) score+1 else score) -> line
-        }.toList
-        relevantMaps.sortBy(- _._1) match {
-          case m :: mm :: rest if m._1 == mm._1 && m._1 > 0 =>
-            throw new IllegalArgumentException("Cannot deflag for version $ver because both ${m._2.left} and ${mm._2.left} match equally")
-          case m :: rest if m._1 > 0 =>
-            m._2.rights.toSet
-          case x => Set.empty[String]
-        }
+    /** Flags passed in on the command line (highest priority). */
+    val commandLineFlags =
+      List("enflag", "deflag").map{ s => opts.collect{ case (x, Right(flag)) if x == s => flag }.toSet } match {
+        case List(pos, neg) => Parsing.Flags(pos, neg)
       }
     
+    /** Flags specified in the flag-versions.map file (2nd highest priority). */
+    val versionedFlags =
+      opts.collectFirst{ case ("versionID", Right(id)) => id }.fold(Parsing.Flags.empty){ ver =>
+        val flagsParsed = Lines.anykeyParsed(flagLines).ap(_.filter(_.sep == "-->")).lines
+        val duplicates = flagsParsed.groupBy(_.left).filter(_._2.length > 1)
+        if (duplicates.nonEmpty)
+          throw new IllegalArgumentException(s"Problem in ${flagMapName}: duplicates found for ${duplicates.keys.toList.sorted.mkString(" ")}")
+        
+        val relevantMap = flagsParsed.filter(line => ver startsWith line.left).toList.sortBy(- _.left.length).headOption
+        relevantMap.
+          map(line => Parsing.Flags.parseFromLine(line, true) match {
+            case Right(flags) => flags
+            case Left(error) => throw new IllegalArgumentException(s"Could not read flags on line ${line.index} of ${flagMapName}: $error")
+          }).
+          getOrElse(Parsing.Flags.empty)
+      }
+    
+    /** Pack in Left or Right depending on whether we are to generate Instances file. */
     def whichever(f: File) = 
       if (opts exists (_._1 equalsIgnoreCase "Instances")) Left(f)
       else Right(f)
       
-    val laws = new Laws(replaceLines, testLines, deflags)
+    /** Generate laws */
+    val laws = new Laws(replaceLines, testLines, commandLineFlags :++ versionedFlags)
     laws.generateTests(whichever(target)) match {
       case Left(x) => x.foreach(println); sys.exit(1)
       case Right(tests) if tests.size > 0 => 
