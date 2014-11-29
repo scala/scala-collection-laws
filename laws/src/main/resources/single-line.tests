@@ -333,7 +333,8 @@ a ... { val z = x; z.`prepend`(a); z } == x.`+=:`(a)
 y ... { val z = x; z.`prependAll`(y); z } == x.`++=:`(y)
 n ... n < 0 || n >= x.`size` || { val x0 = x; x0.`reduceToSize`(n); x0.`size` == n }
 n !S ... n < 0 || n >= x.`size` || { val x0 = x; x0.`reduceToSize`(n); x0 theSameAs x.`take`(n) }
-n m !S !DOUBLL ... n < 0 || m < 0 || n+m >= x.`size` || { val x0 = x; x0.`remove`(n,m); x0 theSameAs (x.`take`(n).`++`(x.`drop`(n+(0 max m)))) }
+n m !S !DOUBLL !SI8554 ... tryE{ val x0 = x;  x0.`remove`(n,m); x0 } match { case Left(_: IllegalArgumentException) => m < 0; case Left(_: IndexOutOfBoundsException) => n < 0 || n > (x.`size` - m); case Right(x0) => x0 theSameAs (x.`take`(n).`++`(x.`drop`(n+(0 max m)))); case _ => false }
+n m !S !DOUBLL SI8554 ... tryE{ val x0 = x;  x0.`remove`(n,m); x0 } match { case Right(x0) => n < 0 || x.`size` < (n.toLong+m) || (x0 theSameAs (x.`take`(n).`++`(x.`drop`(n+(0 max m))))); case _ => true }
 n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0 = x; val a0 = x0.`remove`(n); x0.`size` == x.`size`-1 && x.`apply`(n) == a0 }
 n !S !DOUBLL ... n < 0 || n >= x.`size` || { val x0, x1 = x; x0.`remove`(n); x1.`remove`(n,1); x0 theSameAs x1 }
 x.`result` theSameAs x
