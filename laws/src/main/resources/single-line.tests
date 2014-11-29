@@ -18,7 +18,7 @@
 //   zero is the value zero (if it can be supplied by the type held by x)
 
 // Flags describing the test are upper case, also listed on the left of "..."
-//    A means "array-like" in that it isn't actually a subclass of TraversableOnce
+// Meanings of some common single-letter flags are described below:
 //    M means "map-like" in that it has two type parameters and elements are tuples of those
 //    N means "no free type parameters" (i.e. x cannot hold a different type)
 //    S means "set-like" in that duplicates are not required to be stored (maps are also S)
@@ -55,6 +55,7 @@
 // ********************************************************
 
 
+// Basic capabilities
 f !S ... x.map(f) theSameAs { val y = collection.mutable.ArrayBuffer[@A](); x.foreach(y += _); y.map(f) }
 f S ... x.map(f) theSameAs { val y = collection.mutable.HashSet[@A](); x.foreach(y += _); y.map(f) }
 f !RANGE !MUVU !SI6462 ... sameType(x, x.map(f))
@@ -69,9 +70,22 @@ x.`toIterator` theSameAs x
 x.`toStream` theSameAs x
 x.`toTraversable` theSameAs x
 
+// String generation
 !S ... x.`mkString` == { val sb = new StringBuilder; x.foreach(sb ++= _.toString); sb.result }
 !S ... x.`mkString` == { val sb = new StringBuilder; x.`addString`(sb); sb.result }
+!S ... x.`mkString` == x.mkString("", "", "")
+!S ... x.`mkString`("!") == x.mkString("", "!", "")
+!S ... (x.`size` == 0) || (x.`mkString`("!", "@", "#") == { val sb = new StringBuilder; sb ++= "!"; x.foreach(sb ++= _.toString + "@"); sb.result.dropRight(1) + "#" })
 
+// Make sure types are propagated both explicitly and when downcast to a supertype
+{ val xx = x.`genericBuilder`[@A]; x.foreach{ xx += _ }; x theSameAs xx.result }
+!RANGE !SORTED !ARRAY !USESARRAY !N ... { val xx = x.`genericBuilder`[@A]; sameType(x, xx.result) }
+// Combine the following two lines into one when set issues are fixed
+!RANGE !SORTED !ARRAY !USESARRAY !VIEW !S ... type ROOT[TARG] = @ROOTS[TARG]; val y: Any = x; y match { case r: ROOT[_] => val xx = r.asInstanceOf[ROOT[@A]].map(identity); classOf[@CC] isAssignableFrom xx.getClass; case _ => true }
+!RANGE !SORTED !ARRAY !USESARRAY !VIEW S !M FIXED8434 ... type ROOT[TARG] = @ROOTS[TARG]; val y: Any = x; y match { case r: ROOT[_] => val xx = r.asInstanceOf[ROOT[@A]].map(identity); classOf[@CC] isAssignableFrom xx.getClass; case _ => true }
+!RANGE !SORTED !ARRAY !VIEW M FIXED8434 ... type ROOT[TARG1,TARG2] = @ROOTMAPS[TARG1,TARG2]; val y: Any = x; y match { case m: ROOT[_, _] => val xx = m.asInstanceOf[ROOT[@K, @V]].map(identity); classOf[@CC] isAssignableFrom xx.getClass; case _ => true }
+
+// Methods that apply to most collections types
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b1) == z
 z ... x.`aggregate`(z)((b,a) => b, (b1,b2) => b2) == z
 !SI7128 !S n m r ... n < 0 || { val arr = new Array[@A](r); x.`copyToArray`(arr, n, m); (arr.drop(n).take(m) zip x.toList).forall{ case (x,y) => x==y } }
@@ -93,8 +107,6 @@ y !ARRAY !M ... x.flatMap(xi => y.toList.take($INT(xi))) theSameAs x.map(xi => y
 a op ... x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)
 a op ... x.`foldLeft`(a)(op) == x.`/:`(a)(op)
 a op ... x.`foldRight`(a)(op) == x.`:\`(a)(op)
-{ val xx = x.`genericBuilder`[@A]; x.foreach{ xx += _ }; x theSameAs xx.result }
-!RANGE !SORTED !ARRAY !USESARRAY !N ... { val xx = x.`genericBuilder`[@A]; sameType(x, xx.result) }
 !ADEFINITE ... x.`nonEmpty` implies (x.`hasDefiniteSize` == @DEFINITE)
 x.`isTraversableAgain` == @AGAIN
 tryO{x.`max`} == tryO{x.`reduce`(_ max _)}
