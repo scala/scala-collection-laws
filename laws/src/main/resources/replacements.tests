@@ -68,6 +68,7 @@ PICKCX? --> @CN List[Int](Int.MinValue, Int.MinValue + 1, Int.MinValue / 2, -67,
 CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
 OP --> + *
 LET --> def
+ROOTS --> collection.Traversable collection.Iterable collection.Seq collection.Set collection.mutable.Traversable collection.mutable.Traversable collection.mutable.Iterable collection.mutable.Seq collection.mutable.Seq collection.immutable.Traversable collection.immutable.Iterable collection.immutable.Seq collection.immutable.Set
 ONE --> 1
 ZERO --> 0
 DEFINITE --> true
@@ -681,6 +682,8 @@ OP --> +
 LET --> def
 K --> Long
 V --> String
+ROOTS --> collection.Traversable collection.Iterable collection.Seq collection.Set collection.mutable.Traversable collection.mutable.Traversable collection.mutable.Iterable collection.mutable.Seq collection.mutable.Seq collection.immutable.Traversable collection.immutable.Iterable collection.immutable.Seq collection.immutable.Set
+ROOTMAPS --> collection.Map collection.mutable.Map collection.immutable.Map
 ONE --> qNumeric.fromInt(1)
 ZERO --> qNumeric.fromInt(0)
 DEFINITE --> true
@@ -731,7 +734,7 @@ $NEW --> collection.Map[Long,String]( $ )
 
 
 (Long,String) collection.SortedMap[Long,String]
-flags --> S M
+flags --> S M SORTED
 $NEW --> collection.SortedMap[Long,String]( $ )
 
 
@@ -761,13 +764,13 @@ $NEW --> collection.immutable.Map[Long,String]( $ )
 
 
 (Long,String) collection.immutable.SortedMap[Long,String]
-flags --> S M
+flags --> S M SORTED
 LET --> val
 $NEW --> collection.immutable.SortedMap[Long,String]( $ )
 
 
 (Long,String) collection.immutable.TreeMap[Long,String]
-flags --> S M
+flags --> S M SORTED
 LET --> val
 $NEW --> collection.immutable.TreeMap[Long,String]( $ )
 
@@ -828,6 +831,8 @@ PICKCX? --> @CN List[Int](Int.MinValue, Int.MinValue + 1, Int.MinValue / 2, -67,
 CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
 OP --> +
 LET --> def
+ROOTS --> collection.Traversable collection.Iterable collection.Seq collection.Set collection.mutable.Traversable collection.mutable.Traversable collection.mutable.Iterable collection.mutable.Seq collection.mutable.Seq collection.immutable.Traversable collection.immutable.Iterable collection.immutable.Seq collection.immutable.Set
+ROOTMAPS --> collection.Map collection.mutable.Map collection.immutable.Map
 ONE --> qNumeric.fromInt(1)
 ZERO --> qNumeric.fromInt(0)
 DEFINITE --> true
