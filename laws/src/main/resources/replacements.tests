@@ -277,6 +277,7 @@ $NEW --> collection.mutable.LinkedList[Int]( $ : _*)
 
 
 Int collection.mutable.ListBuffer[Int]
+flags --> SI8554
 $NEW --> collection.mutable.ListBuffer[Int]( $ : _*)
 
 
