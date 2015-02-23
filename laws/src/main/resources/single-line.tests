@@ -177,7 +177,7 @@ p ... val (t,f) = x.`partition`(p); (t theSameAs x.`filter`(p)) && (f theSameAs 
 p !RANGE ... val (t,f) = x.`partition`(p); sameType(t,f) && sameType(x,t)
 y n m ... (n <= x.`size`) implies (x.`patch`(n, y, m).`take`(n) theSameAs x.take(n))
 y n m ... (n <= x.`size`) implies (x.`patch`(n, y, m).`drop`(n).`take`(y.`size`) theSameAs y)
-y n m !SI8474 ... (n <= x.`size`) implies (x.`patch`(n, y, m).`drop`((0 max n)+y.`size`) theSameAs x.`drop`((0 max n)+(0 max m)))
+y n m ... (n <= x.`size`) implies (x.`patch`(n, y, m).`drop`((0 max n)+y.`size`) theSameAs x.`drop`((0 max n)+(0 max m)))
 y ... (x `sameElements` y) == (x theSameAs y)
 n m ... n < 0 || m >= x.size || { x.`slice`(n, m).`size` == (0 max ((0 max m)-n)) }
 n m !S ... n < 0 || m >= x.size || { x.`slice`(n, m) theSameAs x.`drop`(n).`take`((0 max m)-n) }
@@ -192,7 +192,7 @@ n ... x.`take`(n) isPartOf x
 n ... sameType(x, x.`take`(n))
 p ... x.`takeWhile`(p).`forall`(p)
 p ... x.`takeWhile`(p) isPartOf x
-p !SI8815 ... x.`takeWhile`(p).`size` + x.`dropWhile`(p).size == x.size
+p ... x.`takeWhile`(p).`size` + x.`dropWhile`(p).size == x.size
 p ... sameType(x, x.`takeWhile`(p))
 y ... x.`zip`(y).map(_._1) theSameAs x.take(x.size min y.size)
 y ... x.`zip`(y).map(_._2) theSameAs y.take(x.size min y.size)
@@ -244,7 +244,7 @@ p n !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`i
 p !ITERATOR ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
 p ITERATOR ... val k = x.`takeWhile`(xi => !p(xi)).`size`; x.`indexWhere`(p) match { case -1 => k == x.`size`; case q => q == k }
 x.`indices` == (0 until x.`size`)
-!SI8815 ... x.`size` == 0 || (x.`init` theSameAs x.`dropRight`(1))
+x.`size` == 0 || (x.`init` theSameAs x.`dropRight`(1))
 x.`size` == 0 || (x.`init`.size == x.size - 1)
 x.`size` == 0 || (x.`init` isPartOf x)
 x.`size` == 0 || { val xx = x.`inits`.toVector.map(_.toVector); (xx zip xx.`tail`).`forall`{ case (a,b) => a.`size` - 1 == b.size && (b isPartOf a) } }
@@ -288,7 +288,7 @@ r !S ... r <= 0 || x.`size` <= 0 || (r >= x.`size` && { x.`sliding`(r).map(_.toV
 f ... x.`sortBy`(f) theSameAs x.`sortWith`((a,b) => f(a) < f(b))
 f ... val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList; (xx zip xx.drop(1)).forall{ case (a,b) => !(f(a) < f(b)) }
 x.`sorted` theSameAs x.`toArray`.sorted // Need to add a custom ordering here
-n !SI8815 ... val (x1,x2) = x.`splitAt`(n); (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
+n ... val (x1,x2) = x.`splitAt`(n); (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
 n ... val (x1,x2) = x.`splitAt`(n); sameType(x1, x2) && sameType(x, x1)
 n y ... n < 0 || { x.`startsWith`(y,n) implies (x.`drop`(n).`take`(y.`size`) theSameAs y) }
 y ... x.`startsWith`(y) == x.startsWith(y,0)
@@ -296,7 +296,7 @@ x.`size` < 1 || { x.`tail` theSameAs x.`drop`(1) }
 !S ... x.`tails`.toList.map(_.toList) match { case x => (x zip x.tail).forall{ case (a :: b :: _, c :: _) => b == c; case (a,b) => b.isEmpty && a.size == 1 } }
 S !M ... x.`tails`.toList match { case x => (x zip x.tail).forall{ case (a,b) => (b subsetOf a) && b.size == a.size-1 } }
 S M ... x.`tails`.toList match { case x => (x zip x.tail).forall{ case (a,b) => (b.toSet subsetOf a.toSet) && b.size == a.size-1 } }
-nx !SI8815 ... x.`takeRight`(nx) theSameAs { val m = x.`size` - math.max(0, nx); x.`drop`(m) }
+nx ... x.`takeRight`(nx) theSameAs { val m = x.`size` - math.max(0, nx); x.`drop`(m) }
 n !RANGE ... sameType(x, x.`takeRight`(n))
 n !RANGE !ARRAY ... n < 1 || x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ theSameAs x)
 n !RANGE ARRAY ... n < 1 || x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ theSameAs x)
@@ -415,13 +415,12 @@ LAZY r p ... { var k = 0; x.filter{ xi => if (p(xi)) k += 1; p(xi) }.`take`(r).t
 
 // Tests for collections that extend Function1 or PartialFunction
 // Assume that we index with integers unless we're a map/set type
-n f !M !S !SI8951 ... (tryE(((i: Int) => f(x.`apply`(i))).apply(n)), tryE((x.`andThen`(f)).apply(n))) match
-                  ... { case (Right(a), Right(b)) => a == b; case (Right(_), Left(_)) | (Left(_), Right(_)) => false; case (Left(so: StackOverflowError), _) => false; case (_, Left(so: StackOverflowError)) => false; case _ => true } 
-n f !M !S SI8951 ... tryO(((i: Int) => f(x.`apply`(i))).apply(n)) == tryO((x.`andThen`(f)).apply(n))
+n f !M !S ... (tryE(((i: Int) => f(x.`apply`(i))).apply(n)), tryE((x.`andThen`(f)).apply(n))) match
+          ... { case (Right(a), Right(b)) => a == b; case (Right(_), Left(_)) | (Left(_), Right(_)) => false; case (Left(so: StackOverflowError), _) => false; case (_, Left(so: StackOverflowError)) => false; case _ => true } 
 n !M !S ... { val f = (i: Int) => 3+i; val fx = (i: Int) => x.`apply`(f(i)); def ff(i: Int) = (x.`compose`(f)).apply(i); tryO(fx(n)) == tryO(ff(n)) }
 n !M !S ... x.`isDefinedAt`(n) implies tryO(x.`apply`(n)).isDefined
 zero n !M !S ... x.`applyOrElse`(n, (_: Int) => zero) == (if (x.`isDefinedAt`(n)) x.`apply`(n) else zero)
-zero n !M !S !SI8950 ... x.`applyOrElse`(n, (_: Int) => zero) == tryO(x.`apply`(n)).getOrElse(zero)
+zero n !M !S ... x.`applyOrElse`(n, (_: Int) => zero) == tryO(x.`apply`(n)).getOrElse(zero)
 n !M !S ... x.`isDefinedAt`(n) == x.`lift`(n).isDefined
 n !M !S ... { val pf: PartialFunction[Int,Int] = { case x if (x%2)==0 => x+3 }; x.`orElse`(pf).`lift`(n) == (if (x.`isDefinedAt`(n)) Some(x.`apply`(n)) else if (pf.isDefinedAt(n)) Some(pf(n)) else None) }
 n zero !M !S ... { var a0 = zero; x.`runWith`(a0 = _)(n) == x.`isDefinedAt`(n) && (x.isDefinedAt(n) implies x.`apply`(n) == a0) }
