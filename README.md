@@ -11,7 +11,7 @@ between collections operations that should be true.
 These laws are then applied to a set of collection variants which are specified by
 a simple of textual replacement macro language.
 
-## Latest changes
+## Latest nontrivial changes
 
  * Branching macros (choose which replacement based on a flag).
 See section "Altering collections in a way that causes many tests to fail".
@@ -21,7 +21,7 @@ See section "Altering collections in a way that causes many tests to fail".
 Clone the repository and run
 
 ```bash
-sbt -mem 6144 "tests/runMain tests.generated.collection.Test_All
+sbt -mem 6144 "tests/runMain tests.generated.collection.Test_All"
 ```
 
 If all goes well, the build process will do some compilation and code generation
@@ -127,7 +127,7 @@ Details follow.
 ```
 
 The error message tells us that something is wrong with the tests for `collection.immutable.Range`
-(more on this later) and gives us an abbreviated stack 
+(more on this later) and gives us an abbreviated stack trace.
 
 We then go to the `single-line.tests` file, located at `laws/src/main/resources/single-line.tests` and find
 that the three lines in question are:
@@ -235,7 +235,7 @@ This requires the entire test-suite to avoid any existing bugs in the source cod
 The convention for bugs is to place the issue number in the `flags` line of the
 affected collection(s) in the format `SI1234` (no dash) in the file `replacements.tests`
 in `laws/src/main/resources`.  The offending test is then marked with `!SI1234`.
-This states to not run the test if the offending flag is present in the collection.
+This indicates to not run the test if the offending flag is present in the collection.
 
 #### Adding new bugs
 
@@ -700,7 +700,7 @@ to the `Int *` section, which will add that flag to every collection, and
 finally append `OLDCR` to every version of Scala that should pass the tests
 in `deflag-versions.map`.
 
-**Note: this is awkward, so it will change soon.**
+**Note: this is awkward, so it will change**
 
 
 #### Creating a new contained type (generic + specific)

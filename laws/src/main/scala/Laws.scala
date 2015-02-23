@@ -569,7 +569,7 @@ object Laws {
   }
   
   /** Convert an exception into a bunch of lines that can be passed around as a Vector[String] */
-  def explainException(t: Throwable): Vector[String] = Option(t.getMessage).toVector ++ { t match {
+  def explainException(t: Throwable): Vector[String] = Vector(t.getClass.getName) ++ Option(t.getMessage).toVector ++ { t match {
     case so: StackOverflowError => 
       // Stack overflows are really long, so don't print the boring repetitive part in the middle
       val trace = so.getStackTrace.map("  " + _.toString)

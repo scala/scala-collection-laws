@@ -19,7 +19,7 @@
 // test, then add -BUG2110 to every _other_ version string in this file.
 
 2.11.4 --> +OLDCN
-2.11   --> -BUG2114
-2.12   --> -BUG2114
+2.11   --> 
+2.12   --> -BUG2114 -SI8814 -SI8819
 
 
