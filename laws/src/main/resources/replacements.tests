@@ -542,7 +542,7 @@ $NEW --> Seq[Int]( $ : _*).view.map(_ + 1)
 
 Int collection.SeqView[Int,Seq[Int]]
 NAME --> collection.SeqView[Int,Seq[Int]]Patched
-flags --> VIEW LAZY SI8474 BROKEN
+flags --> VIEW LAZY SI8474
 LET --> val
 $NEW --> Seq[Int]( $ : _*).view.patch(1,Seq(50,51),1)
 //Broken--patch is all messed up.  This can go in again when patch is fixed (PR in, but a non-negligble change).
@@ -553,7 +553,7 @@ NAME --> collection.SeqView[Int,Seq[Int]]Prepended
 flags --> VIEW LAZY BROKEN
 LET --> val
 $NEW --> Seq[Int]( $ : _*).view.++:(Seq(50,51))
-//Broken--won't run instance code.  Weird message.
+//Broken--won't run instance code because java.lang.UnsupportedOperationException: TraversableView.Builder.result
 
 
 Int collection.SeqView[Int,Seq[Int]]
@@ -620,7 +620,7 @@ $NEW --> Stream[Int]( $ : _*).view.map(_ + 1)
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Patched
-flags --> VIEW LAZY ADEFINITE SI8474 BROKEN STREAMVIEW
+flags --> VIEW LAZY ADEFINITE SI8474 STREAMVIEW
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.patch(1,Stream(50,51),1)
 //Broken--Patched is messed up for now; when PR is merged this can go in again.
@@ -628,7 +628,7 @@ $NEW --> Stream[Int]( $ : _*).view.patch(1,Stream(50,51),1)
 
 Int collection.immutable.StreamView[Int,Stream[Int]]
 NAME --> collection.immutable.StreamView[Int,Stream[Int]]Prepended
-flags --> VIEW LAZY ADEFINITE SI8474 BROKEN STREAMVIEW
+flags --> VIEW LAZY ADEFINITE SI8474 STREAMVIEW BROKEN
 LET --> val
 $NEW --> Stream[Int]( $ : _*).view.++:(Stream(50,51))
 //Can't seem to create this--java.lang.UnsupportedOperationException: TraversableView.Builder.result

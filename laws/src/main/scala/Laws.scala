@@ -298,7 +298,10 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], global
       case Some(x) if x.getName.endsWith("Instances.scala") => x
       case Some(x) if x.isDirectory => new File(x, "Instances.scala")
       case Some(x) => return Left(Vector("Target for Instances.scala incorrect: " + x.getPath))
-      case None => return Left(Vector("Should never reach here?!"))
+      case None => return Left(
+        Vector("Should never reach here?!") ++ (new Exception("")).getStackTrace.map(_.toString) ++
+        Vector("Problem loading instances was") ++ wrong.getStackTrace.map(_.toString)
+      )
     }
     
     Try{ freshenFile(target, instanceCode) } match {
