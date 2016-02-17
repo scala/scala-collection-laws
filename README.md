@@ -1,7 +1,7 @@
 scala-collections-laws
 ======================
 
-Partially automatic generation of tests for the Scala collections library.  The 
+Partially automatic generation of tests for the Scala collections library.  The
 goal is to have a quasi-comprehensive set of collections tests that will catch
 regressions in basic functionality in any collection.
 
@@ -18,10 +18,11 @@ See section "Altering collections in a way that causes many tests to fail".
 
 ## Quick start
 
-Clone the repository and run
+Clone the repository and run (on JDK 1.8; for 1.6/7 use `-mem 6144` instead of
+the `-J` options)
 
 ```bash
-sbt -mem 6144 "tests/runMain tests.generated.collection.Test_All"
+sbt -J-Xmx8G -J-XX:MaxMetaspaceSize=2G "tests/runMain tests.generated.collection.Test_All"
 ```
 
 If all goes well, the build process will do some compilation and code generation
@@ -113,12 +114,12 @@ Details follow.
 |   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_a_n_x$1$$anonfun$apply$mcVI$sp$5.apply$mcVI$sp(Test_collection_immutable_Range.scala:86)
 |   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_a_n_x$1$$anonfun$apply$mcVI$sp$5.apply(Test_collection_immutable_Range.scala:79)
 | ...
-| 
+|
 | Test line 159 with m = -1; n = 0; x = Range(0, 1, 2, 3); y = Range(4, 5, 6, 7, 8) in group 1
 |   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x_y$1$$anonfun$apply$mcVI$sp$41$$anonfun$apply$mcVI$sp$129.apply(Test_collection_immutable_Range.scala:545)
 |   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x_y$1$$anonfun$apply$mcVI$sp$41$$anonfun$apply$mcVI$sp$129.apply(Test_collection_immutable_Range.scala:540)
 | ...
-| 
+|
 | Test line 270 with n = 0; x = Range(0, 1, 2, 3) in group 1
 |   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_n_x$1.apply$mcVI$sp(Test_collection_immutable_Range.scala:610)
 |   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_n_x$1.apply(Test_collection_immutable_Range.scala:597)
