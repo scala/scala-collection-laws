@@ -82,7 +82,7 @@ x.`toTraversable` theSameAs x
 !RANGE !SORTED !ARRAY !USESARRAY !N ... { val xx = x.`genericBuilder`[@A]; sameType(x, xx.result) }
 // Combine the following two lines into one when set issues are fixed
 !RANGE !SORTED !ARRAY !USESARRAY !VIEW !S ... type ROOT[TARG] = @ROOTS[TARG]; val y: Any = x; y match { case r: ROOT[_] => val xx = r.asInstanceOf[ROOT[@A]].map(identity); classOf[@CC] isAssignableFrom xx.getClass; case _ => true }
-!RANGE !SORTED !ARRAY !USESARRAY !VIEW S !M FIXED8434 ... type ROOT[TARG] = @ROOTS[TARG]; val y: Any = x; y match { case r: ROOT[_] => val xx = r.asInstanceOf[ROOT[@A]].map(identity); classOf[@CC] isAssignableFrom xx.getClass; case _ => true }
+!RANGE !SORTED !ARRAY !USESARRAY !VIEW S !M ... type ROOT[TARG] = @ROOTS[TARG]; val y: Any = x; y match { case r: ROOT[_] => val xx = r.asInstanceOf[ROOT[@A]].map(identity); classOf[@CC] isAssignableFrom xx.getClass; case _ => true }
 !RANGE !SORTED !ARRAY !VIEW M FIXED8434 ... type ROOT[TARG1,TARG2] = @ROOTMAPS[TARG1,TARG2]; val y: Any = x; y match { case m: ROOT[_, _] => val xx = m.asInstanceOf[ROOT[@K, @V]].map(identity); classOf[@CC] isAssignableFrom xx.getClass; case _ => true }
 
 // Methods that apply to most collections types
@@ -232,7 +232,7 @@ sameType(x, x.`reverse`)
 y ... x.`endsWith`(y) == (x.`drop`(math.max(0, x.`size`-y.size)) theSameAs y)
 g ... x.`groupBy`(g).keySet theSameAs x.map(g).toSet
 g ... x.`groupBy`(g).toMap.forall{ case (k,vs) => x.filter(xi => g(xi)==k) theSameAs vs }
-!ARRAY !M ... !x.`nonEmpty` || (x match { case _: scala.collection.Seq[_] => Seq(x.`head`) theSameAs x.`take`(1); case _ => true })
+!ARRAY !M ... !x.`nonEmpty` || (if (classOf[scala.collection.Seq[_]] isAssignableFrom x.getClass) Seq(x.`head`) theSameAs x.`take`(1) else true)
 ARRAY ... !x.`nonEmpty` || (Seq(x.`head`) theSameAs x.`take`(1))
 x.`headOption` == tryO{ x.`head` }
 n a !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }
