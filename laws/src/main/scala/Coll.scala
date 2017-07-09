@@ -13,10 +13,12 @@ trait Sourced {
 
 case class Values(L: Int, m: Int, mm: Int, n: Int, nn: Int) {}
 
-abstract class Coll[A, B, CC](val v: Values)(implicit file: sourcecode.File, line: sourcecode.Line) 
+case class Provider[A, CC](a: A, x: () => CC, xsize: Int, y: () => CC, ysize: Int) {}
+
+abstract class Coll[A, B, CC](val v: Values, val coll: Provider[A, CC])(implicit file: sourcecode.File, line: sourcecode.Line) 
 extends Sourced {
   /** Arbitrary element of the type in the collection */
-  def a: A
+  def a: A = coll.a
 
   /** An arbitrary element of a type not in the basic collection.  Should match g(a). */
   def b: B
@@ -31,16 +33,16 @@ extends Sourced {
   def L: Int = v.L
 
   /** A fixed number that is no bigger than the length of `y` */
-  def m: Int = if (v.m < 0) (-v.mm-1) % xsize
+  def m: Int = if (v.m < 0) (-v.m-1) % ysize else v.m % ysize
 
   /** A fixed positive number that may be bigger than the length of `y` **/
   val mm: Int = if (v.mm < 0) -v.mm-1 else v.mm
 
   /** A fixed number that is no bigger than the length of `x` */
-  def n: Int = n.L
+  def n: Int = if (v.n < 0) (-v.n-1) % xsize else v.n % xsize
 
   /** A fixed number that may be bigger than the length of `x` */
-  def nn: Int = nn.L
+  def nn: Int = if (v.nn < 0) -v.nn-1 else v.nn
 
   /** A binary operation on the collection elements.
     *
@@ -55,16 +57,16 @@ extends Sourced {
   def pf: PartialFunction[A, A]   
 
   /** A specific collection of some size */
-  def x: CC
+  def x: CC = coll.x()
 
   /** The known size of the collection `x` */
-  def xsize: Int
+  def xsize: Int = coll.xsize
 
   /** Another specific collection, not necessarily the same as `x` */
-  def y: CC
+  def y: CC = coll.y()
 
   /** The known size of collection `y` */
-  def ysize: Int
+  def ysize: Int = coll.ysize
 
   /** Element of type `A` that is a zero with respect to `op`, if `op` exists and a zero exists */
   def zero: () => A = Coll.noZero
@@ -73,7 +75,7 @@ extends Sourced {
   def hasOp = (op ne Coll.noOp)
 
   /** Tests whether this Coll has a zero defined */
-  def hasZero = (op ne Coll.noZero) && hasOp
+  def hasZero = (zero ne Coll.noZero) && hasOp
 
   /** Another coll (or other code source), if any exists, that was used to help generate this one */
   def origin: Option[Sourced]
@@ -86,43 +88,3 @@ object Coll {
   val noZero: () => Nothing = () => throw new IllegalArgumentException("No zero defined")
 }
 
-abstract class PrimColl[CC](v: Values)(implicit file: sourcecode.File, line: sourcecode.Line)
-extends Coll[Int, Long, CC](v)(file, line) {
-  protected def transform(i: Int): Long = i.toLong + 3
-  lazy val b: Long = transform(a)
-  lazy val g: Int => Long = transform _
-}
-
-abstract class ObjColl[CC](v: Values)(implicit file: sourcecode.File, line: sourcecode.Line)
-extends Coll[String, Option[String], CC](v)(file, line) {
-  protected def transform(s: String): Option[String] = {
-    val i = a
-    if ((i eq null) || (i.length < 2)) None else Some(i.substring(1))
-  }
-  lazy val b: Option[String] = transform(a)
-  lazy val g: String => Long = transform _
-}
-
-trait IntFA { val f: Int => Int = _ + 1 }
-trait IntFB { val f: Int => Int = (i: Int) => (i*i) - 3*i + 1 }
-trait IntOpA { val op: (Int, Int) => Int = _ + _ }
-trait IntOpB { val op: (Int, Int) => Int = (i: Int, j: Int) => i*j - 2*i - *j + 4 }
-
-trait StrFA { val f: String => String = (s: String) => if (s ne null) s.toUpperCase else s }
-trait StrFB { val f: String => String = (s: String) => if (s ne null) f"<$s<" else s }
-trait StrOpA {
-  val op: (String, String) => String = (s: String, t: String) => {
-    if (s eq null) {
-      if (t eq null) s else t
-    }
-    else if (t eq null) s else s + t
-  }
-}
-trait StrOpB {
-  val op (String, String) => String = (s: String, t: String) => {
-    if ((s eq null) && (t eq null)) s
-    else if (s eq null) t.reverse
-    else if (t eq null) s.toUpperCase
-    else s.take(t.length) + t.take(s.length).reverse
-  }
-}
