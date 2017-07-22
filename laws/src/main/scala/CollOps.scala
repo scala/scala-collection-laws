@@ -20,111 +20,75 @@ abstract class StrColl[CC](
 extends Coll[String, Option[String], CC](values, coll, act)(file, line) {}
 
 
-////////////////////////////////////////////////////////////
-// Selection of secondary type and mapping from base type //
-////////////////////////////////////////////////////////////
+////////////////////////////////////////////////
+// Selection of particular types of behaviors //
+////////////////////////////////////////////////
 
-object IntFns {
+trait Variants[A] {
+  type Item = A
+  def all: Array[A]
 }
 
-trait IntLongG1[CC] { self: IntColl[Long, _] =>
-  protected def transform(i: Int): Long = i.toLong + 3
-  lazy val b: Long = transform(self.a)
-  lazy val g: Int => Long = transform _
+object IntFns extends Variants[Int ===> Int] {
+  val plusOne   = new Item(_ + 1)
+  val quadratic = new Item(i => i*i - 3*i + 1)
+  val all = Array(plusOne, quadratic)
 }
 
-trait StrOStrG1[CC] { self: StrColl[Option[String], _] =>
-  protected def transform(s: String): Option[String] = {
-    val i = a
-    if ((i eq null) || (i.length < 2)) None else Some(i.substring(1))
-  }
-  lazy val b: Option[String] = transform(self.a)
-  lazy val g: String => Option[String] = transform _
+object StrFns extends Variants[String ===> String] {
+  val upper = new Item(_.toUpperCase)
+  val fishy = new Item(s => f"<$s-<")
+  val all = Array(upper, fishy)
 }
 
-
-///////////////////////////
-// Variants on functions //
-///////////////////////////
-
-trait IntF1 { self: IntColl[ _, _] => 
-  val f: Int => Int = _ + 1
+object IntToLongs extends Variants[Int ===> Long] {
+  val bit33 = new Item(i => 0x200000000L | i)
+  val cast  = new Item(i => i.toLong)
+  val all = Array(bit33, cast)
 }
 
-trait IntF2 { self: IntColl[_, _] =>
-  val f: Int => Int = (i: Int) => (i*i) - 3*i + 1
+object StringToOption extends Variants[String ===> Option[String]] {
+  val natural = new Item(s => Option(s).filter(_.length > 0))
+  val letter  = new Item(s => Option(s.filter(_.isLetter)).filter(_.length > 0))
+  val all = Array(natural, letter)
 }
 
-trait StrF1 { self: StrColl[_, _] =>
-  val f: String => String = (s: String) => if (s ne null) s.toUpperCase else s
+object IntOps extends Variants[OpFn[Int]] {
+  val summation = new Item(_ + _, Some(0))
+  val multiply  = new Item((i, j) => i*j - 2*i - 3*j + 4, None)
+  val all = Array(summation, multiply)
 }
 
-trait StrF2 { self: StrColl[_, _] =>
-  val f: String => String = (s: String) => if (s ne null) f"<$s<" else s
+object StrOps extends Variants[OpFn[String]] {
+  val concat     = new Item(_ + _, Some(""))
+  val interleave = new Item((s, t) => (s zip t).map{ case (l,r) => f"$l$r" }.mkString, None)
+  val all = Array(concat, interleave)
 }
 
-
-//////////////////////////////////
-// Variants on binary operators //
-//////////////////////////////////
-
-trait IntOp1 { self: IntColl[_, _] =>
-  override val op: (Int, Int) => Int = _ + _
-  override val zero: () => Int = () => 0
+object IntPreds extends Variants[Int ===> Boolean] {
+  val mod3   = new Item(i => (i%3) == 0)
+  val always = new Item(_ => true)
+  val never  = new Item(_ => false)
+  val all = Array(mod3, always, never)
 }
 
-trait IntOp2 { self: IntColl[_, _] =>
-  override val op: (Int, Int) => Int = (i: Int, j: Int) => i*j - 2*i - 3*j + 4
+object StrPreds extends Variants[String ===> Boolean] {
+  val increasing = new Item(s => s.length < 2 || s(0) <= s(s.length-1))
+  val always     = new Item(_ => true)
+  val never      = new Item(_ => false)
+  val all = Array(increasing, always, never)
 }
 
-trait StrOp1 { self: StrColl[_, _] =>
-  override val op: (String, String) => String = (s: String, t: String) => {
-    if (s eq null) {
-      if (t eq null) s else t
-    }
-    else if (t eq null) s else s + t
-  }
-  override val zero: () => String = () => ""
+object IntParts extends Variants[ParFn[Int]] {
+  val halfEven    = new Item({ case x if (x % 2) == 0 => x / 2 })
+  val identical   = new Item({ case x => x })
+  val uninhabited = new Item(Function.unlift((i: Int) => None: Option[Int]))
+  val all = Array(halfEven, identical, uninhabited)
 }
 
-trait StrOp2 { self: StrColl[_, _] =>
-  override val op: (String, String) => String = (s: String, t: String) => {
-    if ((s eq null) && (t eq null)) s
-    else if (s eq null) t.reverse
-    else if (t eq null) s.toUpperCase
-    else s.take(t.length) + t.take(s.length).reverse
-  }
+object StrParts extends Variants[ParFn[String]] {
+  val oddMirror   = new Item({ case x if (x.length % 2) == 1 => x.reverse })
+  val identical   = new Item({ case x => x })
+  val uninhabited = new Item(Function.unlift((s: String) => None: Option[String]))
+  val all = Array(oddMirror, identical, uninhabited)
 }
-
-
-////////////////
-// Predicates //
-////////////////
-
-trait IntPred1 { self: IntColl[_, _] =>
-  override val p: Int => Boolean = i => (i % 3) == 0
-}
-
-trait IntPred2 { self: IntColl[_, _] =>
-  override val p: Int => Boolean = _ => true
-}
-
-trait IntPred3 { self: IntColl[_, _] =>
-  override val p: Int => Boolean = _ => false
-}
-
-trait StrPred1 { self: StrColl[_, _] => 
-  override val p: String => Boolean = s => if (s.length < 2) true else s.charAt(0) > s.charAt(s.length-1)
-}
-
-trait StrPred2 { self: StrColl[_, _] =>
-  override val p: String => Boolean = _ => true
-}
-
-trait StrPred3 { self: StrColl[_, _] =>
-  override val p: String => Boolean = _ => false
-}
-
-///////////////////////
-// Partial Functions //
-///////////////////////

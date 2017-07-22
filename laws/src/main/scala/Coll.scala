@@ -132,9 +132,9 @@ class Provider[A, CC] private (
 
   class Secret {
     def a: A = a0
-    def x: CC = x0
+    def x: CC = x0()
     def xsize: Int = xsize0
-    def y: CC = y0
+    def y: CC = y0()
     def ysize: Int = ysize0
   }
   /** Secretly access the input collections (usage not recorded, so will not cause variants to be run) */
@@ -159,20 +159,18 @@ object Provider {
 }
 
 /** Wrapper class around a function that lets you tell where it came from */
-class ===>[X, Y](val fn: X => Y, desc: String = "")(implicit file: sourcecode.File, line: sourcecode.Line) {
-  override val toString =
-    if (desc.length > 0) desc + " @ " + Sourced.implictly else Sourced.implicitly
+class ===>[X, Y](val fn: X => Y)(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) {
+  override val toString = name.value.toString + " @ " + Sourced.implicitly
   override def equals(that: Any) = that match {
-    case x: _ ===> _ => toString == x.toString
-    case _           => false
+    case x: ===>[_, _] => toString == x.toString
+    case _             => false
   }
   override val hashCode = scala.util.hashing.MurmurHash3.stringHash(toString)
 }
 
 /** Wrapper class around a binary operation that lets you tell where it came from */
-class OpFn[X](val ofn: (X, X) => X, val zero: Option[X], desc: String = "")(implicit file: sourcecode.File, line: sourcecode.Line) {
-  override def toString =
-    if (desc.length > 0) desc + " @ " + Sourced.implictly else Sourced.implicitly
+class OpFn[X](val ofn: (X, X) => X, val zero: Option[X])(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) {
+  override val toString = name.value.toString + " @ " + Sourced.implicitly
   override def equals(that: Any) = that match {
     case x: OpFn[_] => toString == x.toString
     case _          => false
@@ -181,9 +179,8 @@ class OpFn[X](val ofn: (X, X) => X, val zero: Option[X], desc: String = "")(impl
 }
 
 /** Wrapper class around a partial function that lets you tell where it came from */
-class ParFn[X](val pfn: PartialFunction[X, X], desc: String = "")(implicit file: sourcecode.File, line: sourcecode.Line) {
-  override def toString =
-    if (desc.length > 0) desc + " @ " + Sourced.implictly else Sourced.implicitly
+class ParFn[X](val pfn: PartialFunction[X, X])(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) {
+  override val toString = name.value.toString + " @ " + Sourced.implicitly
   override def equals(that: Any) = that match {
     case x: ParFn[_] => toString == x.toString
     case _           => false
@@ -208,13 +205,13 @@ class Active[A, B] private (
   def f: A => A = { _fCount += 1; f0.fn }
 
   /** A function that changes an element to another of a different type */
-  def g: A => A = { _gCount += 1; g0.fn }
+  def g: A => B = { _gCount += 1; g0.fn }
 
   /** A function that, given two elements of a type, produces a single element of that type */
   def op: (A, A) => A = { _opzCount += 1; op0.ofn }
 
   /** A predicate that gives a true/false answer for an element */
-  def p: A => A = { _pCount += 1; p0.fn }
+  def p: A => Boolean = { _pCount += 1; p0.fn }
 
   /** A partial function that changes some elements to another of the same type */
   def pf: PartialFunction[A, A] = { _pfCount += 1; pf0.pfn }
@@ -240,7 +237,7 @@ class Active[A, B] private (
     def op = op0.ofn
     def p = p0.fn
     def pf = pf0.pfn
-    def z = z0.get
+    def z = op0.zero.get
   }
   /** Secretly access the functions and transformations (usage not recorded, so will not cause variants to be run) */
   val secret = new Secret
@@ -273,7 +270,7 @@ abstract class Coll[A, B, CC](
 )(implicit file: sourcecode.File, line: sourcecode.Line) 
 extends Sourced {
   /** Arbitrary element of the type in the collection */
-  def a: A = coll.silent.a
+  def a: A = coll.a
 
   /** An arbitrary element of a type not in the basic collection.  Should match g(a). */
   lazy val b: B = act.secret.g(coll.secret.a)
@@ -333,7 +330,7 @@ extends Sourced {
   def origin: Option[Sourced] = None
 
   /** The location (file and line) where this collection was defined, as a `String` */
-  def localize: String = Source.implicitly
+  def localize: String = Sourced.implicitly
 
   /** This is the actual test which each distinct law must fill in */
   def run: Boolean
