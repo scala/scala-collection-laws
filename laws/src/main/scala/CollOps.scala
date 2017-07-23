@@ -1,28 +1,137 @@
 package laws
 
-
-///////////////////////////////////////
-// Selection of base collection type //
-///////////////////////////////////////
-
-abstract class IntColl[CC](
-  values: Values, coll: Provider[Int, CC], act: Active[Int, Long]
-)(
-  implicit file: sourcecode.File, line: sourcecode.Line
-)
-extends Coll[Int, Long, CC](values, coll, act)(file, line) {}
-
-abstract class StrColl[CC](
-  values: Values, coll: Provider[String, CC], act: Active[String, Option[String]]
-)(
-  implicit file: sourcecode.File, line: sourcecode.Line
-)
-extends Coll[String, Option[String], CC](values, coll, act)(file, line) {}
+//###################################################################//
+// This file contains the operations to apply to collection tests of //
+// various types.  That way you can plug in different operations.    //
+//###################################################################//
 
 
-////////////////////////////////////////////////
-// Selection of particular types of behaviors //
-////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+// Location-logging wrapper classes for various function forms //
+/////////////////////////////////////////////////////////////////
+
+/** Wrapper class around a function that lets you tell where it came from */
+class ===>[X, Y](val fn: X => Y)(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) {
+  override val toString = name.value.toString + " @ " + Sourced.implicitly
+  override def equals(that: Any) = that match {
+    case x: ===>[_, _] => toString == x.toString
+    case _             => false
+  }
+  override val hashCode = scala.util.hashing.MurmurHash3.stringHash(toString)
+}
+
+/** Wrapper class around a binary operation that lets you tell where it came from */
+class OpFn[X](val ofn: (X, X) => X, val zero: Option[X])(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) {
+  override val toString = name.value.toString + " @ " + Sourced.implicitly
+  override def equals(that: Any) = that match {
+    case x: OpFn[_] => toString == x.toString
+    case _          => false
+  }
+  override val hashCode = scala.util.hashing.MurmurHash3.stringHash(toString)
+}
+
+/** Wrapper class around a partial function that lets you tell where it came from */
+class ParFn[X](val pfn: PartialFunction[X, X])(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) {
+  override val toString = name.value.toString + " @ " + Sourced.implicitly
+  override def equals(that: Any) = that match {
+    case x: ParFn[_] => toString == x.toString
+    case _           => false
+  }
+  override val hashCode = scala.util.hashing.MurmurHash3.stringHash(toString)
+}
+
+
+///////////////////////////////////////////////
+// The main class holding all the operations //
+///////////////////////////////////////////////
+
+/** Class that represents the ways we can transform and select data for a given element type. */
+final class Active[A, B] private (
+  private[laws] val f0: A ===> A,
+  private[laws] val g0: A ===> B,
+  private[laws] val op0: OpFn[A],
+  private[laws] val p0: A ===> Boolean,
+  private[laws] val pf0: ParFn[A]
+) {
+  private[this] var _fCount = 0
+  private[this] var _gCount = 0
+  private[this] var _opzCount = 0
+  private[this] var _pCount = 0
+  private[this] var _pfCount = 0
+
+  /** A function that changes an element to another of the same type */
+  def f: A => A = { _fCount += 1; f0.fn }
+
+  /** A function that changes an element to another of a different type */
+  def g: A => B = { _gCount += 1; g0.fn }
+
+  /** A function that, given two elements of a type, produces a single element of that type */
+  def op: (A, A) => A = { _opzCount += 1; op0.ofn }
+
+  /** A predicate that gives a true/false answer for an element */
+  def p: A => Boolean = { _pCount += 1; p0.fn }
+
+  /** A partial function that changes some elements to another of the same type */
+  def pf: PartialFunction[A, A] = { _pfCount += 1; pf0.pfn }
+
+  /** The zero of `op`; throws an exception if there is no zero.  Test using `hasZ`.
+    *
+    * Note: we're doing it this way since it's not practical to instrument the usage of something inside `Option`.
+    */
+  val z: A = { _opzCount += 1; op0.zero.get }
+
+  val hasZ: Boolean = op0.zero.isDefined
+
+  def fCount = _fCount
+  def gCount = _gCount
+  def opzCount = _opzCount
+  def pCount = _pCount
+  def pfCount = _pfCount
+  def resetCount: this.type = { _fCount = 0; _gCount = 0; _opzCount = 0; _pCount = 0; _pfCount = 0; this }
+
+  class Secret {
+    def f = f0.fn
+    def g = g0.fn
+    def op = op0.ofn
+    def p = p0.fn
+    def pf = pf0.pfn
+    def z = op0.zero.get
+  }
+  /** Secretly access the functions and transformations (usage not recorded, so will not cause variants to be run) */
+  val secret = new Secret
+
+  override def equals(that: Any) = that match {
+    case a: Active[_, _] => (f0 == a.f0) && (g0 == a.g0) && (op0 == a.op0) && (p0 == a.p0) && (pf0 == a.pf0)
+  }
+
+  override def hashCode = {
+    import scala.util.hashing.MurmurHash3._
+    import java.lang.System.{identityHashCode => h}
+    finalizeHash(mixLast(mix(mix(mix(h(f0), h(g0)), h(op0)), h(p0)), h(pf0)), 5)
+  }
+
+  override lazy val toString = {
+    val parts = Array(f0.toString, g0.toString, op0.toString, p0.toString, pf0.toString)
+    val pad = parts.map(_.indexOf('@')).max
+    val paddedParts =
+      if (pad < 0) parts
+      else parts.map{ s =>
+        val i = s.indexOf('@')
+        if (i <= 0 || i >= pad) s
+        else s.take(i-1) + (" "*(pad - i)) + s.drop(i-1)
+      }
+    paddedParts.mkString("Active\n  ", "\n  ", "")
+  }
+}
+object Active {
+  def apply[A, B](f: A ===> A, g: A ===> B, op: OpFn[A], p: A ===> Boolean, pf: ParFn[A]) =
+    new Active(f, g, op, p, pf)
+}
+
+
+/////////////////////////////////////////
+// Elaboration of particular behaviors //
+/////////////////////////////////////////
 
 trait Variants[A] {
   type Item = A
