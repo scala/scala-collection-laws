@@ -1,20 +1,5 @@
 package laws
 
-/** Trait that captures the idea of having a source from which one is generated.
-  */
-trait Sourced {
-  final def source(implicit file: sourcecode.File, line: sourcecode.Line) = Sourced.local(file, line)
-}
-object Sourced {
-  /** A text description of the file and line some source came from */
-  def local(file: sourcecode.File, line: sourcecode.Line): String =
-    (new java.io.File(file.value)).getName + ", line " + line.value
-
-  /** A text description of file and line using implicit values in scope (or the current line) */
-  def implicitly(implicit file: sourcecode.File, line: sourcecode.Line): String =
-    local(file, line)
-}
-
 /** Sets of integer values used to check individual cases in certain tests.
   *
   * In general, we expect but do not enforce here that `m` and `n` are positive
@@ -76,79 +61,6 @@ object Numbers {
   def apply(L: Int, m: Int, mm: Int, n: Int, nn: Int): Numbers = new Numbers(L, m, mm, n, nn)
 }
 
-/** A provider of instances of collections of a particular type with a particular element type.
-  * Each call to the methods should return the same collection; if mutable, the instance
-  * should be created afresh each time.  If immutable, it shouldn't matter.
-  * (Laws that check reference identity should cache the value.)
-  *
-  * That `A` is actually an element that can be found within `CC` is not enforced.
-  */
-class Instance[A, CC] private (
-  private[laws] val a0: A,
-  private[laws] val x0: () => CC,
-  private[laws] val xsize0: Int,
-  private[laws] val y0: () => CC,
-  private[laws] val ysize0: Int
-) {
-  private[this] var _aCount: Int = 0
-  private[this] var _xCount: Int = 0
-  private[this] var _xsizeCount: Int = 0
-  private[this] var _yCount: Int = 0
-  private[this] var _ysizeCount: Int = 0
-
-  /** An example element of a type that can be found within the collection */
-  def a: A = { _aCount += 1; a0 }
-
-  /** A particular instance of a collection. */
-  def x: CC = { _xCount += 1; x0() }
-
-  /** The size of the collection `x` */
-  def xsize: Int = { _xsizeCount += 1; xsize0 }
-
-  /** Another instance of a collection, which may or may not be the same as `x` */
-  def y: CC = { _yCount += 1; y0() }
-
-  /** The size of the collection `y` */
-  def ysize: Int = { _ysizeCount += 1; ysize0 }
-
-  def aCount: Int = _aCount
-  def xCount: Int = _xCount
-  def xsizeCount: Int = _xsizeCount
-  def yCount: Int = _yCount
-  def ysizeCount: Int = _ysizeCount
-  def resetCount: this.type = { _aCount = 0; _xCount = 0; _xsizeCount = 0; _yCount = 0; _ysizeCount = 0; this }
-
-  class Secret {
-    def a: A = a0
-    def x: CC = x0()
-    def xsize: Int = xsize0
-    def y: CC = y0()
-    def ysize: Int = ysize0
-  }
-  /** Secretly access the input collections (usage not recorded, so will not cause variants to be run) */
-  val secret = new Secret
-
-  override def equals(that: Any) = that match {
-    case i: Instance[_, _] => (this eq i) || (a0 == i.a0 && xsize0 == i.xsize0 && ysize0 == i.ysize0 && x0() == i.x0() && y0() == i.y0)
-    case _                 => false
-  }
-  override def hashCode: Int = {
-    import scala.util.hashing.MurmurHash3._
-    finalizeHash(mixLast(mix(x0().##, y0().##), a0.##), 1 + xsize0 + ysize0)
-  }
-  override lazy val toString = {
-    def clip(s: String, n: Int) = if (s.length <= n) s else s.substring(0, n-3)+"..."
-    f"Provider: singleton $a0 with\n  ${clip(x0().toString, 61)} ; len $xsize0\n  ${clip(y0().toString, 61)} ; len $ysize0"
-  }
-}
-object Instance {
-  def apply[A, CC](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int): Instance[A, CC] =
-    new Instance(a, () => x, xsize, () => y, ysize)
-  def from[A, CC](a: A, x: Array[A], y: Array[A])(cc: Array[A] => CC): Instance[A, CC] =
-    new Instance(a, () => cc(x), x.size, () => cc(y), y.size)
-}
-
-
 /** The collection to be tested: this provides all elements and collections
   * and mappings thereon which are available inside the tests.
   */
@@ -156,8 +68,9 @@ abstract class Test[A, B, CC](
   val num: Numbers,
   val instance: Instance[A, CC],
   val act: Active[A, B]
-)(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) 
-extends Sourced {
+)(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name) 
+extends Sourced
+with Named {
   /** Arbitrary element of the type in the collection */
   def a: A = instance.a
 
@@ -215,8 +128,10 @@ extends Sourced {
   /** Tests whether this Coll has a zero defined */
   def hasZero = act.hasZ
 
+  def name = nm.value.toString
+
   override lazy val toString =
-    name.value.toString + " @ " + source +
+    nm.value.toString + " @ " + source +
     f"\n  $num\n" +
     instance.toString.split("\n").map("  " + _).mkString("", "\n", "\n") +
     act.toString.split("\n").map("  " + _).mkString("", "\n", "\n")
@@ -243,5 +158,3 @@ abstract class StrTest[CC](
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
 extends Test[String, Option[String], CC](num, instance, act)(file, line, name) {}
-
-

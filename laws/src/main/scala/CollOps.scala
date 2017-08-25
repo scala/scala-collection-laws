@@ -11,8 +11,10 @@ package laws
 /////////////////////////////////////////////////////////////////
 
 /** Wrapper class around a function that lets you tell where it came from */
-class ===>[X, Y](val fn: X => Y)(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) {
-  override val toString = name.value.toString + " @ " + Sourced.implicitly
+class ===>[X, Y](val fn: X => Y)(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name)
+extends Named {
+  def name = nm.value.toString
+  override val toString = nm.value.toString + " @ " + Sourced.implicitly
   override def equals(that: Any) = that match {
     case x: ===>[_, _] => toString == x.toString
     case _             => false
@@ -21,7 +23,9 @@ class ===>[X, Y](val fn: X => Y)(implicit file: sourcecode.File, line: sourcecod
 }
 
 /** Wrapper class around a binary operation that lets you tell where it came from */
-class OpFn[X](val ofn: (X, X) => X, val zero: Option[X])(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) {
+class OpFn[X](val ofn: (X, X) => X, val zero: Option[X])(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name)
+extends Named {
+  def name = nm.value.toString
   override val toString = name.value.toString + " @ " + Sourced.implicitly
   override def equals(that: Any) = that match {
     case x: OpFn[_] => toString == x.toString
@@ -31,7 +35,9 @@ class OpFn[X](val ofn: (X, X) => X, val zero: Option[X])(implicit file: sourceco
 }
 
 /** Wrapper class around a partial function that lets you tell where it came from */
-class ParFn[X](val pfn: PartialFunction[X, X])(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name) {
+class ParFn[X](val pfn: PartialFunction[X, X])(implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name)
+extends Named {
+  def name = nm.value.toString
   override val toString = name.value.toString + " @ " + Sourced.implicitly
   override def equals(that: Any) = that match {
     case x: ParFn[_] => toString == x.toString
