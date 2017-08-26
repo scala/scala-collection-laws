@@ -150,11 +150,17 @@ abstract class IntTest[CC](
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[Int, Long, CC](num, instance, act)(file, line, name) {}
+extends Test[Int, Long, CC](num, instance, act)(file, line, name) {
+  type A = Int
+  type B = Long
+}
 
 abstract class StrTest[CC](
   num: Numbers, instance: Instance[String, CC], act: Active[String, Option[String]]
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[String, Option[String], CC](num, instance, act)(file, line, name) {}
+extends Test[String, Option[String], CC](num, instance, act)(file, line, name) {
+  type A = String
+  type B = Option[String]
+}

@@ -34,11 +34,15 @@ case class Tags(flags: Set[String], mappings: Map[String, String]) {
 }
 object Tags {
   /** Taggish represents values that can be tags: either a key alone, or a key-value pair (all strings). */
-  case class Taggish(value: Either[(String, String), String]) {}
+  sealed trait Taggish {}
+  final case class StringTag(tag: String) extends Taggish {}
+  final case class MapTag(key: String, value: String) extends Taggish {}
+  //final case class SelectTag(p: List[String] => Boolean) extends Taggish {}
   /** Implicits contains implicit conversions to values that can be tags. */
   object Implicits {
-    implicit def taggishString(s: String) = Taggish(Right(s))
-    implicit def taggishKeyValue(kv: (String, String)) = Taggish(Left(kv))
+    implicit def taggishString(s: String) = StringTag(s)
+    implicit def taggishKeyValue(kv: (String, String)) = MapTag(kv._1, kv._2)
+    //implicit def taggishSelector(p: List[String] => Boolean) = SelectTag(p)
   }
 
   /** Canonical empty set of tags. (That is, no tags.) */
@@ -48,13 +52,13 @@ object Tags {
   def apply(key: Taggish, keys: Taggish*) = {
     val all = key :: keys.toList
     new Tags(
-      all.collect{ case Taggish(Right(s))     => s }.toSet,
-      all.collect{ case Taggish(Left((k, v))) => (k, v) }.toMap
+      all.collect{ case StringTag(s) => s      }.toSet,
+      all.collect{ case MapTag(k, v) => (k, v) }.toMap
     )
   }
 }
 
-case class Law(name: String, tags: Tags, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) {
+case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false)(implicit file: sourcecode.File, line: sourcecode.Line) {
   def this(code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = this("", Tags.empty, code)(file, line)
   def this(name: String, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = this(name, Tags.empty, code)(file, line)
   def this(tags: Tags, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = this("", tags, code)(file, line)
@@ -75,11 +79,17 @@ case class Law(name: String, tags: Tags, code: String)(implicit file: sourcecode
   }
   /** Methods in the law that are backtick-quoted, indicating that the collection should only be used if it has those methods */
   val methods = findMyMethods
+  val check = findMyMethods.fold(_ => MethodChecker.missing, s => new MethodChecker(s))
 
-  override def toString = 
-    (if (name.isEmpty) "Law from " else f"Law $name from ") + file.value + " line " + line.value +
-    "\n  " + code +
-    (if (tags.isEmpty) "" else "\n  Tags: " + tags.toString)
+  override def toString = {
+    val f = new java.io.File(file.value)
+    (if (name.isEmpty) "" else f"$name\n") +
+      code +
+      (if (tags.isEmpty) "" else "\n@ " + tags.toString) +
+      "\n# from " + f.getName + ", line " + line.value +
+      (if (f.getParentFile != null && f.getParentFile.getPath.nonEmpty) "\n# in " + f.getParentFile.getPath else "") +
+      "\n"
+  }
 }
 object Law {
   def apply(code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(code)(file, line)
