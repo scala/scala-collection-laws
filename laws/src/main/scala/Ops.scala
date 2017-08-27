@@ -84,7 +84,7 @@ final class Ops[A, B] private (
     *
     * Note: we're doing it this way since it's not practical to instrument the usage of something inside `Option`.
     */
-  val z: A = { _opzCount += 1; op0.zero.get }
+  def z: A = { _opzCount += 1; op0.zero.get }
 
   val hasZ: Boolean = op0.zero.isDefined
 
@@ -167,6 +167,8 @@ trait Variants[A] {
       case Some(a) =>
         a
     }
+
+  final def index(i: Int)(implicit ev: reflect.ClassTag[Item]): Item = all(ev).apply(i)
 }
 
 object IntFns extends Variants[Int ===> Int] {
@@ -221,4 +223,23 @@ object StrParts extends Variants[ParFn[String]] {
   val oddMirror   = this has new Item({ case x if (x.length % 2) == 1 => x.reverse })
   val identical   = this has new Item({ case x => x })
   val uninhabited = this has new Item(Function.unlift((s: String) => None: Option[String]))
+}
+
+object IntOpsExplorer {
+  val sizes = Array(IntFns.all.length, IntToLongs.all.length, IntOpFns.all.length, IntPreds.all.length, IntParts.all.length)
+
+  def create: Explore = new Explore(sizes)
+
+  def asOps(ixs: Array[Int]): Option[Ops[Int, Long]] =
+    if (ixs.length != 5) { println(f"Length ${ixs.length}"); None }
+    else {
+      var i = 0
+      while (i < ixs.length) {
+        if (ixs(i) < 0 || ixs(i) >= sizes(i)) { println(f"${ixs(i)} not in [0, ${sizes(i)})"); return None }
+        i += 1
+      }
+      Some(Ops(IntFns.index(ixs(0)), IntToLongs.index(ixs(1)), IntOpFns.index(ixs(2)), IntPreds.index(ixs(3)), IntParts.index(ixs(4))))
+    }
+
+  def asOps(e: Explore): Option[Ops[Int, Long]] = e.current.flatMap{ ixs => asOps(ixs) }
 }
