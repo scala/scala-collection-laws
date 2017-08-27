@@ -81,15 +81,11 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
   val methods = findMyMethods
   val check = findMyMethods.fold(_ => MethodChecker.missing, s => new MethodChecker(s))
 
-  override def toString = {
-    val f = new java.io.File(file.value)
-    (if (name.isEmpty) "" else f"$name\n") +
-      code +
-      (if (tags.isEmpty) "" else "\n@ " + tags.toString) +
-      "\n# from " + f.getName + ", line " + line.value +
-      (if (f.getParentFile != null && f.getParentFile.getPath.nonEmpty) "\n# in " + f.getParentFile.getPath else "") +
-      "\n"
-  }
+  override def toString =
+    (if (name.isEmpty) "" else f"# $name\n") +
+    code +
+    (if (tags.isEmpty) "" else "\n# " + tags.toString) +
+    "\n#   from " + Sourced.local(file, line) + ")\n"
 }
 object Law {
   def apply(code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(code)(file, line)

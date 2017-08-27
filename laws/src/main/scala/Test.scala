@@ -35,6 +35,7 @@ class Numbers private (
   def mmCount: Int = _mmCount
   def nCount: Int = _nCount
   def nnCount: Int = _nnCount
+  def count = Numbers.Count(LCount, mCount, mmCount, nCount, nnCount)
   def resetCount: this.type = { _LCount = 0; _mCount = 0; _mmCount = 0; _nCount = 0; _nnCount = 0; this }
 
   class Secret {
@@ -58,6 +59,15 @@ class Numbers private (
   override def toString = f"Numbers: $L0, $m0, $mm0, $n0, $nn0"
 }
 object Numbers {
+  case class Count(LCount: Int, mCount: Int, mmCount: Int, nCount: Int, nnCount: Int) {
+    def -(that: Count) = new Count(
+      LCount  - that.LCount,
+      mCount  - that.mCount,
+      mmCount - that.mmCount,
+      nCount  - that.nCount, 
+      nnCount - that.nnCount
+    )
+  }
   def apply(L: Int, m: Int, mm: Int, n: Int, nn: Int): Numbers = new Numbers(L, m, mm, n, nn)
 }
 
@@ -67,7 +77,7 @@ object Numbers {
 abstract class Test[A, B, CC](
   val num: Numbers,
   val instance: Instance[A, CC],
-  val act: Active[A, B]
+  val ops: Ops[A, B]
 )(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name) 
 extends Sourced
 with Named {
@@ -75,13 +85,13 @@ with Named {
   def a: A = instance.a
 
   /** An arbitrary element of a type not in the basic collection.  Should match g(a). */
-  lazy val b: B = act.secret.g(instance.secret.a)
+  lazy val b: B = ops.secret.g(instance.secret.a)
 
   /** Some function that preserves the type of the elements */
-  def f: A => A = act.f
+  def f: A => A = ops.f
 
   /** Some function that changes the type of the elements.  Note that g(a) == b should be true. */
-  def g: A => B = act.g
+  def g: A => B = ops.g
 
   /** Some integer.  May be positive or negative.  Could really be anything. */
   def L: Int = num.L
@@ -102,13 +112,13 @@ with Named {
     *
     * If no such operation exists, leave it as `Coll.noOp` and tests requiring this operator will be skipped.
     */
-  def op: (A, A) => A = act.op
+  def op: (A, A) => A = ops.op
 
   /** A predicate on the type of the elements */
-  def p: A => Boolean = act.p
+  def p: A => Boolean = ops.p
 
   /** A partial function that preserves the type of the elements */
-  def pf: PartialFunction[A, A] = act.pf
+  def pf: PartialFunction[A, A] = ops.pf
 
   /** A specific collection of some size */
   def x: CC = instance.x
@@ -123,21 +133,70 @@ with Named {
   def ysize: Int = instance.ysize
 
   /** Element of type `A` that is a zero with respect to `op`, if `op` exists and a zero exists */
-  def zero: A = act.z
+  def zero: A = ops.z
 
   /** Tests whether this Coll has a zero defined */
-  def hasZero = act.hasZ
+  def hasZero = ops.hasZ
 
   def name = nm.value.toString
+
+  def count = Test.Count(num.count, instance.count , ops.count)
+
+  def resetCount { num.resetCount; instance.resetCount; ops.resetCount }
 
   override lazy val toString =
     nm.value.toString + " @ " + source +
     f"\n  $num\n" +
     instance.toString.split("\n").map("  " + _).mkString("", "\n", "\n") +
-    act.toString.split("\n").map("  " + _).mkString("", "\n", "\n")
+    ops.toString.split("\n").map("  " + _).mkString("", "\n", "\n")
 
-  /** This is the actual test which each distinct law must fill in */
-  def run: Boolean
+  /** The laws tested by this (kind of) test, and the ability to run them */
+  def laws: Map[Int, (Law, () => Boolean)]
+
+  /** This is the actual test which runs the different laws.
+    *
+    * Failures are listed in the returned set.
+    */
+  def run(included: Set[Int]): (Set[Int], Map[Int, Test.Count]) = {
+    val failures = Set.newBuilder[Int]
+    val usages = collection.mutable.HashMap.empty[Int, Test.Count]
+    included.foreach{ i =>
+      resetCount
+      val result = laws(i)._2()
+      if (!result) failures += i
+      usages(i) = count
+    }
+    (failures.result, usages.toMap)
+  }
+}
+object Test {
+  case class Count(numbers: Numbers.Count, instances: Instance.Count, ops: Ops.Count) {
+    def -(that: Count) = new Count(numbers - that.numbers, instances - that.instances, ops - that.ops)
+  }
+
+  private class N(var count: Int = 0) { def ++(){ count += 1 } }
+  class ComparesTo[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
+    def theSameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
+      val meB, youB = collection.mutable.ArrayBuffer.empty[A]
+      onceCC(me).foreach(meB += _)
+      onceDD(you).foreach(youB += _)
+      meB == youB
+    }
+    def hasAllOf[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
+      val meM, youM = collection.mutable.HashMap.empty[A, N]
+      onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
+      onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
+      meM.forall{ case (a, n) => youM.get(a).exists(_.count == n.count) } &&
+      youM.forall{ case (a, n) => meM contains a }
+    }
+    def isPartOf[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
+      val meM, youM = collection.mutable.HashMap.empty[A, N]
+      onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
+      onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
+      meM.forall{ case (a, n) => youM.get(a).exists(_.count >= n.count) }
+    }
+
+  }
 }
 
 
@@ -146,21 +205,21 @@ with Named {
 ///////////////////////////////////////
 
 abstract class IntTest[CC](
-  num: Numbers, instance: Instance[Int, CC], act: Active[Int, Long]
+  num: Numbers, instance: Instance[Int, CC], ops: Ops[Int, Long]
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[Int, Long, CC](num, instance, act)(file, line, name) {
+extends Test[Int, Long, CC](num, instance, ops)(file, line, name) {
   type A = Int
   type B = Long
 }
 
 abstract class StrTest[CC](
-  num: Numbers, instance: Instance[String, CC], act: Active[String, Option[String]]
+  num: Numbers, instance: Instance[String, CC], ops: Ops[String, Option[String]]
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[String, Option[String], CC](num, instance, act)(file, line, name) {
+extends Test[String, Option[String], CC](num, instance, ops)(file, line, name) {
   type A = String
   type B = Option[String]
 }

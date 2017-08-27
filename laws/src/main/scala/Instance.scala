@@ -40,6 +40,7 @@ class Instance[A, CC] private (
   def xsizeCount: Int = _xsizeCount
   def yCount: Int = _yCount
   def ysizeCount: Int = _ysizeCount
+  def count = Instance.Count(aCount, xCount, xsizeCount, yCount, ysizeCount)
   def resetCount: this.type = { _aCount = 0; _xCount = 0; _xsizeCount = 0; _yCount = 0; _ysizeCount = 0; this }
 
   class Secret {
@@ -66,6 +67,16 @@ class Instance[A, CC] private (
   }
 }
 object Instance { outer =>
+  case class Count(aCount: Int, xCount: Int, xsizeCount: Int, yCount: Int, ysizeCount: Int) {
+    def -(that: Count) = new Count(
+      aCount     - that.aCount,
+      xCount     - that.xCount,
+      xsizeCount - that.xsizeCount,
+      yCount     - that.yCount,
+      ysizeCount - that.ysizeCount
+    )
+  }
+
   def apply[A, CC](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int): Instance[A, CC] =
     new Instance(a, () => x, xsize, () => y, ysize)
   def from[A, CC](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC): Instance[A, CC] =
