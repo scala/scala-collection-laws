@@ -38,17 +38,19 @@ final class CachedFn0[A](val underlying: () => A) extends (() => A) {
 class MethodChecker(methods: Set[String]) {
   import scala.reflect._
   import runtime.universe._
-  def apply[C: TypeTag](c: C): Boolean = { val m = list(c); methods.forall(m) }
+  def apply[C: TypeTag](c: C): Boolean = { val m = MethodChecker.list(c); methods.forall(m) }
+}
+object MethodChecker {
+  import scala.reflect._
+  import runtime.universe._
+
+  val missing = new MethodChecker(Set.empty) { 
+    override def apply[C: TypeTag](c: C) = false
+  }
+
   def list[C: TypeTag](c: C): Set[String] = {
     val tp = implicitly[TypeTag[C]].tpe
     val meths = tp.members.collect{ case x if x.isMethod => x.asMethod }
     meths.map(_.name.decodedName.toString).toSet
-  }
-}
-object MethodChecker {
-  val missing = new MethodChecker(Set.empty) { 
-    import scala.reflect._
-    import runtime.universe._
-    override def apply[C: TypeTag](c: C) = false
   }
 }

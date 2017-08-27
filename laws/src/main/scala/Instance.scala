@@ -114,8 +114,49 @@ abstract class InstantiatorsOf[A] {
   val list = inst.generatorCached(_.toList)
   val vector = inst.generatorCached(_.toVector)
   val arrayBuffer = inst.generator(_.to[collection.mutable.ArrayBuffer])
+
+  def possible_a: Array[A]
+  def possible_x: Array[Array[A]]
+  def possible_y: Array[Array[A]]
 }
 
-object InstantiatorsOfInt extends InstantiatorsOf[Int] {}
+object InstantiatorsOfInt extends InstantiatorsOf[Int] {
+  lazy val possible_a = Array(0, 1, 2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 23, 31, 47, 152, 3133, 1294814, -1, -2, -6, -19, -1915, -19298157)
+  lazy val possible_x = Array(
+    Array.empty[Int],
+    Array(0),
+    Array(125),
+    Array(-15),
+    Array(0, 1),
+    Array(0, 1, 2),
+    Array(0, 1, 2, 3),
+    Array(0, 1, 2, 3, 4),
+    Array(4, 4, 4, 4, 4),
+    Array(0, 1, 2, 3, 4, 5, 6),
+    Array(0, 1, 2, 3, 4, 5, 6, 7),
+    Array(0, 1, 2, 3, 4, 5, 6, 7, 8),
+    Array(10, 10, 10, 10, 10, 5, 5, 5, 5, 1, 1, 1),
+    Array(0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1),
+    Array.range(0,31),
+    Array.range(0,32),
+    Array.range(0,33),
+    Array.range(0,192),
+    Array.fill(1025)(42),
+    Array.range(0,8111)
+  )
+  lazy val possible_y = possible_x
+}
 
-object InstantiatorsOfString extends InstantiatorsOf[String] {}
+object InstantiatorsOfString extends InstantiatorsOf[String] {
+  lazy val possible_a = Array("", "0", "one", "salmon", "\u0000\u0000\u0000\u0000", "the quick brown fox jumps over the lazy dog", "\u1517\u1851..!")
+  lazy val possible_x = Array(
+    Array.empty[String],
+    Array(possible_a(1)),
+    Array(possible_a(3)),
+    possible_a,
+    Array("0", "1", "0", "1", "0", "1", "0", "1", "0", "1", "0", "1"),
+    Array.range(-44, 45).map(_.toString),
+    Array.fill(184)("herring")
+  )
+  lazy val possible_y = possible_x
+}

@@ -69,6 +69,12 @@ object Numbers {
     )
   }
   def apply(L: Int, m: Int, mm: Int, n: Int, nn: Int): Numbers = new Numbers(L, m, mm, n, nn)
+
+  val possible_L = Array(0, 1, 2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 31, 47, 59, 132, 5101, -1, -10, -100, -1001)
+  val possible_m = Array(0, 1, 2, 3, 4, 5, 7, 8, 9, 15, 17, 17, 30, 31, 32, 47, 49, 50, 132, 5100, 5102)
+  val possible_mm = possible_m
+  val possible_n = possible_m
+  val possible_nn = possible_m
 }
 
 /** The collection to be tested: this provides all elements and collections
@@ -150,24 +156,11 @@ with Named {
     instance.toString.split("\n").map("  " + _).mkString("", "\n", "\n") +
     ops.toString.split("\n").map("  " + _).mkString("", "\n", "\n")
 
-  /** The laws tested by this (kind of) test, and the ability to run them */
-  def laws: Map[Int, (Law, () => Boolean)]
+  /** The law tested by this (kind of) test, and the ability to run it */
+  def law: Law
 
-  /** This is the actual test which runs the different laws.
-    *
-    * Failures are listed in the returned set.
-    */
-  def run(included: Set[Int]): (Set[Int], Map[Int, Test.Count]) = {
-    val failures = Set.newBuilder[Int]
-    val usages = collection.mutable.HashMap.empty[Int, Test.Count]
-    included.foreach{ i =>
-      resetCount
-      val result = laws(i)._2()
-      if (!result) failures += i
-      usages(i) = count
-    }
-    (failures.result, usages.toMap)
-  }
+  /** This is the actual test which runs a law and returns `true` if it passes with these parameters */
+  def run: Boolean
 }
 object Test {
   case class Count(numbers: Numbers.Count, instances: Instance.Count, ops: Ops.Count) {

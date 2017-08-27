@@ -3,7 +3,7 @@ package laws
 object Lawses {
   import Tags.Implicits._
 
-  private val b = Vector.newBuilder[Law]
+  private val b = Array.newBuilder[Law]
 
   implicit class LawMaker(text: String)(implicit file: sourcecode.File, line: sourcecode.Line) {
     /** Used to force implicit resolution of this class if it's otherwise ambiguous */
