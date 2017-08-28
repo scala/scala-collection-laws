@@ -186,7 +186,7 @@ object IntToLongs extends Variants[Int ===> Long] {
   val cast  = this has new Item(i => i.toLong)
 }
 
-object StringToOption extends Variants[String ===> Option[String]] {
+object StrToOpts extends Variants[String ===> Option[String]] {
   val natural = this has new Item(s => Option(s).filter(_.length > 0))
   val letter  = this has new Item(s => Option(s.filter(_.isLetter)).filter(_.length > 0))
 }
@@ -225,21 +225,21 @@ object StrParts extends Variants[ParFn[String]] {
   val uninhabited = this has new Item(Function.unlift((s: String) => None: Option[String]))
 }
 
-object IntOpsExplorer {
-  val sizes = Array(IntFns.all.length, IntToLongs.all.length, IntOpFns.all.length, IntPreds.all.length, IntParts.all.length)
+class OpsExplorer[A, B](
+  varFns: Variants[A ===> A],
+  varToBs: Variants[A ===> B],
+  varOpFns: Variants[OpFn[A]],
+  varPreds: Variants[A ===> Boolean],
+  varParts: Variants[ParFn[A]]
+)
+extends Exploratory[Ops[A, B]] {
+  val sizes = Array(varFns.all.length, varToBs.all.length, varOpFns.all.length, varPreds.all.length, varParts.all.length)
 
-  def create: Explore = new Explore(sizes)
-
-  def asOps(ixs: Array[Int]): Option[Ops[Int, Long]] =
-    if (ixs.length != 5) { println(f"Length ${ixs.length}"); None }
-    else {
-      var i = 0
-      while (i < ixs.length) {
-        if (ixs(i) < 0 || ixs(i) >= sizes(i)) { println(f"${ixs(i)} not in [0, ${sizes(i)})"); return None }
-        i += 1
-      }
-      Some(Ops(IntFns.index(ixs(0)), IntToLongs.index(ixs(1)), IntOpFns.index(ixs(2)), IntPreds.index(ixs(3)), IntParts.index(ixs(4))))
-    }
-
-  def asOps(e: Explore): Option[Ops[Int, Long]] = e.current.flatMap{ ixs => asOps(ixs) }
+  def lookup(ixs: Array[Int]): Option[Ops[A, B]] =
+    if (!validate(ixs)) None
+    else Some(Ops(varFns.index(ixs(0)), varToBs.index(ixs(1)), varOpFns.index(ixs(2)), varPreds.index(ixs(3)), varParts.index(ixs(4))))
 }
+
+object IntOpsExplorer extends OpsExplorer[Int, Long](IntFns, IntToLongs, IntOpFns, IntPreds, IntParts) {}
+
+object StrOpsExplorer extends OpsExplorer[String, Option[String]](StrFns, StrToOpts, StrOpFns, StrPreds, StrParts) {}

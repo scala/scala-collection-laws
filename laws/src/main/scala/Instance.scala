@@ -109,7 +109,8 @@ object Instance { outer =>
   * The variable names used are ones we can use to select
   * tests inside the generator.
   */
-abstract class InstantiatorsOf[A] {
+abstract class InstantiatorsOf[A]
+extends Exploratory[(A, Array[A], Array[A])] {
   private[this] val inst = Instance.over[A]
   val list = inst.generatorCached(_.toList)
   val vector = inst.generatorCached(_.toVector)
@@ -118,6 +119,12 @@ abstract class InstantiatorsOf[A] {
   def possible_a: Array[A]
   def possible_x: Array[Array[A]]
   def possible_y: Array[Array[A]]
+
+  val sizes = Array(possible_a.length, possible_x.length, possible_y.length)
+  
+  def lookup(ixs: Array[Int]): Option[(A, Array[A], Array[A])] =
+    if (!validate(ixs)) None
+    else Some((possible_a(ixs(0)), possible_x(ixs(1)), possible_y(ixs(2))))
 }
 
 object InstantiatorsOfInt extends InstantiatorsOf[Int] {
