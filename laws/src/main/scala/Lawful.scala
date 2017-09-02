@@ -81,6 +81,8 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
   val methods = findMyMethods
   val check = findMyMethods.fold(_ => MethodChecker.missing, s => new MethodChecker(s))
 
+  val lineNumber = line.value
+
   override def toString =
     (if (name.isEmpty) "" else f"# $name\n") +
     code +

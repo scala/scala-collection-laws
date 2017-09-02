@@ -395,4 +395,5 @@ y !RANGE ... sameType(x, x.`&~`(y))
 
   val complete = b.result
   val all = complete.filterNot(_.disabled)
+  lazy val byLineNumber = complete.map(law => law.lineNumber -> law).toMap
 }

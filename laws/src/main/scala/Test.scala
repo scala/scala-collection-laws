@@ -1,98 +1,9 @@
 package laws
 
-/** Sets of integer values used to check individual cases in certain tests.
-  *
-  * In general, we expect but do not enforce here that `n` and `m` are positive
-  * and bounded by the size of collections `x` and `y` (in the `Coll` in which
-  * these `Values` are used), and that `nn` and `mm` are both positive.  `L` can
-  * be anything.
-  *
-  * The `Count` methods are used to detect whether a variable is used in a test or not.
-  * If not, alternate values of that variable are not tested.  Note that laws are
-  * expected to be deterministic, so this should always be a safe strategy.
-  */
-class Numbers private (
-  private[laws] val L0: Int,
-  private[laws] val m0: Int,
-  private[laws] val mm0: Int,
-  private[laws] val n0: Int,
-  private[laws] val nn0: Int
-) {
-  private[this] var _LCount: Int = 0
-  private[this] var _mCount: Int = 0
-  private[this] var _mmCount: Int = 0
-  private[this] var _nCount: Int = 0
-  private[this] var _nnCount: Int = 0
-
-  def L: Int = { _LCount += 1; L0 }
-  def m: Int = { _mCount += 1; m0 }
-  def mm: Int = { _mmCount += 1; mm0 }
-  def n: Int = { _nCount += 1; n0 }
-  def nn: Int = { _nnCount += 1; nn0 }
-
-  def LCount: Int = _LCount
-  def mCount: Int = _mCount
-  def mmCount: Int = _mmCount
-  def nCount: Int = _nCount
-  def nnCount: Int = _nnCount
-  def count = Numbers.Count(LCount, mCount, mmCount, nCount, nnCount)
-  def resetCount: this.type = { _LCount = 0; _mCount = 0; _mmCount = 0; _nCount = 0; _nnCount = 0; this }
-
-  class Secret {
-    def L = L0
-    def m = m0
-    def mm = mm0
-    def n = n0
-    def nn = nn0
-  }
-  /** Allow the values to be accessed without recording them (so as not to trigger tests of variants in the parameter) */
-  val secret = new Secret
-
-  override def equals(that: Any) = that match {
-    case v: Numbers => L0 == v.L0 && m0 == v.m0 && mm0 == v.mm0 && n0 == v.n0 && nn0 == v.nn0
-    case _          => false
-  }
-  override def hashCode = {
-    import scala.util.hashing.MurmurHash3._
-    finalizeHash(mixLast(mix(mix(mix(m0, L0), mm0), n0), nn0), 5)
-  }
-  override def toString = f"Numbers: $L0, $m0, $mm0, $n0, $nn0"
-}
-object Numbers {
-  case class Count(LCount: Int, mCount: Int, mmCount: Int, nCount: Int, nnCount: Int) {
-    def -(that: Count) = new Count(
-      LCount  - that.LCount,
-      mCount  - that.mCount,
-      mmCount - that.mmCount,
-      nCount  - that.nCount, 
-      nnCount - that.nnCount
-    )
-  }
-  def apply(L: Int, m: Int, mm: Int, n: Int, nn: Int): Numbers = new Numbers(L, m, mm, n, nn)
-
-  val possible_L = Array(0, 1, 2, 5, 7, 8, 9, 15, 16, 17, 31, 59, 132, 5101, 91347, -1, -24, -1001)
-  val possible_m = Array(0, 1, 2, 3, 8, 9, 15, 17, 30, 31, 32, 47, 49, 50, 132, 5100, 5102)
-  val possible_mm = possible_m
-  val possible_n = possible_m
-  val possible_nn = possible_m
-
-  class Restricted(val xsize: Int, val ysize: Int)
-  extends Exploratory[Numbers] {
-    val actual_n = possible_n.takeWhile(_ < xsize) match { case ns if ns.length == 0 => Array(-1); case ns => ns }
-    val actual_m = possible_m.takeWhile(_ < ysize) match { case ms if ms.length == 0 => Array(-1); case ms => ms }
-
-    val sizes = Array(possible_L.length, actual_m.length, possible_mm.length, actual_n.length, possible_nn.length)
-
-    def lookup(ixs: Array[Int]): Option[Numbers] =
-      if (!validate(ixs)) None
-      else Some(Numbers(possible_L(ixs(0)), actual_m(ixs(1)), possible_mm(ixs(2)), actual_n(ixs(3)), possible_nn(ixs(4))))
-  }
-}
-
 /** The collection to be tested: this provides all elements and collections
   * and mappings thereon which are available inside the tests.
   */
-abstract class Test[A, B, CC](
+abstract class Test[A, B, CC, T <: Test[A, B, CC, T]](
   val num: Numbers,
   val instance: Instance[A, CC],
   val ops: Ops[A, B]
@@ -168,6 +79,12 @@ with Named {
     instance.toString.split("\n").map("  " + _).mkString("", "\n", "\n") +
     ops.toString.split("\n").map("  " + _).mkString("", "\n", "\n")
 
+  def renumber(numb: Numbers): T
+
+  def reinstance(inst: Instance[A, CC]): T
+
+  def reoperate(ops: Ops[A, B]): T
+
   /** The law tested by this (kind of) test, and the ability to run it */
   def law: Law
 
@@ -180,7 +97,7 @@ object Test {
   }
 
   private class N(var count: Int = 0) { def ++(){ count += 1 } }
-  class ComparesTo[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
+  implicit class ComparesTo[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
     def theSameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
       val meB, youB = collection.mutable.ArrayBuffer.empty[A]
       onceCC(me).foreach(meB += _)
@@ -200,31 +117,86 @@ object Test {
       onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
       meM.forall{ case (a, n) => youM.get(a).exists(_.count >= n.count) }
     }
+  }
 
+  trait Companion[A, B, CC] {
+    def instanceExplorer: Exploratory[Instance[A, CC]]
+    def opsExplorer: Exploratory[Ops[A, B]]
+    def numberExplorer(inst: Instance[A, CC]): Exploratory[Numbers] =
+      new Numbers.Restricted(inst.secret.xsize, inst.secret.ysize)
+    def flatName: String
+    def heritage: String
+    def colType: String
+    def instTypes: String
+    def opsTypes: String
+    def code(law: Law): String = {
+      val name = f"Test$flatName";
+      Array(
+        f"class $name(num: Numbers, instance: Instance[$instTypes], ops: Ops[$opsTypes])",
+        f"extends $heritage[$colType, $name](num, instance, ops) {",
+        f"  import Test.ComparesTo",
+        f"  def renumber(numb: Numbers) = new $name(numb, instance, ops)",
+        f"  def reinstance(inst: Instance[$instTypes]) = new $name(num, inst, ops)",
+        f"  def reoperate(oper: Ops[$opsTypes]) = new $name(num, instance, oper)",
+        f"  def law = Lawses.byLineNumber(${law.lineNumber})",
+        f"  def run: Boolean = {",
+        law.code.lines.map("    " + _).mkString("\n"),
+        f"  }",
+        f"}"
+      ).mkString("\n")
+    }
   }
 }
 
 
-///////////////////////////////////////
-// Selection of base collection type //
-///////////////////////////////////////
+/////////////////////////////////////////
+// Selection of element type for tests //
+/////////////////////////////////////////
 
-abstract class IntTest[CC](
+abstract class IntTest[CC, T <: IntTest[CC, T]](
   num: Numbers, instance: Instance[Int, CC], ops: Ops[Int, Long]
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[Int, Long, CC](num, instance, ops)(file, line, name) {
+extends Test[Int, Long, CC, T](num, instance, ops)(file, line, name) {
   type A = Int
   type B = Long
+  type Inst = Instance[Int, CC]
+  type Oper = Ops[Int, Long]
+}
+object IntTest {
+  trait Companion[CC] extends Test.Companion[Int, Long, CC] {
+    val opsExplorer = IntOpsExplorer
+    val heritage = "IntTest"
+    val opsTypes = "Int, Long"
+  }
 }
 
-abstract class StrTest[CC](
+abstract class StrTest[CC, T <: StrTest[CC, T]](
   num: Numbers, instance: Instance[String, CC], ops: Ops[String, Option[String]]
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[String, Option[String], CC](num, instance, ops)(file, line, name) {
+extends Test[String, Option[String], CC, T](num, instance, ops)(file, line, name) {
   type A = String
   type B = Option[String]
+}
+object StrTest {
+  trait Companion[CC] extends Test.Companion[String, Option[String], CC] {
+    val opsExplorer = StrOpsExplorer
+    val heritage = "StrTest"
+    val opsTypes = "String, Option[String]"
+  }
+}
+
+
+////////////////////////////////////////////////////
+// Enumeration of all collections we want to test //
+////////////////////////////////////////////////////
+
+object ListIntTests extends IntTest.Companion[List[Int]] {
+  val instanceExplorer = InstantiatorsOfInt.map(InstantiatorsOfInt.list.tupled)
+  val flatName = "ListInt"
+  val colType = "List[Int]"
+  val instTypes = "Int, List[Int]"
 }

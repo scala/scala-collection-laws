@@ -56,7 +56,7 @@ object MethodChecker {
 }
 
 /** Indicates that there is some set of parameters to be explored */
-trait Exploratory[A] {
+trait Exploratory[A] { self =>
   def sizes: Array[Int]
 
   final def explore: Explore = new Explore(sizes)
@@ -74,4 +74,9 @@ trait Exploratory[A] {
 
   def lookup(ixs: Array[Int]): Option[A]
   final def lookup(e: Explore): Option[A] = e.current.flatMap{ ixs => lookup(ixs) }
+
+  def map[B](f: A => B): Exploratory[B] = new Exploratory[B] {
+    def sizes = self.sizes
+    def lookup(ixs: Array[Int]) = self.lookup(ixs).map(f)
+  }
 }
