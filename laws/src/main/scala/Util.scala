@@ -54,29 +54,3 @@ object MethodChecker {
     meths.map(_.name.decodedName.toString).toSet
   }
 }
-
-/** Indicates that there is some set of parameters to be explored */
-trait Exploratory[A] { self =>
-  def sizes: Array[Int]
-
-  final def explore: Explore = new Explore(sizes)
-
-  protected def validate(ixs: Array[Int]): Boolean =
-    if (ixs.length != sizes.length) false
-    else {
-      var i = 0
-      while (i < ixs.length) {
-        if (ixs(i) < 0 || ixs(i) >= sizes(i)) return false
-        i += 1
-      }
-      true
-    }
-
-  def lookup(ixs: Array[Int]): Option[A]
-  final def lookup(e: Explore): Option[A] = e.current.flatMap{ ixs => lookup(ixs) }
-
-  def map[B](f: A => B): Exploratory[B] = new Exploratory[B] {
-    def sizes = self.sizes
-    def lookup(ixs: Array[Int]) = self.lookup(ixs).map(f)
-  }
-}

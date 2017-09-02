@@ -126,19 +126,32 @@ pf ... x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)
 val b = new collection.mutable.ArrayBuffer[@A]; x.`copyToBuffer`(b); b.result theSameAs x
 x theSameAs x.`companion`(x.toList: _*)
 !RANGE !SORTED !ARRAY !USESARRAY !N ... sameType(x, x.`companion`.empty[@A])
-p ... x.`count`(p) > 0 == x.`exists`(p)
-p ... (x.`count`(p) == x.`size`) == x.`forall`(p)
-p ... x.`count`(p) == { var y=0; x.`foreach`(xi => if (p(xi)) y += 1); y }
-p ... x.filter(p).`size` == x.`count`(p)
-p ... x.filter(p).`forall`(p) == true
+***********************************************/
+
+"x.`count`(p) > 0 == x.`exists`(p)".law
+
+"(x.`count`(p) == x.`size`) == x.`forall`(p)".law
+
+"x.`count`(p) == { var k=0; x.`foreach`(xi => if (p(xi)) k += 1); k }".law
+
+"x.filter(p).`size` == x.`count`(p)".law
+
+"x.filter(p).`forall`(p) == true".law
+
+/******** TODO--port the rest of these *********
 p !RANGE ... sameType(x, x.filter(p))
 
 // Why doesn't array work?!  Induces out-of-place ambiguous implicit conversion problem on for loop (booleanArrayOps & byteArrayOps)?!
 y !ARRAY !M ... x.flatMap(xi => y.toList.take($INT(xi))) theSameAs x.map(xi => y.toList.take($INT(xi))).`flatten`
+***********************************************/
 
-a op ... x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)
-a op ... x.`foldLeft`(a)(op) == x.`/:`(a)(op)
-a op ... x.`foldRight`(a)(op) == x.`:\`(a)(op)
+"x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)".law
+
+"x.`foldLeft`(a)(op) == x.`/:`(a)(op)".law
+
+"""x.`foldRight`(a)(op) == x.`:\`(a)(op)""".law
+
+/******** TODO--port the rest of these *********
 !ADEFINITE ... x.`nonEmpty` implies (x.`hasDefiniteSize` == @DEFINITE)
 x.`isTraversableAgain` == @AGAIN
 tryO{x.`max`} == tryO{x.`reduce`(_ max _)}

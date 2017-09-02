@@ -71,3 +71,48 @@ class Explore(possibilities: Array[Int]) {
 
   def current: Option[Array[Int]] = if (itinerary.nonEmpty) Some(itinerary.front) else None
 }
+
+
+/** Indicates that there is some set of parameters to be explored */
+trait Exploratory[A] { self =>
+  def sizes: Array[Int]
+
+  final def explore(): Explore = new Explore(sizes)
+
+  final def completeIterator(): Iterator[A] = {
+    val e = explore()
+    val b = Array.fill(sizes.length)(true)
+    new collection.AbstractIterator[A] {
+      private[this] var maybeA: Option[A] = None
+      @annotation.tailrec def hasNext =
+        maybeA.isDefined || (e.itinerary.nonEmpty && e.advance(b) && { maybeA = e.current.flatMap(self.lookup); hasNext })
+      def next =
+        if (!hasNext) throw new NoSuchElementException("Empty exploratory iterator")
+        else {
+          val ans = maybeA.get
+          maybeA = None
+          ans
+        }
+    }
+  }
+
+  protected def validate(ixs: Array[Int]): Boolean =
+    if (ixs.length != sizes.length) false
+    else {
+      var i = 0
+      while (i < ixs.length) {
+        if (ixs(i) < 0 || ixs(i) >= sizes(i)) return false
+        i += 1
+      }
+      true
+    }
+
+  def lookup(ixs: Array[Int]): Option[A]
+  final def lookup(e: Explore): Option[A] = e.current.flatMap{ ixs => lookup(ixs) }
+
+  def map[B](f: A => B): Exploratory[B] = new Exploratory[B] {
+    def sizes = self.sizes
+    def lookup(ixs: Array[Int]) = self.lookup(ixs).map(f)
+  }
+}
+

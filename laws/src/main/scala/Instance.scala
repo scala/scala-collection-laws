@@ -112,9 +112,11 @@ object Instance { outer =>
 abstract class InstantiatorsOf[A]
 extends Exploratory[(A, Array[A], Array[A])] {
   private[this] val inst = Instance.over[A]
+
   val list = inst.generatorCached(_.toList)
   val vector = inst.generatorCached(_.toVector)
   val arrayBuffer = inst.generator(_.to[collection.mutable.ArrayBuffer])
+  val array = inst.generator(_.clone)
 
   def possible_a: Array[A]
   def possible_x: Array[Array[A]]
@@ -154,7 +156,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   lazy val possible_y = possible_x
 }
 
-object InstantiatorsOfString extends InstantiatorsOf[String] {
+object InstantiatorsOfStr extends InstantiatorsOf[String] {
   lazy val possible_a = Array("", "0", "one", "salmon", "\u0000\u0000\u0000\u0000", "the quick brown fox jumps over the lazy dog", "\u1517\u1851..!")
   lazy val possible_x = Array(
     Array.empty[String],

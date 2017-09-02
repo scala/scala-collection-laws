@@ -84,10 +84,10 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
   val lineNumber = line.value
 
   override def toString =
-    (if (name.isEmpty) "" else f"# $name\n") +
+    (if (name.isEmpty) "" else f"// $name\n") +
     code +
-    (if (tags.isEmpty) "" else "\n# " + tags.toString) +
-    "\n#   from " + Sourced.local(file, line) + ")\n"
+    (if (tags.isEmpty) "" else "\n// # " + tags.toString) +
+    "\n// @ " + Sourced.local(file, line) + "\n"
 }
 object Law {
   def apply(code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(code)(file, line)

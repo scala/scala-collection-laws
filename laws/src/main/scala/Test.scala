@@ -124,11 +124,14 @@ object Test {
     def opsExplorer: Exploratory[Ops[A, B]]
     def numberExplorer(inst: Instance[A, CC]): Exploratory[Numbers] =
       new Numbers.Restricted(inst.secret.xsize, inst.secret.ysize)
-    def flatName: String
+    def ccType: String
+    def eltType: String
+    def altType: String
     def heritage: String
-    def colType: String
-    def instTypes: String
-    def opsTypes: String
+    def flatName: String = f"$ccType$eltType"
+    def colType: String = f"$ccType[$eltType]"
+    def instTypes: String = f"$eltType, $colType"
+    def opsTypes: String = f"$eltType, $altType"
     def code(law: Law): String = {
       val name = f"Test$flatName";
       Array(
@@ -168,7 +171,8 @@ object IntTest {
   trait Companion[CC] extends Test.Companion[Int, Long, CC] {
     val opsExplorer = IntOpsExplorer
     val heritage = "IntTest"
-    val opsTypes = "Int, Long"
+    val eltType = "Int"
+    val altType = "Long"
   }
 }
 
@@ -183,9 +187,12 @@ extends Test[String, Option[String], CC, T](num, instance, ops)(file, line, name
 }
 object StrTest {
   trait Companion[CC] extends Test.Companion[String, Option[String], CC] {
+    val io = InstantiatorsOfStr
     val opsExplorer = StrOpsExplorer
     val heritage = "StrTest"
-    val opsTypes = "String, Option[String]"
+    val eltType = "String"
+    val altType = "Option[String]"
+    override def flatName = f"${ccType}Str"
   }
 }
 
@@ -194,9 +201,26 @@ object StrTest {
 // Enumeration of all collections we want to test //
 ////////////////////////////////////////////////////
 
-object ListIntTests extends IntTest.Companion[List[Int]] {
-  val instanceExplorer = InstantiatorsOfInt.map(InstantiatorsOfInt.list.tupled)
-  val flatName = "ListInt"
-  val colType = "List[Int]"
-  val instTypes = "Int, List[Int]"
+object AllIntTestCompanions {
+  val io = InstantiatorsOfInt
+
+  class Companion[CC](iexp: InstantiatorsOf[Int] => Instance.FromArray[Int, CC])(implicit name: sourcecode.Name)
+  extends IntTest.Companion[CC] {
+    val instanceExplorer = io.map(iexp(io).tupled)
+    def ccType = name.value.toString.capitalize
+  }
+
+  val list = new Companion(_.list)
+}
+
+object AllStrTestCompanions {
+  val io = InstantiatorsOfStr
+
+  class Companion[CC](iexp: InstantiatorsOf[String] => Instance.FromArray[String, CC])(implicit name: sourcecode.Name)
+  extends StrTest.Companion[CC] {
+    val instanceExplorer = io.map(iexp(io).tupled)
+    def ccType = name.value.toString.capitalize
+  }
+
+  val list = new Companion(_.list)
 }
