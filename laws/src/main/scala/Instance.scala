@@ -157,7 +157,9 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
 }
 
 object InstantiatorsOfStr extends InstantiatorsOf[String] {
-  lazy val possible_a = Array("", "0", "one", "salmon", "\u0000\u0000\u0000\u0000", "the quick brown fox jumps over the lazy dog", "\u1517\u1851..!")
+  lazy val possible_a = Array(
+    "", "0", "one", "salmon", "\u0000\u0000\u0000\u0000", "the quick brown fox jumps over the lazy dog", "\u1517\u1851..!"
+  )
   lazy val possible_x = Array(
     Array.empty[String],
     Array(possible_a(1)),

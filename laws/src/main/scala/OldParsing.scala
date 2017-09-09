@@ -1,4 +1,4 @@
-package laws
+package oldlaws
 
 import annotation.tailrec
 import collection.mutable.Builder

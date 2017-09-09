@@ -9,7 +9,8 @@ abstract class Test[A, B, CC, T <: Test[A, B, CC, T]](
   val ops: Ops[A, B]
 )(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name) 
 extends Sourced
-with Named {
+with Named
+with TestInfo {
   /** Arbitrary element of the type in the collection */
   def a: A = instance.a
 
@@ -64,8 +65,15 @@ with Named {
   /** Element of type `A` that is a zero with respect to `op`, if `op` exists and a zero exists */
   def zero: A = ops.z
 
-  /** Tests whether this Coll has a zero defined */
+  /** Operation has a zero */
   def hasZero = ops.hasZ
+
+  /** Operation is symmetric and associative */
+  def isSymOp = ops.isSymOp
+
+  def boxedRuntime = a.getClass
+
+  def runtimeColl = x.getClass
 
   def name = nm.value.toString
 
@@ -78,6 +86,10 @@ with Named {
     f"\n  $num\n" +
     instance.toString.split("\n").map("  " + _).mkString("", "\n", "\n") +
     ops.toString.split("\n").map("  " + _).mkString("", "\n", "\n")
+
+  def tryE[A](f: => A): Either[Throwable, A] = try { Right(f) } catch { case e: Throwable => Left(e) }
+
+  def tryO[A](f: => A): Option[A] = try { Some(f) } catch { case _: Throwable => None }
 
   def renumber(numb: Numbers): T
 

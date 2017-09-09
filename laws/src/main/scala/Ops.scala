@@ -23,7 +23,7 @@ extends Named {
 }
 
 /** Wrapper class around a binary operation that lets you tell where it came from */
-class OpFn[X](val ofn: (X, X) => X, val zero: Option[X])(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name)
+class OpFn[X](val ofn: (X, X) => X, val zero: Option[X], val sym: OpFn.Symmetry)(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name)
 extends Named {
   def name = nm.value.toString
   override val toString = nm.value.toString + " @ " + Sourced.implicitly
@@ -32,6 +32,11 @@ extends Named {
     case _          => false
   }
   override val hashCode = scala.util.hashing.MurmurHash3.stringHash(toString)
+}
+object OpFn {
+  sealed trait Symmetry {}
+  final case object Symmetric extends Symmetry {}
+  final case object Nonsymmetric extends Symmetry {}  
 }
 
 /** Wrapper class around a partial function that lets you tell where it came from */
@@ -87,6 +92,8 @@ final class Ops[A, B] private (
   def z: A = { _opzCount += 1; op0.zero.get }
 
   val hasZ: Boolean = op0.zero.isDefined
+
+  def isSymOp: Boolean = op0.sym == OpFn.Symmetric
 
   def fCount = _fCount
   def gCount = _gCount
@@ -192,13 +199,13 @@ object StrToOpts extends Variants[String ===> Option[String]] {
 }
 
 object IntOpFns extends Variants[OpFn[Int]] {
-  val summation = this has new Item(_ + _, Some(0))
-  val multiply  = this has new Item((i, j) => i*j - 2*i - 3*j + 4, None)
+  val summation = this has new Item(_ + _, Some(0), OpFn.Symmetric)
+  val multiply  = this has new Item((i, j) => i*j - 2*i - 3*j + 4, None, OpFn.Nonsymmetric)
 }
 
 object StrOpFns extends Variants[OpFn[String]] {
-  val concat     = this has new Item(_ + _, Some(""))
-  val interleave = this has new Item((s, t) => (s zip t).map{ case (l,r) => f"$l$r" }.mkString, None)
+  val concat     = this has new Item(_ + _, Some(""), OpFn.Symmetric)
+  val interleave = this has new Item((s, t) => (s zip t).map{ case (l,r) => f"$l$r" }.mkString, None, OpFn.Nonsymmetric)
 }
 
 object IntPreds extends Variants[Int ===> Boolean] {

@@ -1,6 +1,6 @@
 package laws
 
-object Lawses {
+object Laws {
   import Tags.Implicits._
 
   private val b = Array.newBuilder[Law]
@@ -154,25 +154,53 @@ y !ARRAY !M ... x.flatMap(xi => y.toList.take($INT(xi))) theSameAs x.map(xi => y
 /******** TODO--port the rest of these *********
 !ADEFINITE ... x.`nonEmpty` implies (x.`hasDefiniteSize` == @DEFINITE)
 x.`isTraversableAgain` == @AGAIN
-tryO{x.`max`} == tryO{x.`reduce`(_ max _)}
-f ... tryO{x.`maxBy`(f)} == tryO{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }
-tryO{x.`min`} == tryO{x.`reduce`(_ min _)}
-f ... tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }
-x.`nonEmpty` == x.`exists`(_ => true)
+***********************************************/
+
+"tryO{x.`max`} == tryO{x.`reduce`(_ max _)}".law
+
+"f ... tryO{x.`maxBy`(f)} == tryO{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }".law
+
+"tryO{x.`min`} == tryO{x.`reduce`(_ min _)}".law
+
+"f ... tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law
+
+"x.`nonEmpty` == x.`exists`(_ => true)".law
+
+
+/******** TODO--port the rest of these *********
 one ... x.`product` == x.`fold`(one)(_ * _)
-op ... Set(tryO{x.`reduce`(op)}, tryO{x.`reduceLeft`(op)}, tryO{x.`reduceRight`(op)}, x.`reduceOption`(op), x.`reduceLeftOption`(op), x.`reduceRightOption`(op)).size == 1
-x.`size` == x.`count`(_ => true)
 zero ... x.`sum` == x.`fold`(zero)(_ + _)
-x theSameAs x.`to`[List]
-x.`toArray` theSameAs x
-x.`toBuffer` theSameAs x
-x.`toIndexedSeq` theSameAs x
-x.`toIterable` theSameAs x
-x.`toList` theSameAs x
-x.map(xi => (xi,xi)).`toMap` theSameAs { val hm = new collection.mutable.HashMap[@A,@A]; x.foreach(xi => hm += xi -> xi); hm }
-x.`toSeq` theSameAs x
-x.`toSet` isPartOf x
-x.`toVector` theSameAs x
+***********************************************/
+
+"""Set(
+  tryO{x.`reduce`(op)}, tryO{x.`reduceLeft`(op)}, tryO{x.`reduceRight`(op)},
+  x.`reduceOption`(op), x.`reduceLeftOption`(op), x.`reduceRightOption`(op)
+).size == 1""".law(select(_.isSymOp))
+
+"x.`size` == x.`count`(_ => true)".law
+
+"x theSameAs x.`to`[List]".law
+
+"x.`toArray` theSameAs x".law
+
+"x.`toBuffer` theSameAs x".law
+
+"x.`toIndexedSeq` theSameAs x".law
+
+"x.`toIterable` theSameAs x".law
+
+"x.`toList` theSameAs x".law
+
+"x.map(xi => (xi,xi)).`toMap` theSameAs { val hm = new collection.mutable.HashMap[A,A]; x.foreach(xi => hm += xi -> xi); hm }".law
+
+"x.`toSeq` theSameAs x".law
+
+"x.`toSet` isPartOf x".law
+
+"x.`toVector` theSameAs x".law
+
+
+/******** TODO--port the rest of these *********
 p !S ... val y = new collection.mutable.ArrayBuffer[@A]; x.`withFilter`(p).foreach(y += _); y theSameAs x.filter(p)
 p S ... val y = new collection.mutable.HashSet[@A]; x.`withFilter`(p).foreach(y += _); y theSameAs x.filter(p)
 x.`hasNext` == x.`nonEmpty`

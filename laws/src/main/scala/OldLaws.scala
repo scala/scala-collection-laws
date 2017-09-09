@@ -1,4 +1,4 @@
-package laws
+package oldlaws
 
 import scala.language.implicitConversions
 import scala.language.higherKinds
@@ -7,7 +7,7 @@ import java.io.File
 
 import scala.util._
 import scala.collection.mutable.{AnyRefMap => RMap}
-import laws.Parsing._
+import oldlaws.Parsing._
 
 /** Generates and runs single-line collections tests that may be viewed as laws that collections should obey. */
 class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], globalFlags: Parsing.Flags) {
@@ -160,7 +160,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], global
     val whole = Vector.newBuilder[String]
     whole += autoComment
     lineMacro.argsOf(replaces.infos.get("fileHeader").map(_.values.mkString(" ")).getOrElse("")).foreach(whole += _)
-    whole += "import laws.Laws.{RunnableLawsTest, RunnableLawsResult}"
+    whole += "import oldlaws.Laws.{RunnableLawsTest, RunnableLawsResult}"
     whole += ""
     whole += (replaces("@NAME") match {
       // Order is important here!  Only the single-entry vector case is good.
@@ -193,7 +193,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], global
     whole += "    val ran = run()"
     whole += "    if (ran.errors.nonEmpty) {"
     whole += "      println(ran.errors.length + \" errors for \" + ran.title + \"!\")"
-    whole += "      ran.errors.foreach{ e => println; laws.Laws.explainException(e).take(10).foreach(println); }"
+    whole += "      ran.errors.foreach{ e => println; oldlaws.Laws.explainException(e).take(10).foreach(println); }"
     whole += "      sys.exit(1)"
     whole += "    }"
     whole += "    println(\"All tests passed for \" + ran.title)"
@@ -258,7 +258,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], global
     
     // The key variable is mapped, which stores the methods found from all those variables
     whole += "  val mapped: Map[String, Set[String]] = Map("
-    assigned.foreach{ case (name, v, _) => whole += "    \"" + name + "\" -> laws.MethodFinder(" + v + "._1, " + v + "._2 )," }
+    assigned.foreach{ case (name, v, _) => whole += "    \"" + name + "\" -> oldlaws.MethodFinder(" + v + "._1, " + v + "._2 )," }
     whole += "    \"null\" -> Set()"
     whole += "  )"
     whole += "}"
@@ -272,20 +272,20 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], global
     // Load map with reflection or catch the mistake and say what went wrong
     val wrong: Throwable = {
       try {
-        val obj = Class.forName("laws.Instances$").getDeclaredConstructors.headOption.map{ c => c.setAccessible(true); c.newInstance() }.get
-        val meth = Class.forName("laws.Instances$").getDeclaredMethods.find(_.getName == "mapped").get
+        val obj = Class.forName("oldlaws.Instances$").getDeclaredConstructors.headOption.map{ c => c.setAccessible(true); c.newInstance() }.get
+        val meth = Class.forName("oldlaws.Instances$").getDeclaredMethods.find(_.getName == "mapped").get
         val ans = Right(meth.invoke(obj).asInstanceOf[Map[String, Set[String]]])
-        // If laws.Instances isn't around, we'll have bailed out with an exception by this point
+        // If oldlaws.Instances isn't around, we'll have bailed out with an exception by this point
         // S
         return (
           if (generate.isEmpty) ans
-          else Left(Vector("Stale laws.Instances found visible to generator for Scala.instances??"))
+          else Left(Vector("Stale oldlaws.Instances found visible to generator for Scala.instances??"))
         )
       }
       catch { case t: Throwable => t }
     }
     
-    // If we got here, we do not have laws.Instances available, and we weren't supposed to, so we proceed.
+    // If we got here, we do not have oldlaws.Instances available, and we weren't supposed to, so we proceed.
     // Make the code or bail if something went wrong
     val instanceCode = synthInstances(replaceses) match {
       case Left(v) => return Left("Could not create code for Instances.scala:" +: v)
@@ -354,7 +354,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], global
           }
           val all = Vector.newBuilder[String]
           all += "package tests.generated.collection"
-          all += "import laws.Laws.{RunnableLawsTest, RunnableLawsResult}"
+          all += "import oldlaws.Laws.{RunnableLawsTest, RunnableLawsResult}"
           all += "object Test_All {"
           all += testses.flatMap(_.tests.map(_.line.index)).foldLeft(Set.empty[Int])(_ + _).mkString("  val lines = Set(", " ,", ")")
           all += "  val tests = Vector[RunnableLawsTest]("
@@ -363,7 +363,7 @@ class Laws(replacementsRaw: Vector[String], linetestsRaw: Vector[String], global
           all += ""
           all += "  def main(args: Array[String]) {"
           all += "    val results = tests.map(_.run())"
-          all += "    val exitcode = laws.Laws.reportResults(results, lines)"
+          all += "    val exitcode = oldlaws.Laws.reportResults(results, lines)"
           all += "    if (exitcode != 0) sys.exit(exitcode)"
           all += "  }"
           all += "}"
