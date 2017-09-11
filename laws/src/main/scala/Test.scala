@@ -65,11 +65,16 @@ with TestInfo {
   /** Element of type `A` that is a zero with respect to `op`, if `op` exists and a zero exists */
   def zero: A = ops.z
 
+  /** Converts a value to a characteristic integer.  (Default is just hashcode.) */
+  def intFrom(a: A): Int = a.##
+
   /** Operation has a zero */
   def hasZero = ops.hasZ
 
   /** Operation is symmetric and associative */
   def isSymOp = ops.isSymOp
+
+  def flags: Set[String] = instance.flags
 
   def boxedRuntime = a.getClass
 
@@ -153,7 +158,7 @@ object Test {
         f"  def renumber(numb: Numbers) = new $name(numb, instance, ops)",
         f"  def reinstance(inst: Instance[$instTypes]) = new $name(num, inst, ops)",
         f"  def reoperate(oper: Ops[$opsTypes]) = new $name(num, instance, oper)",
-        f"  def law = Lawses.byLineNumber(${law.lineNumber})",
+        f"  def law = Laws.byLineNumber(${law.lineNumber})",
         f"  def run: Boolean = {",
         law.code.lines.map("    " + _).mkString("\n"),
         f"  }",
@@ -178,6 +183,7 @@ extends Test[Int, Long, CC, T](num, instance, ops)(file, line, name) {
   type B = Long
   type Inst = Instance[Int, CC]
   type Oper = Ops[Int, Long]
+  override def intFrom(a: Int) = a
 }
 object IntTest {
   trait Companion[CC] extends Test.Companion[Int, Long, CC] {
@@ -196,6 +202,9 @@ abstract class StrTest[CC, T <: StrTest[CC, T]](
 extends Test[String, Option[String], CC, T](num, instance, ops)(file, line, name) {
   type A = String
   type B = Option[String]
+  type Inst = Instance[String, CC]
+  type Oper = Ops[String, Option[String]]
+  override def intFrom(s: String) = s.length
 }
 object StrTest {
   trait Companion[CC] extends Test.Companion[String, Option[String], CC] {
@@ -216,13 +225,23 @@ object StrTest {
 object AllIntTestCompanions {
   val io = InstantiatorsOfInt
 
+  private val everyoneBuffer = Array.newBuilder[Companion[_]]
+
   class Companion[CC](iexp: InstantiatorsOf[Int] => Instance.FromArray[Int, CC])(implicit name: sourcecode.Name)
   extends IntTest.Companion[CC] {
     val instanceExplorer = io.map(iexp(io).tupled)
     def ccType = name.value.toString.capitalize
   }
 
+  def register[CC](iexp: InstantiatorsOf[Int] => Instance.FromArray[Int, CC])(implicit name: sourcecode.Name): Companion[CC] = {
+    val ans = new Companion(iexp)(name)
+    everyoneBuffer += ans
+    ans
+  }
+
   val list = new Companion(_.list)
+
+  lazy val all = everyoneBuffer.result
 }
 
 object AllStrTestCompanions {

@@ -12,7 +12,8 @@ class Instance[A, CC] private (
   private[laws] val x0: () => CC,
   private[laws] val xsize0: Int,
   private[laws] val y0: () => CC,
-  private[laws] val ysize0: Int
+  private[laws] val ysize0: Int,
+  val flags: Set[String]
 ) {
   private[this] var _aCount: Int = 0
   private[this] var _xCount: Int = 0
@@ -77,29 +78,31 @@ object Instance { outer =>
     )
   }
 
-  def apply[A, CC](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int): Instance[A, CC] =
-    new Instance(a, () => x, xsize, () => y, ysize)
-  def from[A, CC](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC): Instance[A, CC] =
-    new Instance(a, () => ccf(x), x.size, () => ccf(y), y.size)
-  def cacheFrom[A, CC](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC): Instance[A, CC] =
-    new Instance(a, new CachedFn0(() => ccf(x)), x.size, new CachedFn0(() => ccf(y)), y.size)
+  def apply[A, CC](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int)(flags: Set[String] = Set.empty): Instance[A, CC] =
+    new Instance(a, () => x, xsize, () => y, ysize, flags)
+  def from[A, CC](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC)(flags: Set[String] = Set.empty): Instance[A, CC] =
+    new Instance(a, () => ccf(x), x.size, () => ccf(y), y.size, flags)
+  def cacheFrom[A, CC](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC)(flags: Set[String] = Set.empty): Instance[A, CC] =
+    new Instance(a, new CachedFn0(() => ccf(x)), x.size, new CachedFn0(() => ccf(y)), y.size, flags)
 
   trait FromArray[A, CC] extends ((A, Array[A], Array[A]) => Instance[A, CC]) with Named {
     def name: String
   }
 
-  def generator[A, CC](ccf: Array[A] => CC)(implicit nm: sourcecode.Name): FromArray[A, CC] = new FromArray[A, CC] {
-    def apply(a: A, x: Array[A], y: Array[A]) = from(a, x, y)(ccf)
+  def generator[A, CC](ccf: Array[A] => CC, flags: String*)(implicit nm: sourcecode.Name): FromArray[A, CC] = new FromArray[A, CC] {
+    def apply(a: A, x: Array[A], y: Array[A]) = from(a, x, y)(ccf)(flags.toSet)
     def name = nm.value
   }
-  def generatorCached[A, CC](ccf: Array[A] => CC)(implicit nm: sourcecode.Name): FromArray[A, CC] = new FromArray[A, CC] {
-    def apply(a: A, x: Array[A], y: Array[A]) = cacheFrom(a, x, y)(ccf)
+  def generatorCached[A, CC](ccf: Array[A] => CC, flags: String*)(implicit nm: sourcecode.Name): FromArray[A, CC] = new FromArray[A, CC] {
+    def apply(a: A, x: Array[A], y: Array[A]) = cacheFrom(a, x, y)(ccf)(flags.toSet)
     def name = nm.value
   }
 
   class Over[A] {
-    def generator[CC](ccf: Array[A] => CC)(implicit nm: sourcecode.Name): FromArray[A, CC] = outer.generator(ccf)
-    def generatorCached[CC](ccf: Array[A] => CC)(implicit nm: sourcecode.Name): FromArray[A, CC] = outer.generatorCached(ccf)
+    def generator[CC](ccf: Array[A] => CC, flags: String*)(implicit nm: sourcecode.Name): FromArray[A, CC] =
+      outer.generator(ccf, flags: _*)
+    def generatorCached[CC](ccf: Array[A] => CC, flags: String*)(implicit nm: sourcecode.Name): FromArray[A, CC] =
+      outer.generatorCached(ccf, flags: _*)
   }
   def over[A]: Over[A] = new Over[A]
 }
@@ -113,10 +116,10 @@ abstract class InstantiatorsOf[A]
 extends Exploratory[(A, Array[A], Array[A])] {
   private[this] val inst = Instance.over[A]
 
-  val list = inst.generatorCached(_.toList)
-  val vector = inst.generatorCached(_.toVector)
-  val arrayBuffer = inst.generator(_.to[collection.mutable.ArrayBuffer])
-  val array = inst.generator(_.clone)
+  val list = inst.generatorCached(_.toList, "seq")
+  val vector = inst.generatorCached(_.toVector, "seq")
+  val arrayBuffer = inst.generator(_.to[collection.mutable.ArrayBuffer], "seq")
+  val array = inst.generator(_.clone, "seq", "array")
 
   def possible_a: Array[A]
   def possible_x: Array[Array[A]]

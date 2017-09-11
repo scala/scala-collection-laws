@@ -1,5 +1,44 @@
 package laws
 
+/** An individual law that should be followed by (some) collections. */
+case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false)(implicit file: sourcecode.File, line: sourcecode.Line) {
+  def this(code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = this("", Tags.empty, code)(file, line)
+  def this(name: String, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = this(name, Tags.empty, code)(file, line)
+  def this(tags: Tags, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = this("", tags, code)(file, line)
+
+  private[this] def findMyMethods: Either[FormatErr, Set[String]] = {
+    val b = Array.newBuilder[String]
+    var i = 0
+    while (i >= 0 && i < code.length) {
+      i = code.indexOf('`', i)
+      if (i >= 0) {
+        val j = code.indexOf('`', i+1)
+        if (j > i+1) b += code.substring(i+1, j)
+        else return Left(FormatErr("Unclosed method quotes", code, i, code.substring(i)))
+        i = j
+      }
+    }
+    Right(b.result.toSet)
+  }
+  /** Methods in the law that are backtick-quoted, indicating that the collection should only be used if it has those methods */
+  val methods = findMyMethods
+  val checker = findMyMethods.fold(_ => MethodChecker.missing, s => new MethodChecker(s))
+
+  val lineNumber = line.value
+
+  override def toString =
+    (if (name.isEmpty) "" else f"// $name\n") +
+    code +
+    (if (tags.isEmpty) "" else "\n// # " + tags.toString) +
+    "\n// @ " + Sourced.local(file, line) + "\n"
+}
+object Law {
+  def apply(code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(code)(file, line)
+  def apply(name: String, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(name, code)(file, line)
+  def apply(tags: Tags, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(tags, code)(file, line)  
+}
+
+
 object Laws {
   import Tags.Implicits._
 

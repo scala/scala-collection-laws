@@ -68,6 +68,7 @@ object Numbers {
       nnCount - that.nnCount
     )
   }
+  val simplest: Numbers = new Numbers(0, 0, 0, 0, 0)
   def apply(L: Int, m: Int, mm: Int, n: Int, nn: Int): Numbers = new Numbers(L, m, mm, n, nn)
 
   val possible_L = Array(0, 1, 2, 5, 7, 8, 9, 15, 16, 17, 31, 59, 132, 5101, 91347, -1, -24, -1001)
