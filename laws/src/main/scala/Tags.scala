@@ -2,14 +2,36 @@ package laws
 
 import scala.language.implicitConversions
 
+/** A tag that can be attached to a collection or law to categorize its properties */
+final class Tag()(implicit val nm: sourcecode.Name)
+extends Ordered[Tag] { 
+  override val toString = nm.value.toString
+  override def compare(that: Tag) = toString.compareTo(that.toString)
+  override def equals(that: Any) = that match {
+    case t: Tag => this.toString == that.toString
+    case _      => false
+  }
+  override val hashCode = toString.hashCode
+}
+object Tag {
+  def T(implicit nm: sourcecode.Name) = new Tag()(nm)
+
+  // List these one by one to be sure the tag picks up the right name!
+  val ARR = T
+  val INT = T
+  val SEQ = T
+  val SET = T
+  val STR = T
+}
+
 /** Information that you can use to filter tests (note: only flags are used for compile-time generation) */
 trait TestInfo {
   def hasZero: Boolean
   def isSymOp: Boolean
-  def flags: Set[String]
+  def flags: Set[Tag]
   def extra: TestInfo.Extra = TestInfo.Empty
   final def runtimeElt: java.lang.Class[_] = {
-    val r = runtimeElt
+    val r = boxedRuntime
     if      (r == classOf[java.lang.Integer])       classOf[Int]
     else if (r == classOf[java.lang.Long])          classOf[Long]
     else if (r == classOf[java.lang.Double])        classOf[Double]
@@ -39,28 +61,28 @@ object TestInfo {
   * Additional restriction of the set may be achieved by including tests in `select`.  All
   * such tests must pass for a particular set of parameters to be included in a test.
   */
-case class Tags(positive: Set[String], negative: Set[String], select: Vector[TestInfo => Boolean]) {
+case class Tags(positive: Set[Tag], negative: Set[Tag], select: Vector[TestInfo => Boolean]) {
   /** Tests whether any tags are present (either boolean or string-valued) */
   val isEmpty = positive.isEmpty && negative.isEmpty && select.isEmpty
 
   /** Checks whether a certain set of flags is compatible for code generation (compile-time compatible) */
-  def compatible(flags: Set[String]) =
+  def compatible(flags: Set[Tag]) =
     positive.forall(flags contains _) && !flags.exists(negative contains _)
 
   /** Checks whether a certain choice of parameters is suitable for testing (runtime compatible) */
   def validate(t: TestInfo) = compatible(t.flags) && select.forall(p => p(t))
 
   /** Sets a boolean tag that must be present */
-  def need(s: String): Tags =
-    if (positive contains s) this
-    else if (negative contains s) new Tags(positive + s, negative - s, select)
-    else new Tags(positive + s, negative, select)
+  def need(t: Tag): Tags =
+    if (positive contains t) this
+    else if (negative contains t) new Tags(positive + t, negative - t, select)
+    else new Tags(positive + t, negative, select)
 
   /** Requires that a particular tag be absent */
-  def shun(s: String): Tags =
-    if (negative contains s) this
-    else if (positive contains s) new Tags(positive - s, negative + s, select)
-    else new Tags(positive, negative + s, select)
+  def shun(t: Tag): Tags =
+    if (negative contains t) this
+    else if (positive contains t) new Tags(positive - t, negative + t, select)
+    else new Tags(positive, negative + t, select)
 
   def filter(p: TestInfo => Boolean): Tags = new Tags(positive, negative, select :+ p)
 
@@ -77,22 +99,22 @@ case class Tags(positive: Set[String], negative: Set[String], select: Vector[Tes
 object Tags {
   /** Taggish represents values that can be tags: either a key alone, or a key-value pair (all strings). */
   sealed trait Taggish {}
-  final case class PosTag(tag: String) extends Taggish {}
-  final case class NegTag(tag: String) extends Taggish {}
+  final case class PosTag(tag: Tag) extends Taggish {}
+  final case class NegTag(tag: Tag) extends Taggish {}
   final case class SelectTag(p: TestInfo => Boolean) extends Taggish {}
   //final case class SelectTag(p: List[String] => Boolean) extends Taggish {}
   /** Implicits contains implicit conversions to values that can be tags. */
   object Implicits {
-    implicit class StringIsTaggish(s: String) {
-      def y: PosTag = PosTag(s)
-      def n: NegTag = NegTag(s)
+    implicit class TagIsTaggish(t: Tag) {
+      def y: PosTag = PosTag(t)
+      def n: NegTag = NegTag(t)
     }
-    implicit def stringIsPositiveByDefault(s: String): PosTag = PosTag(s)
+    implicit def tagIsPositiveByDefault(t: Tag): PosTag = PosTag(t)
     implicit def select(p: TestInfo => Boolean): SelectTag = SelectTag(p)
   }
 
   /** Canonical empty set of tags. (That is, no tags.) */
-  val empty = new Tags(Set.empty[String], Set.empty[String], Vector.empty[TestInfo => Boolean])
+  val empty = new Tags(Set.empty[Tag], Set.empty[Tag], Vector.empty[TestInfo => Boolean])
 
   /** Create a mixed set of boolean and predicate tags.
     *

@@ -2,10 +2,19 @@ package laws
 
 /** An individual law that should be followed by (some) collections. */
 case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false)(implicit file: sourcecode.File, line: sourcecode.Line) {
-  def this(code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = this("", Tags.empty, code)(file, line)
-  def this(name: String, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = this(name, Tags.empty, code)(file, line)
-  def this(tags: Tags, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = this("", tags, code)(file, line)
+  /** Constructor with code only (no name or tags) */
+  def this(code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = 
+    this("", Tags.empty, code)(file, line)
 
+  /** Constructor with no tags (but with name) */
+  def this(name: String, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) =
+    this(name, Tags.empty, code)(file, line)
+
+  /** Constructor with tags (but no name) */
+  def this(tags: Tags, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) =
+    this("", tags, code)(file, line)
+
+  /** Extracts the named methods within the code block of this law */
   private[this] def findMyMethods: Either[FormatErr, Set[String]] = {
     val b = Array.newBuilder[String]
     var i = 0
@@ -20,10 +29,14 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
     }
     Right(b.result.toSet)
   }
+
   /** Methods in the law that are backtick-quoted, indicating that the collection should only be used if it has those methods */
   val methods = findMyMethods
-  val checker = findMyMethods.fold(_ => MethodChecker.missing, s => new MethodChecker(s))
 
+  /** Function that checks whether a set of methods contains the methods needed to run this law */
+  val checker = findMyMethods.fold(_ => MethodChecker.empty, s => new MethodChecker(s))
+
+  /** The line on which this law was defined; we assume for now that they're all from the same file */
   val lineNumber = line.value
 
   override def toString =
@@ -40,26 +53,37 @@ object Law {
 
 
 object Laws {
+  import Tag._
   import Tags.Implicits._
 
   private val b = Array.newBuilder[Law]
 
+  /** Implicits used to make the definition of laws as low-boilerplate as possible */
   implicit class LawMaker(text: String)(implicit file: sourcecode.File, line: sourcecode.Line) {
     /** Used to force implicit resolution of this class if it's otherwise ambiguous */
     def make: this.type = this
 
-    def law { 
-      b += new Law(text)
-    }
+    /** This law should not presently be used */
     def skip {
       b += new Law("", Tags.empty, text, disabled = true)
     }
+
+    /** A law with no tags */
+    def law { 
+      b += new Law(text)
+    }
+
+    /** A law with tags */
     def law(tags: Tags.Taggish, more: Tags.Taggish*) {
       b += new Law(Tags(tags, more: _*), text)
     }
+
+    /** A named law with no tags */
     def named(name: String) {
       b += new Law(name, text)
     }
+
+    /** A named law with tags */
     def named(name: String, tags: Tags.Taggish, more: Tags.Taggish*) {
       b += new Law(name, Tags(tags, more: _*), text)
     }
@@ -85,27 +109,31 @@ set - only holds for collections that remove duplicates
 
 /******** Basic capabilities ********/
 
-"x.map(f) theSameAs { val y = collection.mutable.ArrayBuffer.empty[A]; x.foreach(xi => y += f(xi)); y }".law("seq")
+"x.map(f) theSameAs { val y = collection.mutable.ArrayBuffer.empty[A]; x.foreach(xi => y += f(xi)); y }".law(SEQ)
 
-"x.map(f) theSameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law("set")
+"x.map(f) theSameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law(SEQ)
 
+/** TODO ***
 "sameType(x, x.map(f))".law("selfs")
+*** TODO **/
 
 """{
   val flat = x.flatMap(xi => y.toList.take(intFrom(xi)))
   val ref = collection.mutable.ArrayBuffer.empty[A]
   x.foreach(xi => ref ++= y.toList.take(intFrom(xi)))
   flat theSameAs ref
-}""".law("seq")
+}""".law(SEQ)
 
 """{
   val flat = x.flatMap(xi => y.toList.take(intFrom(xi)))
   val ref = collection.mutable.HashSet.empty[A]
   x.foreach(xi => ref ++= y.toList.take(intFrom(xi)))
   flat theSameAs ref
-}""".law("set")
+}""".law(SET)
 
+/** TODO ***
 "sameType(x, x.flatMap(xi => y.toList.take($INT(xi))))".law("selfs")
+*** TODO **/
 
 "x.`exists`(p) == x.`find`(p).isDefined".law
 
@@ -123,7 +151,7 @@ set - only holds for collections that remove duplicates
 
 /******** String generation ********/
 
-"x.`mkString` == { val sb = new StringBuilder; x.foreach(sb ++= _.toString); sb.result }".law("seq")
+"x.`mkString` == { val sb = new StringBuilder; x.foreach(sb ++= _.toString); sb.result }".law(SEQ)
 
 "x.`mkString` == { val sb = new StringBuilder; x.`addString`(sb); sb.result }".law
 
@@ -140,7 +168,7 @@ set - only holds for collections that remove duplicates
       sb.result.dropRight(1) + "#"
     }
   )
-}""".law("seq")
+}""".law(SEQ)
 
 /******** TODO: port these from old-style laws *********
 // Make sure types are propagated both explicitly and when downcast to a supertype

@@ -6,7 +6,8 @@ package laws
 abstract class Test[A, B, CC, T <: Test[A, B, CC, T]](
   val num: Numbers,
   val instance: Instance[A, CC],
-  val ops: Ops[A, B]
+  val ops: Ops[A, B],
+  val lawLine: Int
 )(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name) 
 extends Sourced
 with Named
@@ -74,7 +75,7 @@ with TestInfo {
   /** Operation is symmetric and associative */
   def isSymOp = ops.isSymOp
 
-  def flags: Set[String] = instance.flags
+  def flags: Set[Tag] = instance.flags
 
   def boxedRuntime = a.getClass
 
@@ -102,11 +103,17 @@ with TestInfo {
 
   def reoperate(ops: Ops[A, B]): T
 
-  /** The law tested by this (kind of) test, and the ability to run it */
-  def law: Law
+  /** The laws tested by this (kind of) test */
+  def obeys: Map[Int, Law]
 
-  /** This is the actual test which runs a law and returns `true` if it passes with these parameters */
-  def run: Boolean
+  /** This is the actual test which runs a law and returns `Some(true)` if it
+    * passes with these parameters, `Some(false)` if it fails, or `None` if
+    * the law is not valid for this collection.
+    */
+  def runLaw(n: Int): Option[Boolean]
+
+  /** Runs on the default law given by the `lawLine` parameter. */
+  def run: Option[Boolean] = runLaw(lawLine)
 }
 object Test {
   case class Count(numbers: Numbers.Count, instances: Instance.Count, ops: Ops.Count) {
@@ -149,21 +156,38 @@ object Test {
     def colType: String = f"$ccType[$eltType]"
     def instTypes: String = f"$eltType, $colType"
     def opsTypes: String = f"$eltType, $altType"
-    def code(law: Law): String = {
+    def code: String = {
       val name = f"Test$flatName";
-      Array(
-        f"class $name(num: Numbers, instance: Instance[$instTypes], ops: Ops[$opsTypes])",
-        f"extends $heritage[$colType, $name](num, instance, ops) {",
-        f"  import Test.ComparesTo",
-        f"  def renumber(numb: Numbers) = new $name(numb, instance, ops)",
-        f"  def reinstance(inst: Instance[$instTypes]) = new $name(num, inst, ops)",
-        f"  def reoperate(oper: Ops[$opsTypes]) = new $name(num, instance, oper)",
-        f"  def law = Laws.byLineNumber(${law.lineNumber})",
-        f"  def run: Boolean = {",
-        law.code.lines.map("    " + _).mkString("\n"),
-        f"  }",
-        f"}"
-      ).mkString("\n")
+      val instance = instanceExplorer.completeIterator.take(1).toList.head
+      val appropriate = Laws.all.filter(law => law.checker passes instance.methods).sortBy(_.lineNumber);
+      {
+        Array(
+          f"class $name(num: Numbers, instance: Instance[$instTypes], ops: Ops[$opsTypes])",
+          f"extends $heritage[$colType, $name](num, instance, ops) {",
+          f"  import Test.ComparesTo",
+          f"  def renumber(numb: Numbers) = new $name(numb, instance, ops)",
+          f"  def reinstance(inst: Instance[$instTypes]) = new $name(num, inst, ops)",
+          f"  def reoperate(oper: Ops[$opsTypes]) = new $name(num, instance, oper)",
+          f"  val lawNumbers = ${appropriate.map(_.lineNumber).mkString("Set[Int](", ", ", ")")}",
+          f"  val obeys = lawNumbers.map(n => n -> Laws.byLineNumber(n)).toMap"
+        ) ++
+        appropriate.map{ law =>
+          f"  def runLaw${law.lineNumber}: Boolean = {\n" +
+          law.code.split("\n").map("    " + _).mkString("", "\n", "\n") +
+          f"  }"
+        } ++
+        Array(
+          f"  val lawTable: Map[Int, () => Boolean] = Map("
+        ) ++
+        appropriate.map(_.lineNumber).zipWithIndex.map{ case (n, i) =>
+          f"    $n -> (runLaw$n _)${if (i+1 < appropriate.length)"," else ""}"
+        } ++
+        Array(
+          f"  )",
+          f"  def runLaw(n: Int): Option[Boolean] = lawTable.get(n).map(_())",
+          f"}"
+        )
+      }.mkString("\n")
     }
   }
 }
@@ -174,11 +198,11 @@ object Test {
 /////////////////////////////////////////
 
 abstract class IntTest[CC, T <: IntTest[CC, T]](
-  num: Numbers, instance: Instance[Int, CC], ops: Ops[Int, Long]
+  numb: Numbers, inst: Instance[Int, CC], oper: Ops[Int, Long], lln: Int
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[Int, Long, CC, T](num, instance, ops)(file, line, name) {
+extends Test[Int, Long, CC, T](numb, inst, oper, lln)(file, line, name) {
   type A = Int
   type B = Long
   type Inst = Instance[Int, CC]
@@ -195,11 +219,11 @@ object IntTest {
 }
 
 abstract class StrTest[CC, T <: StrTest[CC, T]](
-  num: Numbers, instance: Instance[String, CC], ops: Ops[String, Option[String]]
+  numb: Numbers, inst: Instance[String, CC], oper: Ops[String, Option[String]], lln: Int
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[String, Option[String], CC, T](num, instance, ops)(file, line, name) {
+extends Test[String, Option[String], CC, T](numb, inst, oper, lln)(file, line, name) {
   type A = String
   type B = Option[String]
   type Inst = Instance[String, CC]
@@ -239,7 +263,7 @@ object AllIntTestCompanions {
     ans
   }
 
-  val list = new Companion(_.list)
+  val list = new Companion(_.Imm.list)
 
   lazy val all = everyoneBuffer.result
 }
@@ -253,5 +277,5 @@ object AllStrTestCompanions {
     def ccType = name.value.toString.capitalize
   }
 
-  val list = new Companion(_.list)
+  val list = new Companion(_.Imm.list)
 }
