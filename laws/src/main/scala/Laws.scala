@@ -24,7 +24,7 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
         val j = code.indexOf('`', i+1)
         if (j > i+1) b += code.substring(i+1, j)
         else return Left(FormatErr("Unclosed method quotes", code, i, code.substring(i)))
-        i = j
+        i = j+1
       }
     }
     Right(b.result.toSet)
@@ -35,6 +35,10 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
 
   /** Function that checks whether a set of methods contains the methods needed to run this law */
   val checker = findMyMethods.fold(_ => MethodChecker.empty, s => new MethodChecker(s))
+
+  val cleanCode = findMyMethods.
+    map(ms => (code /: ms)((c, m) => c.replace(f"`$m`": CharSequence, m: CharSequence))).
+    getOrElse(code)
 
   /** The line on which this law was defined; we assume for now that they're all from the same file */
   val lineNumber = line.value
@@ -225,11 +229,11 @@ x.`isTraversableAgain` == @AGAIN
 
 "tryO{x.`max`} == tryO{x.`reduce`(_ max _)}".law
 
-"f ... tryO{x.`maxBy`(f)} == tryO{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }".law
+"tryO{x.`maxBy`(f)} == tryO{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }".law
 
 "tryO{x.`min`} == tryO{x.`reduce`(_ min _)}".law
 
-"f ... tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law
+"tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law
 
 "x.`nonEmpty` == x.`exists`(_ => true)".law
 

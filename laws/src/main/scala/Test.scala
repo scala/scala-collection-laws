@@ -103,6 +103,8 @@ with TestInfo {
 
   def reoperate(ops: Ops[A, B]): T
 
+  def relaw(lln: Int): T
+
   /** The laws tested by this (kind of) test */
   def obeys: Map[Int, Law]
 
@@ -142,6 +144,10 @@ object Test {
       meM.forall{ case (a, n) => youM.get(a).exists(_.count >= n.count) }
     }
   }
+  implicit class Logic(lhs: Boolean) {
+    def implies(rhs: => Boolean) = !lhs || rhs
+    def impliedBy(rhs: => Boolean) = lhs || !rhs
+  }
 
   trait Companion[A, B, CC] {
     def instanceExplorer: Exploratory[Instance[A, CC]]
@@ -162,18 +168,20 @@ object Test {
       val appropriate = Laws.all.filter(law => law.checker passes instance.methods).sortBy(_.lineNumber);
       {
         Array(
-          f"class $name(num: Numbers, instance: Instance[$instTypes], ops: Ops[$opsTypes])",
-          f"extends $heritage[$colType, $name](num, instance, ops) {",
+          f"class $name(numb: Numbers, inst: Instance[$instTypes], oper: Ops[$opsTypes], lln: Int)",
+          f"extends $heritage[$colType, $name](numb, inst, oper, lln) {",
           f"  import Test.ComparesTo",
-          f"  def renumber(numb: Numbers) = new $name(numb, instance, ops)",
-          f"  def reinstance(inst: Instance[$instTypes]) = new $name(num, inst, ops)",
-          f"  def reoperate(oper: Ops[$opsTypes]) = new $name(num, instance, oper)",
+          f"  import Test.Logic",
+          f"  def renumber(numb: Numbers) = new $name(numb, instance, ops, lawLine)",
+          f"  def reinstance(inst: Instance[$instTypes]) = new $name(num, inst, ops, lawLine)",
+          f"  def reoperate(oper: Ops[$opsTypes]) = new $name(num, instance, oper, lawLine)",
+          f"  def relaw(lln: Int) = new $name(num, instance, ops, lln)",
           f"  val lawNumbers = ${appropriate.map(_.lineNumber).mkString("Set[Int](", ", ", ")")}",
           f"  val obeys = lawNumbers.map(n => n -> Laws.byLineNumber(n)).toMap"
         ) ++
         appropriate.map{ law =>
           f"  def runLaw${law.lineNumber}: Boolean = {\n" +
-          law.code.split("\n").map("    " + _).mkString("", "\n", "\n") +
+          law.cleanCode.split("\n").map("    " + _).mkString("", "\n", "\n") +
           f"  }"
         } ++
         Array(
