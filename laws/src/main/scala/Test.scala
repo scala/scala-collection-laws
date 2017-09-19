@@ -150,8 +150,8 @@ object Test {
   }
 
   trait Companion[A, B, CC] {
-    def instanceExplorer: Exploratory[Instance[A, CC]]
-    def opsExplorer: Exploratory[Ops[A, B]]
+    def instanceExplorer(): Exploratory[Instance[A, CC]]
+    def opsExplorer(): Exploratory[Ops[A, B]]
     def numberExplorer(inst: Instance[A, CC]): Exploratory[Numbers] =
       new Numbers.Restricted(inst.secret.xsize, inst.secret.ysize)
     def ccType: String
