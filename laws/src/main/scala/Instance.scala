@@ -92,6 +92,11 @@ object Instance { outer =>
       yCount     - that.yCount,
       ysizeCount - that.ysizeCount
     )
+    def isnt(that: Count) = Array(
+      aCount != that.aCount,
+      xCount != that.xCount || xsizeCount != that.xsizeCount,
+      yCount != that.yCount || ysizeCount != that.ysizeCount
+    )
   }
 
   trait Sizable[CC] {

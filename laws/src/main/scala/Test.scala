@@ -5,8 +5,8 @@ package laws
   */
 abstract class Test[A, B, CC, T <: Test[A, B, CC, T]](
   val num: Numbers,
-  val instance: Instance[A, CC],
   val ops: Ops[A, B],
+  val instance: Instance[A, CC],
   val lawLine: Int
 )(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name) 
 extends Sourced
@@ -24,20 +24,20 @@ with TestInfo {
   /** Some function that changes the type of the elements.  Note that g(a) == b should be true. */
   def g: A => B = ops.g
 
-  /** Some integer.  May be positive or negative.  Could really be anything. */
-  def L: Int = num.L
-
-  /** A fixed positive number that is no bigger than the length of `y` */
-  def m: Int = if (num.secret.m < 0) (-num.m-1) % ysize else num.m % ysize
-
-  /** A fixed positive number that may be bigger than the length of `y` **/
-  val mm: Int = if (num.secret.mm < 0) -num.mm-1 else num.mm
-
-  /** A fixed positive number that is no bigger than the length of `x` */
+  /** A positive number that is no bigger than the length of `x` */
   def n: Int = if (num.secret.n < 0) (-num.n-1) % xsize else num.n % xsize
 
-  /** A fixed positive number that may be bigger than the length of `x` */
+  /** A positive number that may be bigger than the length of `x` */
   def nn: Int = if (num.secret.nn < 0) -num.nn-1 else num.nn
+
+  /** A positive number that is no bigger than the length of `y` */
+  def m: Int = if (num.secret.m < 0) (-num.m-1) % ysize else num.m % ysize
+
+  /** A positive number that may be bigger than the length of `y` **/
+  val mm: Int = if (num.secret.mm < 0) -num.mm-1 else num.mm
+
+  /** Some integer.  May be positive or negative.  Could really be anything. */
+  def r: Int = num.r
 
   /** A binary operation on the collection elements.
     *
@@ -130,7 +130,7 @@ object Test {
       onceDD(you).foreach(youB += _)
       meB == youB
     }
-    def hasAllOf[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
+    def correspondsTo[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
       onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
       onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
@@ -148,56 +148,6 @@ object Test {
     def implies(rhs: => Boolean) = !lhs || rhs
     def impliedBy(rhs: => Boolean) = lhs || !rhs
   }
-
-  trait Companion[A, B, CC] {
-    def instanceExplorer(): Exploratory[Instance[A, CC]]
-    def opsExplorer(): Exploratory[Ops[A, B]]
-    def numberExplorer(inst: Instance[A, CC]): Exploratory[Numbers] =
-      new Numbers.Restricted(inst.secret.xsize, inst.secret.ysize)
-    def ccType: String
-    def eltType: String
-    def altType: String
-    def heritage: String
-    def flatName: String = f"$ccType$eltType"
-    def colType: String = f"$ccType[$eltType]"
-    def instTypes: String = f"$eltType, $colType"
-    def opsTypes: String = f"$eltType, $altType"
-    def code: String = {
-      val name = f"Test$flatName";
-      val instance = instanceExplorer.completeIterator.take(1).toList.head
-      val appropriate = Laws.all.filter(law => law.checker passes instance.methods).sortBy(_.lineNumber);
-      {
-        Array(
-          f"class $name(numb: Numbers, inst: Instance[$instTypes], oper: Ops[$opsTypes], lln: Int)",
-          f"extends $heritage[$colType, $name](numb, inst, oper, lln) {",
-          f"  import Test.ComparesTo",
-          f"  import Test.Logic",
-          f"  def renumber(numb: Numbers) = new $name(numb, instance, ops, lawLine)",
-          f"  def reinstance(inst: Instance[$instTypes]) = new $name(num, inst, ops, lawLine)",
-          f"  def reoperate(oper: Ops[$opsTypes]) = new $name(num, instance, oper, lawLine)",
-          f"  def relaw(lln: Int) = new $name(num, instance, ops, lln)",
-          f"  val lawNumbers = ${appropriate.map(_.lineNumber).mkString("Set[Int](", ", ", ")")}",
-          f"  val obeys = lawNumbers.map(n => n -> Laws.byLineNumber(n)).toMap"
-        ) ++
-        appropriate.map{ law =>
-          f"  def runLaw${law.lineNumber}: Boolean = {\n" +
-          law.cleanCode.split("\n").map("    " + _).mkString("", "\n", "\n") +
-          f"  }"
-        } ++
-        Array(
-          f"  val lawTable: Map[Int, () => Boolean] = Map("
-        ) ++
-        appropriate.map(_.lineNumber).zipWithIndex.map{ case (n, i) =>
-          f"    $n -> (runLaw$n _)${if (i+1 < appropriate.length)"," else ""}"
-        } ++
-        Array(
-          f"  )",
-          f"  def runLaw(n: Int): Option[Boolean] = lawTable.get(n).map(_())",
-          f"}"
-        )
-      }.mkString("\n")
-    }
-  }
 }
 
 
@@ -206,84 +156,29 @@ object Test {
 /////////////////////////////////////////
 
 abstract class IntTest[CC, T <: IntTest[CC, T]](
-  numb: Numbers, inst: Instance[Int, CC], oper: Ops[Int, Long], lln: Int
+  numb: Numbers, oper: Ops[Int, Long], inst: Instance[Int, CC], lln: Int
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[Int, Long, CC, T](numb, inst, oper, lln)(file, line, name) {
+extends Test[Int, Long, CC, T](numb, oper, inst, lln)(file, line, name) {
   type A = Int
   type B = Long
   type Inst = Instance[Int, CC]
   type Oper = Ops[Int, Long]
   override def intFrom(a: Int) = a
 }
-object IntTest {
-  trait Companion[CC] extends Test.Companion[Int, Long, CC] {
-    val opsExplorer = IntOpsExplorer
-    val heritage = "IntTest"
-    val eltType = "Int"
-    val altType = "Long"
-  }
-}
+
 
 abstract class StrTest[CC, T <: StrTest[CC, T]](
-  numb: Numbers, inst: Instance[String, CC], oper: Ops[String, Option[String]], lln: Int
+  numb: Numbers, oper: Ops[String, Option[String]], inst: Instance[String, CC], lln: Int
 )(
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
-extends Test[String, Option[String], CC, T](numb, inst, oper, lln)(file, line, name) {
+extends Test[String, Option[String], CC, T](numb, oper, inst, lln)(file, line, name) {
   type A = String
   type B = Option[String]
   type Inst = Instance[String, CC]
   type Oper = Ops[String, Option[String]]
   override def intFrom(s: String) = s.length
 }
-object StrTest {
-  trait Companion[CC] extends Test.Companion[String, Option[String], CC] {
-    val io = InstantiatorsOfStr
-    val opsExplorer = StrOpsExplorer
-    val heritage = "StrTest"
-    val eltType = "String"
-    val altType = "Option[String]"
-    override def flatName = f"${ccType}Str"
-  }
-}
 
-
-////////////////////////////////////////////////////
-// Enumeration of all collections we want to test //
-////////////////////////////////////////////////////
-
-object AllIntTestCompanions {
-  val io = InstantiatorsOfInt
-
-  private val everyoneBuffer = Array.newBuilder[Companion[_]]
-
-  class Companion[CC](iexp: InstantiatorsOf[Int] => Instance.FromArray[Int, CC])(implicit name: sourcecode.Name)
-  extends IntTest.Companion[CC] {
-    val instanceExplorer = io.map(iexp(io).tupled)
-    def ccType = name.value.toString.capitalize
-  }
-
-  def register[CC](iexp: InstantiatorsOf[Int] => Instance.FromArray[Int, CC])(implicit name: sourcecode.Name): Companion[CC] = {
-    val ans = new Companion(iexp)(name)
-    everyoneBuffer += ans
-    ans
-  }
-
-  val list = new Companion(_.Imm.list)
-
-  lazy val all = everyoneBuffer.result
-}
-
-object AllStrTestCompanions {
-  val io = InstantiatorsOfStr
-
-  class Companion[CC](iexp: InstantiatorsOf[String] => Instance.FromArray[String, CC])(implicit name: sourcecode.Name)
-  extends StrTest.Companion[CC] {
-    val instanceExplorer = io.map(iexp(io).tupled)
-    def ccType = name.value.toString.capitalize
-  }
-
-  val list = new Companion(_.Imm.list)
-}

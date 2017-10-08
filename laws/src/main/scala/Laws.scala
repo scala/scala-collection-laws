@@ -30,6 +30,21 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
     Right(b.result.toSet)
   }
 
+  /** Declare that a tag should not be present */
+  def not(t: Tag): Law = new Law(name, tags shun t, code, disabled)(file, line)
+
+  /** Declare that several tags should not be present */
+  def not(t1: Tag, t2: Tag, tx: Tag*): Law = new Law(name, ((tags shun t1 shun t2) /: tx)((ts, t) => ts shun t), code, disabled)(file, line)
+
+  /** Declare that an additional tag must be present */
+  def and(t: Tag): Law = new Law(name, tags need t, code, disabled)(file, line)
+
+  /** Declare that several tags must be present */
+  def add(t1: Tag, t2: Tag, tx: Tag*): Law = new Law(name, ((tags need t1 need t2) /: tx)((ts, t) => ts need t), code, disabled)(file, line)
+
+  /** Add another check of TestInfo for some property */
+  def filter(p: TestInfo => Boolean): Law =new Law(name, tags filter p, code, disabled)(file, line)
+
   /** Methods in the law that are backtick-quoted, indicating that the collection should only be used if it has those methods */
   val methods = findMyMethods
 

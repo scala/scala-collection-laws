@@ -146,6 +146,13 @@ object Ops {
       pCount  - that.pCount,
       pfCount - that.pfCount
     )
+    def isnt(that: Count) = Array(
+      fCount != that.fCount,
+      gCount != that.gCount,
+      opCount != that.opCount,
+      pCount != that.pCount,
+      pfCount != that.pfCount
+    )
   }
 
   def apply[A, B](f: A ===> A, g: A ===> B, op: OpFn[A], p: A ===> Boolean, pf: ParFn[A]) =

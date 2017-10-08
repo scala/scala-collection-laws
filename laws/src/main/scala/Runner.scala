@@ -2,7 +2,7 @@ package laws
 
 class Runner[A, B, CC, T <: Test[A, B, CC, T]](
   lawLine: Int,
-  explFactory: Test.Companion[A, B, CC],
+  gen: Generator[A, B, CC],
   testGen: (Int, Instance[A, CC], Ops[A, B], Numbers) => T
 ) {
   def runOne(inst: Instance[A, CC], oper: Ops[A, B], num: Numbers): Option[T] = {
@@ -10,7 +10,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     if (t.run.exists(_ == false)) Some(t) else None
   }
   def runNums(inst: Instance[A, CC], oper: Ops[A, B]): Option[T] = {
-    val mkNum = explFactory.numberExplorer(inst)
+    val mkNum = gen.numberExplorer(inst)
     val exNum = mkNum.explore
     var progress = true
     while (progress) {
@@ -19,13 +19,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
           val before = num.count
           val result = runOne(inst, oper, num)
           val after = num.count
-          val touched = Array(
-            before.LCount != after.LCount,
-            before.mCount != after.mCount,
-            before.mmCount != after.mmCount,
-            before.nCount != after.nCount,
-            before.nnCount != after.nnCount
-          )
+          val touched = after isnt before
           exNum.advance(touched)
         case None =>
           progress = false
@@ -34,7 +28,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     None
   }
   def runInst(inst: Instance[A, CC]): Option[T] = {
-    val mkOps = explFactory.opsExplorer()
+    val mkOps = gen.opsExplorer()
     val exOps = mkOps.explore
     var progress = true
     while (progress) {
@@ -44,13 +38,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
           val result = runNums(inst, oper)
           if (result.isDefined) return result
           val after = oper.count
-          val touched = Array(
-            before.fCount != after.fCount,
-            before.gCount != after.gCount,
-            before.opCount != after.opCount,
-            before.pCount != after.pCount,
-            before.pfCount != after.pfCount
-          )
+          val touched = after isnt before
           exOps.advance(touched)
         case None =>
           progress = false
@@ -59,7 +47,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     None
   }
   def run: Option[T] = {
-    val mkInst = explFactory.instanceExplorer()
+    val mkInst = gen.instanceExplorer()
     val exInst = mkInst.explore
     var progress = true
     while (progress) {
@@ -69,11 +57,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
           val result = runInst(inst)
           if (result.isDefined) return result
           val after = inst.count
-          val touched = Array(
-            before.aCount != after.aCount,
-            before.xCount != after.xCount || before.xsizeCount != after.xsizeCount,
-            before.yCount != after.yCount || before.ysizeCount != after.ysizeCount
-          )
+          val touched = after isnt before
           exInst.advance(touched)
         case None =>
           progress = false

@@ -84,6 +84,7 @@ case class Tags(positive: Set[Tag], negative: Set[Tag], select: Vector[TestInfo 
     else if (positive contains t) new Tags(positive - t, negative + t, select)
     else new Tags(positive, negative + t, select)
 
+  /** Adds an extra selector that checks test info */
   def filter(p: TestInfo => Boolean): Tags = new Tags(positive, negative, select :+ p)
 
   override lazy val toString = {
