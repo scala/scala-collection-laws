@@ -103,6 +103,11 @@ object Instance { outer =>
     def sizeof(c: CC): Int
   }
 
+  trait PackagePath {
+    def nickname: String
+    def fullyQualified: String
+  }
+
   def apply[A, CC: TypeTag: Sizable](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int)(flags: Set[Tag] = Set.empty): Instance[A, CC] =
     new Instance(
       () => x, xsize,
@@ -168,7 +173,9 @@ extends Exploratory[(A, Array[A], Array[A])] {
 
   protected val registry = Vector.newBuilder[Instance.ContainingFromArray[A]]
 
-  object Imm {
+  object Imm extends Instance.PackagePath {
+    def nickname = "Imm"
+    def fullyQualified = "scala.collection.immutable"
     def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name) = {
       val ans = inst.generatorCached(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       registry += ans
@@ -181,7 +188,9 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val vector      = C(_.toVector, SEQ)
   }
 
-  object Mut {
+  object Mut extends Instance.PackagePath {
+    def nickname = "Mut"
+    def fullyQualified = "scala.collection.mutable"
     def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name) = {
       val ans = inst.generator(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       registry += ans
@@ -189,6 +198,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
     val arrayBuffer  = C(_.to[collection.mutable.ArrayBuffer], SEQ)
     val array        = C(_.clone, SEQ, ARR)
+    val hashSet      = C(_.to[collection.mutable.HashSet], SET)
     val wrappedArray = C(_.clone: collection.mutable.WrappedArray[A], SEQ)
   }
 

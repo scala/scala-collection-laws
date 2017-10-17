@@ -242,11 +242,11 @@ y !ARRAY !M ... x.flatMap(xi => y.toList.take($INT(xi))) theSameAs x.map(xi => y
 x.`isTraversableAgain` == @AGAIN
 ***********************************************/
 
-"tryO{x.`max`} == tryO{x.`reduce`(_ max _)}".law
+"tryO{x.`max`} == tryO{ x.`reduce`(maxOf) }".law
 
 "tryO{x.`maxBy`(f)} == tryO{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }".law
 
-"tryO{x.`min`} == tryO{x.`reduce`(_ min _)}".law
+"tryO{x.`min`} == tryO{ x.`reduce`(minOf) }".law
 
 "tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law
 

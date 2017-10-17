@@ -53,3 +53,42 @@ object MethodChecker {
     meths.map(_.name.decodedName.toString).toSet
   }
 }
+
+object FileIO {
+  /** Removes all the test files in a particular directory; throws an exception if anything goes wrong. */
+  def desource(dir: java.io.File) {
+    val oops =
+      dir.listFiles.
+        filter(f => f.getName.startsWith("Test") && f.getName.endsWith(".scala")).
+        find(f => !f.delete())
+    oops.foreach{ f =>
+      println(s"Failed to delete $f")
+      throw new Exception(s"Could not remove source of $f")
+    }
+  }
+
+  private[this] def trimRight(s: String): String = {
+    var i = s.length - 1
+    while (i >= 0 && java.lang.Character.isWhitespace(s.charAt(i))) i -= 1;
+    if (i+1 < s.length) s.substring(0, i+1) else s
+  }
+
+  /** Replaces a text file with new text if the new text is different (trailing whitespace ignored).
+    * Returns true if replacement occured, false if not, and throws an exception if any I/O failed.
+    */
+  def apply(target: java.io.File, content: String): Boolean = {
+    val myLines: Array[String] = content.lines.toArray
+    val different =
+      if (target.exists) {
+        val src = scala.io.Source.fromFile(target)
+        try {
+          val lines = src.getLines.toVector.map(trimRight)
+          lines != (myLines: Seq[String]).map(trimRight)
+        }
+        finally src.close        
+      }
+      else true
+    if (different) java.nio.file.Files.write(target.toPath, java.util.Arrays.asList(myLines: _*))
+    different
+  }
+}

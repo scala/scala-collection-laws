@@ -165,6 +165,8 @@ extends Test[Int, Long, CC, T](numb, oper, inst, lln)(file, line, name) {
   type B = Long
   type Inst = Instance[Int, CC]
   type Oper = Ops[Int, Long]
+  def maxOf(a: Int, aa: Int) = a max aa
+  def minOf(a: Int, aa: Int) = a min aa
   override def intFrom(a: Int) = a
 }
 
@@ -179,6 +181,8 @@ extends Test[String, Option[String], CC, T](numb, oper, inst, lln)(file, line, n
   type B = Option[String]
   type Inst = Instance[String, CC]
   type Oper = Ops[String, Option[String]]
+  def maxOf(a: String, aa: String) = { val o = implicitly[Ordering[String]]; o.max(a, aa) }
+  def minOf(a: String, aa: String) = { val o = implicitly[Ordering[String]]; o.min(a, aa) }
   override def intFrom(s: String) = s.length
 }
 
