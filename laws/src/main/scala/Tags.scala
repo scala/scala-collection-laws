@@ -19,6 +19,7 @@ object Tag {
   // List these one by one to be sure the tag picks up the right name!
   val ARR = T
   val INT = T
+  val MAP = T
   val SEQ = T
   val SET = T
   val STR = T
@@ -107,8 +108,9 @@ object Tags {
   /** Implicits contains implicit conversions to values that can be tags. */
   object Implicits {
     implicit class TagIsTaggish(t: Tag) {
-      def y: PosTag = PosTag(t)
-      def n: NegTag = NegTag(t)
+      def y: PosTag  = PosTag(t)
+      def n: NegTag  = NegTag(t)
+      def ! : NegTag = NegTag(t)
     }
     implicit def tagIsPositiveByDefault(t: Tag): PosTag = PosTag(t)
     implicit def select(p: TestInfo => Boolean): SelectTag = SelectTag(p)
