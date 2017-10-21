@@ -162,6 +162,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
   import Instance.Sizable
   import Tag._
 
+  protected implicit def orderingOfA: Ordering[A]
   protected implicit def typeTagA: TypeTag[A]
   protected def allFlags: Array[Tag]
   private[this] val inst = Instance.over[A](allFlags: _*)
@@ -184,6 +185,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val hashSet     = C(_.to[collection.immutable.HashSet], SET)
     val list        = C(_.toList, SEQ)
     val set         = C(_.toSet, SET)
+    val sortedSet   = C(_.to[collection.immutable.SortedSet], SET)
     val stream      = C(_.to[Stream], SEQ)
     val vector      = C(_.toVector, SEQ)
   }
@@ -215,14 +217,68 @@ extends Exploratory[(A, Array[A], Array[A])] {
   lazy val all = registry.result
 }
 
+trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[(K, V)])] { self: InstantiatorsOf[(K, V)] =>
+  import Instance.Sizable
+  import Tag._
+
+  protected implicit def orderingOfK: Ordering[K]
+
+  protected implicit def typeTagK: TypeTag[K]
+  protected implicit def typeTagV: TypeTag[V]
+  protected def kvInst = Instance.over[(K, V)](allFlags: _*)
+  protected implicit def sizeOfMap[K, V, M[K, V] <: collection.Map[K, V]] = new Sizable[M[K, V]] { def sizeof(m: M[K, V]) = m.size }
+
+  object ImmKV extends Instance.PackagePath {
+    def nickname = "ImmKV"
+    def fullyQualified = "scala.collection.immutable"
+    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Tag*)(implicit nm: sourcecode.Name) = {
+      val ans = kvInst.generatorCached(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      registry += ans
+      ans
+    }
+    val hashMap = C({ a => val mb = collection.immutable.HashMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result })
+    val listMap = C({ a => val mb = collection.immutable.HashMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result })
+    val sortedMap = C({ a => val mb = collection.immutable.SortedMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result })
+    val treeMap = C({ a => val mb = collection.immutable.TreeMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result })
+  }
+
+  object MutKV extends Instance.PackagePath {
+    def nickname = "MutKV"
+    def fullyQualified = "scala.collection.mutable"
+    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Tag*)(implicit nm: sourcecode.Name) = {
+      val ans = kvInst.generator(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      registry += ans
+      ans
+    }
+    val hashMap =       C({ a => val m = new collection.mutable.HashMap[K, V];       for (kv <- a) m += kv; m })
+    val listMap =       C({ a => val m = new collection.mutable.ListMap[K, V];       for (kv <- a) m += kv; m })
+    val linkedHashMap = C({ a => val m = new collection.mutable.LinkedHashMap[K, V]; for (kv <- a) m += kv; m })
+    val openHashMap =   C({ a => val m = new collection.mutable.OpenHashMap[K, V];   for (kv <- a) m += kv; m })
+    val sortedMap =     C({ a => val m = collection.mutable.SortedMap.empty[K, V];   for (kv <- a) m += kv; m })
+    val treeMap =       C({ a => val m = new collection.mutable.TreeMap[K, V];       for (kv <- a) m += kv; m })
+  }
+}
+
+object OrderingSource {
+  val orderingOfLong = implicitly[Ordering[Long]]
+  val orderingOfInt = implicitly[Ordering[Int]]
+  val orderingOfString = implicitly[Ordering[String]]
+  val orderingOfLongString = implicitly[Ordering[(Long, String)]]
+  val orderingOfStringLong = implicitly[Ordering[(String, Long)]]
+}
+
 object TypeTagSource {
   val typeTagInt = implicitly[TypeTag[Int]]
+  val typeTagLong = implicitly[TypeTag[Long]]
   val typeTagString = implicitly[TypeTag[String]]
+  val typeTagLongString = implicitly[TypeTag[(Long, String)]]
+  val typeTagStringLong = implicitly[TypeTag[(String, Long)]]
 }
 
 object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   import Tag._
 
+  protected implicit def orderingOfA = OrderingSource.orderingOfInt
   protected implicit def typeTagA = TypeTagSource.typeTagInt
   protected def allFlags = Array(INT)
 
@@ -255,6 +311,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
 object InstantiatorsOfStr extends InstantiatorsOf[String] {
   import Tag._
 
+  protected implicit def orderingOfA = OrderingSource.orderingOfString
   protected implicit def typeTagA = TypeTagSource.typeTagString
   protected def allFlags = Array(STR)
 
@@ -269,6 +326,44 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
     Array("0", "1", "0", "1", "0", "1", "0", "1", "0", "1", "0", "1"),
     Array.range(-44, 45).map(_.toString),
     Array.fill(184)("herring")
+  )
+  lazy val possible_y = possible_x
+}
+
+object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with InstantiatorsOfKV[Long, String] {
+  import Tag._
+
+  protected implicit def orderingOfA = OrderingSource.orderingOfLongString
+  protected implicit def orderingOfK = OrderingSource.orderingOfLong
+  protected implicit def typeTagA = TypeTagSource.typeTagLongString
+  protected implicit def typeTagK = TypeTagSource.typeTagLong
+  protected implicit def typeTagV = TypeTagSource.typeTagString
+  protected def allFlags = Array[Tag]()
+
+  lazy val possible_a = Array(3L -> "wish")
+  lazy val possible_x = Array(
+    Array.empty[(Long, String)],
+    possible_a,
+    Array(1L -> "herring", 2L -> "cod", 3L -> "salmon")
+  )
+  lazy val possible_y = possible_x
+}
+
+object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with InstantiatorsOfKV[String, Long] {
+  import Tag._
+
+  protected implicit def orderingOfA = OrderingSource.orderingOfStringLong
+  protected implicit def orderingOfK = OrderingSource.orderingOfString
+  protected implicit def typeTagA = TypeTagSource.typeTagStringLong
+  protected implicit def typeTagK = TypeTagSource.typeTagString
+  protected implicit def typeTagV = TypeTagSource.typeTagLong
+  protected def allFlags = Array[Tag]()
+
+  lazy val possible_a = Array("wish" -> 3L)
+  lazy val possible_x = Array(
+    Array.empty[(String, Long)],
+    possible_a,
+    Array("herring" -> 1L, "cod" -> 2L, "salmon" -> 3L)
   )
   lazy val possible_y = possible_x
 }

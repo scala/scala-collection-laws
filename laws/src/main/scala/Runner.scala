@@ -2,15 +2,19 @@ package laws
 
 class Runner[A, B, CC, T <: Test[A, B, CC, T]](
   lawLine: Int,
-  gen: Generator[A, B, CC],
+  exploreInst: () => Exploratory[Instance[A, CC]],
+  exploreOps: () => Exploratory[Ops[A, B]],
   testGen: (Int, Instance[A, CC], Ops[A, B], Numbers) => T
 ) {
+  def exploreNum(inst: Instance[A, CC]) =
+    new Numbers.Restricted(inst.secret.xsize, inst.secret.ysize)
+
   def runOne(inst: Instance[A, CC], oper: Ops[A, B], num: Numbers): Option[T] = {
     val t: T = testGen(lawLine, inst, oper, num)
     if (t.run.exists(_ == false)) Some(t) else None
   }
   def runNums(inst: Instance[A, CC], oper: Ops[A, B]): Option[T] = {
-    val mkNum = gen.numberExplorer(inst)
+    val mkNum = exploreNum(inst)
     val exNum = mkNum.explore
     var progress = true
     while (progress) {
@@ -28,7 +32,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     None
   }
   def runInst(inst: Instance[A, CC]): Option[T] = {
-    val mkOps = gen.opsExplorer()
+    val mkOps = exploreOps()
     val exOps = mkOps.explore
     var progress = true
     while (progress) {
@@ -47,7 +51,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     None
   }
   def run: Option[T] = {
-    val mkInst = gen.instanceExplorer()
+    val mkInst = exploreInst()
     val exInst = mkInst.explore
     var progress = true
     while (progress) {
