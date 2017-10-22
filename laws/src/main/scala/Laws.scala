@@ -147,7 +147,7 @@ set - only holds for collections that remove duplicates
 
 "x.map(f) theSameAs { val y = collection.mutable.ArrayBuffer.empty[A]; x.foreach(xi => y += f(xi)); y }".law(SEQ)
 
-"x.map(f) theSameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law(SEQ)
+"x.map(f) theSameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law(SET)
 
 /** TODO ***
 "sameType(x, x.map(f))".law("selfs")
@@ -561,6 +561,10 @@ x.`distinct`.`size` == s.size && x.forall(s)
 "x.`groupBy`(g).keySet theSameAs x.map(g).toSet".law
 
 "x.`groupBy`(g).toMap.forall{ case (k,vs) => x.filter(xi => g(xi)==k) theSameAs vs }".law
+
+"x.`take`(10).`size` == -1".law
+
+"throw new Exception(x.`size`.toString); true".law
 
 
 /********** TODO ***********

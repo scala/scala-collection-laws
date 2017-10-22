@@ -1,5 +1,7 @@
 package laws
 
+import scala.util.control.NonFatal
+
 class Runner[A, B, CC, T <: Test[A, B, CC, T]](
   lawLine: Int,
   exploreInst: () => Exploratory[Instance[A, CC]],
@@ -9,19 +11,26 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
   def exploreNum(inst: Instance[A, CC]) =
     new Numbers.Restricted(inst.secret.xsize, inst.secret.ysize)
 
-  def runOne(inst: Instance[A, CC], oper: Ops[A, B], num: Numbers): Option[T] = {
+  def runOne(inst: Instance[A, CC], oper: Ops[A, B], num: Numbers): Option[Either[(T, Throwable), T]] = {
     val t: T = testGen(lawLine, inst, oper, num)
-    if (t.run.exists(_ == false)) Some(t) else None
+    try { if (t.run.exists(_ == false)) Some(Right(t)) else None }
+    catch { case e if NonFatal(e) => Some(Left((t, e))) }
   }
-  def runNums(inst: Instance[A, CC], oper: Ops[A, B]): Option[T] = {
+  
+  def runNums(inst: Instance[A, CC], oper: Ops[A, B]): Either[Either[(T, Throwable), T], Int] = {
     val mkNum = exploreNum(inst)
     val exNum = mkNum.explore
     var progress = true
+    var n = 0
     while (progress) {
       mkNum.lookup(exNum) match {
         case Some(num) =>
+          n += 1
           val before = num.count
-          val result = runOne(inst, oper, num)
+          runOne(inst, oper, num) match {
+            case Some(err) => return Left(err)
+            case _ =>
+          }
           val after = num.count
           val touched = after isnt before
           exNum.advance(touched)
@@ -29,18 +38,22 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
           progress = false
       }
     }
-    None
+    Right(n)
   }
-  def runInst(inst: Instance[A, CC]): Option[T] = {
+
+  def runInst(inst: Instance[A, CC]): Either[Either[(T, Throwable), T], Long] = {
     val mkOps = exploreOps()
     val exOps = mkOps.explore
     var progress = true
+    var n = 0L
     while (progress) {
       mkOps.lookup(exOps) match {
         case Some(oper) =>
           val before = oper.count
-          val result = runNums(inst, oper)
-          if (result.isDefined) return result
+          runNums(inst, oper) match {
+            case Left(err) => return Left(err)
+            case Right(k) => n += k
+          }
           val after = oper.count
           val touched = after isnt before
           exOps.advance(touched)
@@ -48,18 +61,22 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
           progress = false
       }
     }
-    None
+    Right(n)
   }
-  def run: Option[T] = {
+
+  def run: Either[Either[(T, Throwable), T], Long] = {
     val mkInst = exploreInst()
     val exInst = mkInst.explore
     var progress = true
+    var n = 0L
     while (progress) {
       mkInst.lookup(exInst) match {
         case Some(inst) =>
           val before = inst.count
-          val result = runInst(inst)
-          if (result.isDefined) return result
+          runInst(inst) match {
+            case Left(err) => return Left(err)
+            case Right(k) => n += k
+          }
           val after = inst.count
           val touched = after isnt before
           exInst.advance(touched)
@@ -67,6 +84,6 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
           progress = false
       }
     }
-    None
+    Right(n)
   }
 }
