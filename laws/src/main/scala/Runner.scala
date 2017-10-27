@@ -8,16 +8,22 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
   exploreOps: () => Exploratory[Ops[A, B]],
   testGen: (Int, Instance[A, CC], Ops[A, B], Numbers) => T
 ) {
-  def exploreNum(inst: Instance[A, CC]) =
-    new Numbers.Restricted(inst.secret.xsize, inst.secret.ysize)
+  lazy val law = Laws.byLineNumber(lawLine)
 
-  def runOne(inst: Instance[A, CC], oper: Ops[A, B], num: Numbers): Option[Either[(T, Throwable), T]] = {
+  def exploreNum(inst: Instance[A, CC]) =
+    new Numbers.Restricted(inst.values.xsize, inst.values.ysize)
+
+  def runOne(inst: Instance[A, CC], oper: Ops[A, B], num: Numbers): Outcome = {
     val t: T = testGen(lawLine, inst, oper, num)
-    try { if (t.run.exists(_ == false)) Some(Right(t)) else None }
-    catch { case e if NonFatal(e) => Some(Left((t, e))) }
+    try {
+      val law = Laws.byLineNumber.get(lawLine).getOrElse(return Outcome.Missing(lawLine))
+      law.tags.validate(t).foreach{ skip => return skip }
+      if (t.run) Outcome.Success else Outcome.Failed(t)
+    }
+    catch { case e if NonFatal(e) => Outcome.Threw(t, e) }
   }
-  
-  def runNums(inst: Instance[A, CC], oper: Ops[A, B]): Either[Either[(T, Throwable), T], Int] = {
+
+  def runNums(inst: Instance[A, CC], oper: Ops[A, B]): Either[Outcome, Int] = {
     val mkNum = exploreNum(inst)
     val exNum = mkNum.explore
     var progress = true
@@ -25,15 +31,16 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     while (progress) {
       mkNum.lookup(exNum) match {
         case Some(num) =>
-          n += 1
-          val before = num.count
+          num.setUnused()
           runOne(inst, oper, num) match {
-            case Some(err) => return Left(err)
-            case _ =>
+            case Outcome.Success =>
+              exNum.advance(num.used)
+              n += 1
+            case Outcome.Skip.Num(blame) =>
+              exNum.advance(blame)
+            case o =>
+              return Left(o)
           }
-          val after = num.count
-          val touched = after isnt before
-          exNum.advance(touched)
         case None =>
           progress = false
       }
@@ -41,7 +48,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     Right(n)
   }
 
-  def runInst(inst: Instance[A, CC]): Either[Either[(T, Throwable), T], Long] = {
+  def runInst(inst: Instance[A, CC]): Either[Outcome, Long] = {
     val mkOps = exploreOps()
     val exOps = mkOps.explore
     var progress = true
@@ -49,14 +56,16 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     while (progress) {
       mkOps.lookup(exOps) match {
         case Some(oper) =>
-          val before = oper.count
+          oper.setUnused()
           runNums(inst, oper) match {
-            case Left(err) => return Left(err)
-            case Right(k) => n += k
+            case Right(k) =>
+              exOps.advance(oper.used)
+              n += k
+            case Left(Outcome.Skip.Oper(blame)) =>
+              exOps.advance(blame)
+            case Left(err) =>
+              return Left(err)
           }
-          val after = oper.count
-          val touched = after isnt before
-          exOps.advance(touched)
         case None =>
           progress = false
       }
@@ -64,7 +73,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     Right(n)
   }
 
-  def run: Either[Either[(T, Throwable), T], Long] = {
+  def run: Either[Outcome, Long] = {
     val mkInst = exploreInst()
     val exInst = mkInst.explore
     var progress = true
@@ -72,14 +81,16 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     while (progress) {
       mkInst.lookup(exInst) match {
         case Some(inst) =>
-          val before = inst.count
+          inst.setUnused()
           runInst(inst) match {
-            case Left(err) => return Left(err)
-            case Right(k) => n += k
+            case Right(k) => 
+              exInst.advance(inst.used)
+              n += k
+            case Left(Outcome.Skip.Inst(blame)) =>
+              exInst.advance(blame)
+            case Left(err) =>
+              return Left(err)
           }
-          val after = inst.count
-          val touched = after isnt before
-          exInst.advance(touched)
         case None =>
           progress = false
       }

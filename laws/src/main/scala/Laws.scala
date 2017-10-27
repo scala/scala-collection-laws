@@ -43,7 +43,7 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
   def add(t1: Tag, t2: Tag, tx: Tag*): Law = new Law(name, ((tags need t1 need t2) /: tx)((ts, t) => ts need t), code, disabled)(file, line)
 
   /** Add another check of TestInfo for some property */
-  def filter(p: TestInfo => Boolean): Law = new Law(name, tags filter p, code, disabled)(file, line)
+  def filter(p: TestInfo => Option[Outcome.Skip]): Law = new Law(name, tags.filter(p), code, disabled)(file, line)
 
   /** Methods in the law that are backtick-quoted, indicating that the collection should only be used if it has those methods */
   val methods = findMyMethods
@@ -218,9 +218,9 @@ set - only holds for collections that remove duplicates
 
 /******** Laws that should apply to most collections ********/
 
-"x.`aggregate`(zero)((b,a) => b, (b1,b2) => b1) == zero".law
+"x.`aggregate`(zero)((b,a) => b, (b1,b2) => b1) == zero".lawFn(_.filter(_.skipMissingZero))
 
-"x.`aggregate`(zero)((b,a) => b, (b1,b2) => b2) == zero".law
+"x.`aggregate`(zero)((b,a) => b, (b1,b2) => b2) == zero".lawFn(_.filter(_.skipMissingZero))
 
 /******** TODO--port the rest of these *********
 !SI7128 !S n m r ... n < 0 || { val arr = new Array[@A](r); x.`copyToArray`(arr, n, m); (arr.drop(n).take(m) zip x.toList).forall{ case (x,y) => x==y } }
@@ -277,7 +277,8 @@ x.`isTraversableAgain` == @AGAIN
 Set(
   tryO{x.`reduce`(op)}, tryO{x.`reduceLeft`(op)}, tryO{x.`reduceRight`(op)},
   x.`reduceOption`(op), x.`reduceLeftOption`(op), x.`reduceRightOption`(op)
-).size == 1""".law(select(_.isSymOp))
+).size == 1
+""".lawFn(_.filter(_.skipNonassociative))
 
 "x.`size` == x.`count`(_ => true)".law
 
@@ -293,7 +294,7 @@ Set(
 
 "x.`toList` theSameAs x".law
 
-"x.map(xi => (xi,xi)).`toMap` theSameAs { val hm = new collection.mutable.HashMap[A,A]; x.foreach(xi => hm += xi -> xi); hm }".law
+"x.map(xi => (xi,xi)).`toMap` correspondsTo { val hm = new collection.mutable.HashMap[A,A]; x.foreach(xi => hm += xi -> xi); hm }".law
 
 "x.`toSeq` theSameAs x".law
 
@@ -558,13 +559,9 @@ x.`distinct`.`size` == s.size && x.forall(s)
 
 "x.`endsWith`(y) == (x.`drop`(math.max(0, x.`size`-y.size)) theSameAs y)".law
 
-"x.`groupBy`(g).keySet theSameAs x.map(g).toSet".law
+"x.`groupBy`(g).keySet correspondsTo x.map(g).toSet".law
 
 "x.`groupBy`(g).toMap.forall{ case (k,vs) => x.filter(xi => g(xi)==k) theSameAs vs }".law
-
-"x.`take`(10).`size` == -1".law
-
-"throw new Exception(x.`size`.toString); true".law
 
 
 /********** TODO ***********

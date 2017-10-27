@@ -25,8 +25,11 @@ class Explore(possibilities: Array[Int]) {
       n.toInt
     }
 
-  def advance(used: Array[Boolean]): Boolean = 
-    if (itinerary.isEmpty || used.length != possibilities.length) false
+  def advance(used: Array[Boolean]): Boolean = {
+    if (used.length != possibilities.length)
+      throw new IllegalArgumentException(f"Expected ${possibilities.length} entries, got ${used.length}")
+
+    if (itinerary.isEmpty) false
     else {
       val old = itinerary.dequeue
       var i = 0
@@ -68,8 +71,14 @@ class Explore(possibilities: Array[Int]) {
       }
       itinerary.nonEmpty
     }
+  }
 
   def current: Option[Array[Int]] = if (itinerary.nonEmpty) Some(itinerary.front) else None
+
+  override def toString = current match {
+    case Some(xs) => f"Visited ${visiting.size} with ${itinerary.size} pending\n  ${xs.map(x => "%2d".format(x)).mkString(" ")}"
+    case None     => f"Visited ${visiting.size} with ${itinerary.size} pending"
+  }
 }
 
 

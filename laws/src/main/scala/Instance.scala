@@ -4,12 +4,6 @@ import scala.language.higherKinds
 
 import scala.reflect.runtime.universe.TypeTag
 
-trait Containing[A] {
-  def methods: Set[String]
-  def example: A
-  def majorSize: Int
-}
-
 /** A provider of instances of collections of a particular type with a particular element type.
   * Each call to the methods should return the same collection; if mutable, the instance
   * should be created afresh each time.  If immutable, it shouldn't matter.
@@ -17,61 +11,34 @@ trait Containing[A] {
   *
   * That `A` is actually an element that can be found within `CC` is not enforced.
   */
-class Instance[A, CC: TypeTag] private (
-  private[laws] val x0: () => CC,
-  private[laws] val xsize0: Int,
-  private[laws] val y0: () => CC,
-  private[laws] val ysize0: Int,
-  private[laws] val a0: A,
-  val flags: Set[Tag]
-)
-extends Containing[A] {
-  private[this] var _aCount: Int = 0
-  private[this] var _xCount: Int = 0
-  private[this] var _xsizeCount: Int = 0
-  private[this] var _yCount: Int = 0
-  private[this] var _ysizeCount: Int = 0
+class Instance[A, CC: TypeTag] protected (a0: A, x0: () => CC, xsize0: Int, y0: () => CC, ysize0: Int, val flags: Set[Tag]) {
+  val values = Instance.Values(a0, x0, xsize0, y0, ysize0)
+
+  val used = Array(false, false, false)
 
   /** An example element of a type that can be found within the collection */
-  def a: A = { _aCount += 1; a0 }
+  def a: A = { used(0) = true; a0 }
 
   /** A particular instance of a collection. */
-  def x: CC = { _xCount += 1; x0() }
+  def x: CC = { used(1) = true; x0() }
 
   /** The size of the collection `x` */
-  def xsize: Int = { _xsizeCount += 1; xsize0 }
+  def xsize: Int = { used(1) = true; xsize0 }
 
   /** Another instance of a collection, which may or may not be the same as `x` */
-  def y: CC = { _yCount += 1; y0() }
+  def y: CC = { used(2) = true; y0() }
 
   /** The size of the collection `y` */
-  def ysize: Int = { _ysizeCount += 1; ysize0 }
+  def ysize: Int = { used(2) = true; ysize0 }
 
   lazy val methods = MethodChecker.list(x)
 
-  def aCount: Int = _aCount
-  def xCount: Int = _xCount
-  def xsizeCount: Int = _xsizeCount
-  def yCount: Int = _yCount
-  def ysizeCount: Int = _ysizeCount
-  def count = Instance.Count(aCount, xCount, xsizeCount, yCount, ysizeCount)
-  def resetCount: this.type = { _aCount = 0; _xCount = 0; _xsizeCount = 0; _yCount = 0; _ysizeCount = 0; this }
+  def setUnused(): this.type = { java.util.Arrays.fill(used, false); this }
 
-  class Secret {
-    def a: A = a0
-    def x: CC = x0()
-    def xsize: Int = xsize0
-    def y: CC = y0()
-    def ysize: Int = ysize0
-  }
-  /** Secretly access the input collections (usage not recorded, so will not cause variants to be run) */
-  val secret = new Secret
-
-  def example = secret.a
-  def majorSize = secret.xsize
+  def touched = used(0) || used(1) || used(2)
 
   override def equals(that: Any) = that match {
-    case i: Instance[_, _] => (this eq i) || (a0 == i.a0 && xsize0 == i.xsize0 && ysize0 == i.ysize0 && x0() == i.x0() && y0() == i.y0)
+    case i: Instance[_, _] => (this eq i) || (this.values == i.values)
     case _                 => false
   }
   override def hashCode: Int = {
@@ -84,20 +51,7 @@ extends Containing[A] {
   }
 }
 object Instance { outer =>
-  case class Count(aCount: Int, xCount: Int, xsizeCount: Int, yCount: Int, ysizeCount: Int) {
-    def -(that: Count) = new Count(
-      aCount     - that.aCount,
-      xCount     - that.xCount,
-      xsizeCount - that.xsizeCount,
-      yCount     - that.yCount,
-      ysizeCount - that.ysizeCount
-    )
-    def isnt(that: Count) = Array(
-      aCount != that.aCount,
-      xCount != that.xCount || xsizeCount != that.xsizeCount,
-      yCount != that.yCount || ysizeCount != that.ysizeCount
-    )
-  }
+  final case class Values[A, CC: TypeTag](a: A, x: () => CC, xsize: Int, y: () => CC, ysize: Int)
 
   trait Sizable[CC] {
     def sizeof(c: CC): Int
@@ -108,29 +62,31 @@ object Instance { outer =>
     def fullyQualified: String
   }
 
-  def apply[A, CC: TypeTag: Sizable](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int)(flags: Set[Tag] = Set.empty): Instance[A, CC] =
+  def apply[A, CC: TypeTag](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int)(flags: Set[Tag] = Set.empty): Instance[A, CC] =
     new Instance(
+      a,
       () => x, xsize,
       () => y, ysize,
-      a, flags
+      flags
     )
   def from[A, CC: TypeTag: Sizable](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC)(flags: Set[Tag] = Set.empty): Instance[A, CC] =
-    new Instance( 
+    new Instance(
+      a,
       () => ccf(x), implicitly[Sizable[CC]].sizeof(ccf(x)),
       () => ccf(y), implicitly[Sizable[CC]].sizeof(ccf(y)),
-      a, flags
+      flags
     )
   def cacheFrom[A, CC: TypeTag: Sizable](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC)(flags: Set[Tag] = Set.empty): Instance[A, CC] =
     new Instance(
+      a,
       new CachedFn0(() => ccf(x)), implicitly[Sizable[CC]].sizeof(ccf(x)),
       new CachedFn0(() => ccf(y)), implicitly[Sizable[CC]].sizeof(ccf(y)), 
-      a, flags
+      flags
     )
 
-  trait ContainingFromArray[A] extends ((A, Array[A], Array[A]) => Containing[A]) with Named {
+  trait FromArray[A, CC] extends ((A, Array[A], Array[A]) => Instance[A, CC]) with Named {
     override def toString = f"$name from array"
   }
-  trait FromArray[A, CC] extends ((A, Array[A], Array[A]) => Instance[A, CC]) with ContainingFromArray[A] {}
 
   def generator[A, CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name): FromArray[A, CC] =
     new FromArray[A, CC] {
@@ -172,7 +128,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
   protected implicit def sizeOfArray[A] = new Sizable[Array[A]] { def sizeof(a: Array[A]) = a.length }
   protected implicit val sizeOfString = new Sizable[String] { def sizeof(s: String) = s.length }
 
-  protected val registry = Vector.newBuilder[Instance.ContainingFromArray[A]]
+  protected val registry = Vector.newBuilder[Instance.FromArray[A, _]]
 
   object Imm extends Instance.PackagePath {
     def nickname = "Imm"

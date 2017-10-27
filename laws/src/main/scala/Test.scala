@@ -10,13 +10,13 @@ abstract class Test[A, B, CC, T <: Test[A, B, CC, T]](
   val lawLine: Int
 )(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name) 
 extends Sourced
-with Named
+with Named 
 with TestInfo {
   /** Arbitrary element of the type in the collection */
-  def a: A = instance.a
+  def a: A = instance.values.a
 
   /** An arbitrary element of a type not in the basic collection.  Should match g(a). */
-  lazy val b: B = ops.secret.g(instance.secret.a)
+  lazy val b: B = ops.values.g.fn(instance.values.a)
 
   /** Some function that preserves the type of the elements */
   def f: A => A = ops.f
@@ -24,17 +24,17 @@ with TestInfo {
   /** Some function that changes the type of the elements.  Note that g(a) == b should be true. */
   def g: A => B = ops.g
 
-  /** A positive number that is no bigger than the length of `x` */
-  def n: Int = if (num.secret.n < 0) (-num.n-1) % xsize else num.n % xsize
+  /** A positive number that is supposedly no bigger than the length of `x` */
+  def n: Int = num.n
 
   /** A positive number that may be bigger than the length of `x` */
-  def nn: Int = if (num.secret.nn < 0) -num.nn-1 else num.nn
+  def nn: Int = num.nn
 
   /** A positive number that is no bigger than the length of `y` */
-  def m: Int = if (num.secret.m < 0) (-num.m-1) % ysize else num.m % ysize
+  def m: Int = num.m
 
   /** A positive number that may be bigger than the length of `y` **/
-  val mm: Int = if (num.secret.mm < 0) -num.mm-1 else num.mm
+  def mm: Int = num.mm
 
   /** Some integer.  May be positive or negative.  Could really be anything. */
   def r: Int = num.r
@@ -69,23 +69,17 @@ with TestInfo {
   /** Converts a value to a characteristic integer.  (Default is just hashcode.) */
   def intFrom(a: A): Int = a.##
 
-  /** Operation has a zero */
-  def hasZero = ops.hasZ
-
-  /** Operation is symmetric and associative */
-  def isSymOp = ops.isSymOp
-
   def flags: Set[Tag] = instance.flags
+
+  def oper: Ops[_, _] = ops
+
+  def inst: Instance[_, _] = instance
 
   def boxedRuntime = a.getClass
 
   def runtimeColl = x.getClass
 
   def name = nm.value.toString
-
-  def count = Test.Count(num.count, instance.count , ops.count)
-
-  def resetCount { num.resetCount; instance.resetCount; ops.resetCount }
 
   override lazy val toString =
     nm.value.toString + " @ " + source +
@@ -111,17 +105,13 @@ with TestInfo {
     */
   def runLaw(n: Int): Option[Boolean]
 
-  /** Runs on the default law given by the `lawLine` parameter. */
-  def run: Option[Boolean] = runLaw(lawLine)
+  /** Runs on the default law given by the `lawLine` parameter.  Throws an exception if the law number doesn't exist. */
+  def run: Boolean = runLaw(lawLine).get
 }
 object Test {
   trait Companion {
     /** The laws tested by this (kind of) test */
     def obeys: Map[Int, Law]
-  }
-
-  case class Count(numbers: Numbers.Count, instances: Instance.Count, ops: Ops.Count) {
-    def -(that: Count) = new Count(numbers - that.numbers, instances - that.instances, ops - that.ops)
   }
 
   private class N(var count: Int = 0) { def ++(){ count += 1 } }

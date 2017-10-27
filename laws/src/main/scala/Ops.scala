@@ -23,7 +23,7 @@ extends Named {
 }
 
 /** Wrapper class around a binary operation that lets you tell where it came from */
-class OpFn[X](val ofn: (X, X) => X, val zero: Option[X], val sym: OpFn.Symmetry)(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name)
+class OpFn[X](val ofn: (X, X) => X, val zero: Option[X], val assoc: OpFn.Associativity)(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name)
 extends Named {
   def name = nm.value.toString
   override val toString = nm.value.toString + " @ " + Sourced.implicitly
@@ -34,9 +34,9 @@ extends Named {
   override val hashCode = scala.util.hashing.MurmurHash3.stringHash(toString)
 }
 object OpFn {
-  sealed trait Symmetry {}
-  final case object Symmetric extends Symmetry {}
-  final case object Nonsymmetric extends Symmetry {}  
+  sealed trait Associativity {}
+  final case object Associative extends Associativity {}
+  final case object Nonassociative extends Associativity {}  
 }
 
 /** Wrapper class around a partial function that lets you tell where it came from */
@@ -57,75 +57,45 @@ extends Named {
 ///////////////////////////////////////////////
 
 /** Class that represents the ways we can transform and select data for a given element type. */
-final class Ops[A, B] private (
-  private[laws] val f0: A ===> A,
-  private[laws] val g0: A ===> B,
-  private[laws] val op0: OpFn[A],
-  private[laws] val p0: A ===> Boolean,
-  private[laws] val pf0: ParFn[A]
-) {
-  private[this] var _fCount = 0
-  private[this] var _gCount = 0
-  private[this] var _opzCount = 0
-  private[this] var _pCount = 0
-  private[this] var _pfCount = 0
+final class Ops[A, B](f0: A ===> A, g0: A ===> B, op0: OpFn[A], p0: A ===> Boolean, pf0: ParFn[A]) {
+  val values = Ops.Values[A, B](f0, g0, op0, p0, pf0)
+
+  val used = Array(false, false, false, false, false)
 
   /** A function that changes an element to another of the same type */
-  def f: A => A = { _fCount += 1; f0.fn }
+  def f: A => A = { used(0) = true; values.f.fn }
 
   /** A function that changes an element to another of a different type */
-  def g: A => B = { _gCount += 1; g0.fn }
+  def g: A => B = { used(1) = true; values.g.fn }
 
   /** A function that, given two elements of a type, produces a single element of that type */
-  def op: (A, A) => A = { _opzCount += 1; op0.ofn }
+  def op: (A, A) => A = { used(2) = true; values.op.ofn }
 
   /** A predicate that gives a true/false answer for an element */
-  def p: A => Boolean = { _pCount += 1; p0.fn }
+  def p: A => Boolean = { used(3) = true; values.p.fn }
 
   /** A partial function that changes some elements to another of the same type */
-  def pf: PartialFunction[A, A] = { _pfCount += 1; pf0.pfn }
+  def pf: PartialFunction[A, A] = { used(4) = true; values.pf.pfn }
 
-  /** The zero of `op`; throws an exception if there is no zero.  Test using `hasZ`.
+  /** The zero of `op`; throws an exception if there is no zero.  Filter out tests using `z` with Law#filter!
     *
     * Note: we're doing it this way since it's not practical to instrument the usage of something inside `Option`.
     */
-  def z: A = { _opzCount += 1; op0.zero.get }
+  def z: A = { used(5) = true; op0.zero.get }
 
-  val hasZ: Boolean = op0.zero.isDefined
+  def setUnused(): this.type = { java.util.Arrays.fill(used, false); this }
 
-  def isSymOp: Boolean = op0.sym == OpFn.Symmetric
-
-  def fCount = _fCount
-  def gCount = _gCount
-  def opzCount = _opzCount
-  def pCount = _pCount
-  def pfCount = _pfCount
-  def count = Ops.Count(fCount, gCount, opzCount, pCount, pfCount)
-  def resetCount: this.type = { _fCount = 0; _gCount = 0; _opzCount = 0; _pCount = 0; _pfCount = 0; this }
-
-  class Secret {
-    def f = f0.fn
-    def g = g0.fn
-    def op = op0.ofn
-    def p = p0.fn
-    def pf = pf0.pfn
-    def z = op0.zero.get
-  }
-  /** Secretly access the functions and transformations (usage not recorded, so will not cause variants to be run) */
-  val secret = new Secret
+  def touched = used(0) || used(1) || used(2) || used(3) || used(4)
 
   override def equals(that: Any) = that match {
-    case o: Ops[_, _] => (f0 == o.f0) && (g0 == o.g0) && (op0 == o.op0) && (p0 == o.p0) && (pf0 == o.pf0)
+    case o: Ops[_, _] => values == o.values
+    case _            => false
   }
 
-  override def hashCode = {
-    import scala.util.hashing.MurmurHash3._
-    import java.lang.System.{identityHashCode => h}
-    finalizeHash(mixLast(mix(mix(mix(h(f0), h(g0)), h(op0)), h(p0)), h(pf0)), 5)
-  }
+  override def hashCode = values.hashCode
 
   override lazy val toString = {
-    val parts = Array(f0.toString, g0.toString, op0.toString, p0.toString, pf0.toString)
+    val parts = Array(values.f.toString, values.g.toString, values.op.toString, values.p.toString, values.pf.toString)
     val pad = parts.map(_.indexOf('@')).max
     val paddedParts =
       if (pad < 0) parts
@@ -138,25 +108,17 @@ final class Ops[A, B] private (
   }
 }
 object Ops {
-  case class Count(fCount: Int, gCount: Int, opCount: Int, pCount: Int, pfCount: Int) {
-    def -(that: Count) = new Count(
-      fCount  - that.fCount,
-      gCount  - that.gCount,
-      opCount - that.opCount,
-      pCount  - that.pCount,
-      pfCount - that.pfCount
-    )
-    def isnt(that: Count) = Array(
-      fCount != that.fCount,
-      gCount != that.gCount,
-      opCount != that.opCount,
-      pCount != that.pCount,
-      pfCount != that.pfCount
-    )
+  final case class Values[A, B](f: A ===> A, g: A ===> B, op: OpFn[A], p: A ===> Boolean, pf: ParFn[A]) { self =>
+    object unwrap {
+      def f  = self.f.fn
+      def g  = self.g.fn
+      def op = self.op.ofn
+      def p  = self.p.fn
+      def pf = self.pf.pfn
+    }
   }
 
-  def apply[A, B](f: A ===> A, g: A ===> B, op: OpFn[A], p: A ===> Boolean, pf: ParFn[A]) =
-    new Ops(f, g, op, p, pf)
+  def apply[A, B](f: A ===> A, g: A ===> B, op: OpFn[A], p: A ===> Boolean, pf: ParFn[A]): Ops[A, B] = new Ops(f, g, op, p, pf)
 }
 
 
@@ -206,13 +168,13 @@ object StrToOpts extends Variants[String ===> Option[String]] {
 }
 
 object IntOpFns extends Variants[OpFn[Int]] {
-  val summation = this has new Item(_ + _, Some(0), OpFn.Symmetric)
-  val multiply  = this has new Item((i, j) => i*j - 2*i - 3*j + 4, None, OpFn.Nonsymmetric)
+  val summation = this has new Item(_ + _, Some(0), OpFn.Associative)
+  val multiply  = this has new Item((i, j) => i*j - 2*i - 3*j + 4, None, OpFn.Nonassociative)
 }
 
 object StrOpFns extends Variants[OpFn[String]] {
-  val concat     = this has new Item(_ + _, Some(""), OpFn.Symmetric)
-  val interleave = this has new Item((s, t) => (s zip t).map{ case (l,r) => f"$l$r" }.mkString, None, OpFn.Nonsymmetric)
+  val concat     = this has new Item(_ + _, Some(""), OpFn.Associative)
+  val interleave = this has new Item((s, t) => (s zip t).map{ case (l,r) => f"$l$r" }.mkString, None, OpFn.Nonassociative)
 }
 
 object IntPreds extends Variants[Int ===> Boolean] {
@@ -261,7 +223,7 @@ object StrOpsExplorer extends OpsExplorer[String, Option[String]](StrFns, StrToO
 object LongStrOpsExplorer extends OpsExplorer[(Long, String), (String, Long)](
   new Variants[(Long, String) ===> (Long, String)] { private[this] val inc1 = this has new Item(kv => (kv._1+1, kv._2)) },
   new Variants[(Long, String) ===> (String, Long)] { private[this] val swap = this has new Item(kv => (kv._2, kv._1)) },
-  new Variants[OpFn[(Long, String)]] { private[this] val sums = this has new Item((kv, cu) => (kv._1 + cu._1, kv._2 + cu._2), None, OpFn.Nonsymmetric) },
+  new Variants[OpFn[(Long, String)]] { private[this] val sums = this has new Item((kv, cu) => (kv._1 + cu._1, kv._2 + cu._2), None, OpFn.Nonassociative) },
   new Variants[(Long, String) ===> Boolean] { private[this] val high = this has new Item(kv => kv._1 > kv._2.length) },
   new Variants[ParFn[(Long, String)]] { private[this] val akin = this has new Item({ case (k, v) if ((k ^ v.length) & 1) == 0 => (k-2, v) })}
 ){}
@@ -269,7 +231,7 @@ object LongStrOpsExplorer extends OpsExplorer[(Long, String), (String, Long)](
 object StrLongOpsExplorer extends OpsExplorer[(String, Long), (Long, String)](
   new Variants[(String, Long) ===> (String, Long)] { private[this] val crop = this has new Item(kv => (kv._1.drop(1), kv._2)) },
   new Variants[(String, Long) ===> (Long, String)] { private[this] val swap = this has new Item(kv => (kv._2, kv._1)) },
-  new Variants[OpFn[(String, Long)]] { private[this] val sums = this has new Item((kv, cu) => (kv._1 + cu._1, kv._2 + cu._2), None, OpFn.Nonsymmetric) },
+  new Variants[OpFn[(String, Long)]] { private[this] val sums = this has new Item((kv, cu) => (kv._1 + cu._1, kv._2 + cu._2), None, OpFn.Nonassociative) },
   new Variants[(String, Long) ===> Boolean] { private[this] val high = this has new Item(kv => kv._1.length < kv._2) },
   new Variants[ParFn[(String, Long)]] { private[this] val akin = this has new Item({ case (k, v) if ((k.length ^ v) & 1) == 0 => (k.drop(1), v) })}
 ){}

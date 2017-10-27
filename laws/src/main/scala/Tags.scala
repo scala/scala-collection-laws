@@ -27,10 +27,9 @@ object Tag {
 
 /** Information that you can use to filter tests (note: only flags are used for compile-time generation) */
 trait TestInfo {
-  def hasZero: Boolean
-  def isSymOp: Boolean
-  def flags: Set[Tag]
-  def extra: TestInfo.Extra = TestInfo.Empty
+  def num: Numbers
+  def oper: Ops[_, _]
+  def inst: Instance[_, _]
   final def runtimeElt: java.lang.Class[_] = {
     val r = boxedRuntime
     if      (r == classOf[java.lang.Integer])       classOf[Int]
@@ -45,13 +44,9 @@ trait TestInfo {
   }
   def boxedRuntime: java.lang.Class[_]
   def runtimeColl: java.lang.Class[_]
-}
-object TestInfo {
-  /** Trait to mark any extra data that one might need to pass and pattern-match out. */
-  sealed trait Extra {}
 
-  /** Case where no extra data is needed. */
-  final case object Empty extends Extra {}
+  def skipMissingZero    = if (oper.values.op.zero.isDefined)            None else Some(Outcome.Skip.op)
+  def skipNonassociative = if (oper.values.op.assoc == OpFn.Associative) None else Some(Outcome.Skip.op)
 }
 
 /** Tags provide a way to select which laws are applicable for a given run.  For instance,
@@ -62,7 +57,7 @@ object TestInfo {
   * Additional restriction of the set may be achieved by including tests in `select`.  All
   * such tests must pass for a particular set of parameters to be included in a test.
   */
-case class Tags(positive: Set[Tag], negative: Set[Tag], select: Vector[TestInfo => Boolean]) {
+case class Tags(positive: Set[Tag], negative: Set[Tag], select: Vector[TestInfo => Option[Outcome.Skip]]) {
   /** Tests whether any tags are present (either boolean or string-valued) */
   val isEmpty = positive.isEmpty && negative.isEmpty && select.isEmpty
 
@@ -70,8 +65,8 @@ case class Tags(positive: Set[Tag], negative: Set[Tag], select: Vector[TestInfo 
   def compatible(flags: Set[Tag]) =
     positive.forall(flags contains _) && !flags.exists(negative contains _)
 
-  /** Checks whether a certain choice of parameters is suitable for testing (runtime compatible) */
-  def validate(t: TestInfo) = compatible(t.flags) && select.forall(p => p(t))
+  /** Checks whether a certain choice of parameters is suitable for testing at runtime */
+  def validate(t: TestInfo): Option[Outcome.Skip] = select.iterator.map(p => p(t)).find(_.isDefined).flatten
 
   /** Sets a boolean tag that must be present */
   def need(t: Tag): Tags =
@@ -86,7 +81,7 @@ case class Tags(positive: Set[Tag], negative: Set[Tag], select: Vector[TestInfo 
     else new Tags(positive, negative + t, select)
 
   /** Adds an extra selector that checks test info */
-  def filter(p: TestInfo => Boolean): Tags = new Tags(positive, negative, select :+ p)
+  def filter(p: TestInfo => Option[Outcome.Skip]): Tags = new Tags(positive, negative, select :+ p)
 
   override lazy val toString = {
     val named = positive.toList.sorted ::: negative.toList.map("!" + _).sorted
@@ -103,7 +98,7 @@ object Tags {
   sealed trait Taggish {}
   final case class PosTag(tag: Tag) extends Taggish {}
   final case class NegTag(tag: Tag) extends Taggish {}
-  final case class SelectTag(p: TestInfo => Boolean) extends Taggish {}
+  final case class SelectTag(p: TestInfo => Option[Outcome.Skip]) extends Taggish {}
   //final case class SelectTag(p: List[String] => Boolean) extends Taggish {}
   /** Implicits contains implicit conversions to values that can be tags. */
   object Implicits {
@@ -113,11 +108,11 @@ object Tags {
       def ! : NegTag = NegTag(t)
     }
     implicit def tagIsPositiveByDefault(t: Tag): PosTag = PosTag(t)
-    implicit def select(p: TestInfo => Boolean): SelectTag = SelectTag(p)
+    implicit def select(p: TestInfo => Option[Outcome.Skip]): SelectTag = SelectTag(p)
   }
 
   /** Canonical empty set of tags. (That is, no tags.) */
-  val empty = new Tags(Set.empty[Tag], Set.empty[Tag], Vector.empty[TestInfo => Boolean])
+  val empty = new Tags(Set.empty[Tag], Set.empty[Tag], Vector.empty[TestInfo => Option[Outcome.Skip]])
 
   /** Create a mixed set of boolean and predicate tags.
     *
