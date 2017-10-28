@@ -248,7 +248,7 @@ p !RANGE ... sameType(x, x.filter(p))
 y !ARRAY !M ... x.flatMap(xi => y.toList.take($INT(xi))) theSameAs x.map(xi => y.toList.take($INT(xi))).`flatten`
 ***********************************************/
 
-"x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)".law
+"x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)".lawFn(_.filter(_.skipAsymmetric))
 
 "x.`foldLeft`(a)(op) == x.`/:`(a)(op)".law
 
@@ -269,9 +269,9 @@ x.`isTraversableAgain` == @AGAIN
 
 "x.`nonEmpty` == x.`exists`(_ => true)".law
 
+"x.`product` == x.`fold`(1)(_ * _)".law(INT)
 
-"x.`product` == x.`fold`(one)(_ * _)".law(INT)
-"x.`sum` == x.`fold`(zero)(_ + _)".law(INT)
+"x.`sum` == x.`fold`(0)(_ + _)".law(INT)
 
 """
 Set(

@@ -132,19 +132,20 @@ abstract class StrLongGenerator[CC] extends Generator[(String, Long), (Long, Str
 object AllIntGenerators {
   val io = InstantiatorsOfInt
 
-  class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[Int, CC])(implicit name: sourcecode.Name)
+  class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[Int, CC], ct: String = "")(implicit name: sourcecode.Name)
   extends IntGenerator[CC] {
     def generatorName = f"AllIntGenerators.${p.nickname}.${name.value}"
     def pkgName = p.nickname
     def pkgFull = p.fullyQualified
+    override def colType = if (ct.isEmpty) super.colType else ct
     val instanceExplorer = io.map(iexp(p).tupled)
     def ccType = name.value.toString.capitalize
   }
 
   private val everyoneBuffer = Array.newBuilder[Gen[_, _]]
 
-  def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[Int, CC])(implicit name: sourcecode.Name): Gen[P, CC] = {
-    val ans = new Gen(p)(iexp)(name)
+  def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[Int, CC], ct: String = "")(implicit name: sourcecode.Name): Gen[P, CC] = {
+    val ans = new Gen(p)(iexp, ct)(name)
     everyoneBuffer += ans
     ans
   }
@@ -163,7 +164,12 @@ object AllIntGenerators {
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
-  val force = Imm :: Mut :: Nil
+  object ImmInt {
+    val bitSet = register(io.ImmInt)(_.bitSet(), "collection.immutable.BitSet")
+    val range = register(io.ImmInt)(_.range(), "collection.immutable.Range")
+  }
+
+  val force = Imm :: Mut :: ImmInt :: Nil
 
   lazy val all = everyoneBuffer.result
 
@@ -174,19 +180,20 @@ object AllIntGenerators {
 object AllStrGenerators {
   val io = InstantiatorsOfStr
 
-  class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[String, CC])(implicit name: sourcecode.Name)
+  class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[String, CC], ct: String = "")(implicit name: sourcecode.Name)
   extends StrGenerator[CC] {
     def generatorName = f"AllStrGenerators.${p.nickname}.${name.value}"
     def pkgName = p.nickname
     def pkgFull = p.fullyQualified
+    override def colType = if (ct.isEmpty) super.colType else ct
     val instanceExplorer = io.map(iexp(p).tupled)
     def ccType = name.value.toString.capitalize
   }
 
   private val everyoneBuffer = Array.newBuilder[Gen[_, _]]
 
-  def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[String, CC])(implicit name: sourcecode.Name): Gen[P, CC] = {
-    val ans = new Gen(p)(iexp)(name)
+  def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[String, CC], ct: String = "")(implicit name: sourcecode.Name): Gen[P, CC] = {
+    val ans = new Gen(p)(iexp, ct)(name)
     everyoneBuffer += ans
     ans
   }
@@ -208,7 +215,7 @@ object AllStrGenerators {
   }
 
   object Mut {
-    // val array = register(io.Mut)(_.array())
+    val array = register(io.Mut)(_.array(), "Array[String]")
     val arrayBuffer = register(io.Mut)(_.arrayBuffer())
     val arraySeq = register(io.Mut)(_.arraySeq())
     val arrayStack = register(io.Mut)(_.arrayStack())
@@ -237,11 +244,12 @@ object AllStrGenerators {
 object AllLongStrGenerators {
   val io = InstantiatorsOfLongStr
 
-  class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[(Long, String), CC])(implicit name: sourcecode.Name)
+  class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[(Long, String), CC], ct: String = "")(implicit name: sourcecode.Name)
   extends LongStrGenerator[CC] {
     def generatorName = f"AllLongStrGenerators.${p.nickname}.${name.value}"
     def pkgName = p.nickname
     def pkgFull = p.fullyQualified
+    override def colType = if (ct.isEmpty) super.colType else ct
     val instanceExplorer = io.map(iexp(p).tupled)
     def ccType = name.value.toString.capitalize
     override lazy val eltCC = eltType.dropWhile(_ == '(').reverse.dropWhile(_ == ')').reverse
@@ -249,8 +257,8 @@ object AllLongStrGenerators {
 
   private val everyoneBuffer = Array.newBuilder[Gen[_, _]]
 
-  def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[(Long, String), CC])(implicit name: sourcecode.Name): Gen[P, CC] = {
-    val ans = new Gen(p)(iexp)(name)
+  def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[(Long, String), CC], ct: String = "")(implicit name: sourcecode.Name): Gen[P, CC] = {
+    val ans = new Gen(p)(iexp, ct)(name)
     everyoneBuffer += ans
     ans
   }
@@ -282,11 +290,12 @@ object AllLongStrGenerators {
 object AllStrLongGenerators {
   val io = InstantiatorsOfStrLong
 
-  class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[(String, Long), CC])(implicit name: sourcecode.Name)
+  class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[(String, Long), CC], ct: String = "")(implicit name: sourcecode.Name)
   extends StrLongGenerator[CC] {
     def generatorName = f"AllStrLongGenerators.${p.nickname}.${name.value}"
     def pkgName = p.nickname
     def pkgFull = p.fullyQualified
+    override def colType = if (ct.isEmpty) super.colType else ct
     val instanceExplorer = io.map(iexp(p).tupled)
     def ccType = name.value.toString.capitalize
     override lazy val eltCC = eltType.dropWhile(_ == '(').reverse.dropWhile(_ == ')').reverse
@@ -294,8 +303,8 @@ object AllStrLongGenerators {
 
   private val everyoneBuffer = Array.newBuilder[Gen[_, _]]
 
-  def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[(String, Long), CC])(implicit name: sourcecode.Name): Gen[P, CC] = {
-    val ans = new Gen(p)(iexp)(name)
+  def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[(String, Long), CC], ct: String = "")(implicit name: sourcecode.Name): Gen[P, CC] = {
+    val ans = new Gen(p)(iexp, ct)(name)
     everyoneBuffer += ans
     ans
   }
@@ -315,8 +324,11 @@ object AllStrLongGenerators {
     val sortedMap     = register(io.MutKV)(_.sortedMap())
     val treeMap       = register(io.MutKV)(_.treeMap())
   }
+  object MutKrefV {
+    val anyRefMap     = register(io.MutKrefV)(_.anyRefMap())
+  }
 
-  val force = ImmKV :: MutKV :: Nil
+  val force = ImmKV :: MutKV :: MutKrefV :: Nil
 
   lazy val all = everyoneBuffer.result
 

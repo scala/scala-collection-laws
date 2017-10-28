@@ -23,7 +23,9 @@ extends Named {
 }
 
 /** Wrapper class around a binary operation that lets you tell where it came from */
-class OpFn[X](val ofn: (X, X) => X, val zero: Option[X], val assoc: OpFn.Associativity)(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name)
+class OpFn[X](
+  val ofn: (X, X) => X, val zero: Option[X], val assoc: OpFn.Associativity, val sym: OpFn.Symmetry
+)(implicit file: sourcecode.File, line: sourcecode.Line, nm: sourcecode.Name) 
 extends Named {
   def name = nm.value.toString
   override val toString = nm.value.toString + " @ " + Sourced.implicitly
@@ -36,7 +38,10 @@ extends Named {
 object OpFn {
   sealed trait Associativity {}
   final case object Associative extends Associativity {}
-  final case object Nonassociative extends Associativity {}  
+  final case object Nonassociative extends Associativity {}
+  sealed trait Symmetry {}
+  final case object Symmetric extends Symmetry {}
+  final case object Asymmetric extends Symmetry {}
 }
 
 /** Wrapper class around a partial function that lets you tell where it came from */
@@ -168,13 +173,13 @@ object StrToOpts extends Variants[String ===> Option[String]] {
 }
 
 object IntOpFns extends Variants[OpFn[Int]] {
-  val summation = this has new Item(_ + _, Some(0), OpFn.Associative)
-  val multiply  = this has new Item((i, j) => i*j - 2*i - 3*j + 4, None, OpFn.Nonassociative)
+  val summation = this has new Item(_ + _, Some(0), OpFn.Associative, OpFn.Symmetric)
+  val multiply  = this has new Item((i, j) => i*j - 2*i - 3*j + 4, None, OpFn.Nonassociative, OpFn.Asymmetric)
 }
 
 object StrOpFns extends Variants[OpFn[String]] {
-  val concat     = this has new Item(_ + _, Some(""), OpFn.Associative)
-  val interleave = this has new Item((s, t) => (s zip t).map{ case (l,r) => f"$l$r" }.mkString, None, OpFn.Nonassociative)
+  val concat     = this has new Item(_ + _, Some(""), OpFn.Associative, OpFn.Asymmetric)
+  val interleave = this has new Item((s, t) => (s zip t).map{ case (l,r) => f"$l$r" }.mkString, None, OpFn.Nonassociative, OpFn.Asymmetric)
 }
 
 object IntPreds extends Variants[Int ===> Boolean] {
@@ -223,7 +228,7 @@ object StrOpsExplorer extends OpsExplorer[String, Option[String]](StrFns, StrToO
 object LongStrOpsExplorer extends OpsExplorer[(Long, String), (String, Long)](
   new Variants[(Long, String) ===> (Long, String)] { private[this] val inc1 = this has new Item(kv => (kv._1+1, kv._2)) },
   new Variants[(Long, String) ===> (String, Long)] { private[this] val swap = this has new Item(kv => (kv._2, kv._1)) },
-  new Variants[OpFn[(Long, String)]] { private[this] val sums = this has new Item((kv, cu) => (kv._1 + cu._1, kv._2 + cu._2), None, OpFn.Nonassociative) },
+  new Variants[OpFn[(Long, String)]] { private[this] val sums = this has new Item((kv, cu) => (kv._1 + cu._1, kv._2 + cu._2), None, OpFn.Nonassociative, OpFn.Asymmetric) },
   new Variants[(Long, String) ===> Boolean] { private[this] val high = this has new Item(kv => kv._1 > kv._2.length) },
   new Variants[ParFn[(Long, String)]] { private[this] val akin = this has new Item({ case (k, v) if ((k ^ v.length) & 1) == 0 => (k-2, v) })}
 ){}
@@ -231,7 +236,7 @@ object LongStrOpsExplorer extends OpsExplorer[(Long, String), (String, Long)](
 object StrLongOpsExplorer extends OpsExplorer[(String, Long), (Long, String)](
   new Variants[(String, Long) ===> (String, Long)] { private[this] val crop = this has new Item(kv => (kv._1.drop(1), kv._2)) },
   new Variants[(String, Long) ===> (Long, String)] { private[this] val swap = this has new Item(kv => (kv._2, kv._1)) },
-  new Variants[OpFn[(String, Long)]] { private[this] val sums = this has new Item((kv, cu) => (kv._1 + cu._1, kv._2 + cu._2), None, OpFn.Nonassociative) },
+  new Variants[OpFn[(String, Long)]] { private[this] val sums = this has new Item((kv, cu) => (kv._1 + cu._1, kv._2 + cu._2), None, OpFn.Nonassociative, OpFn.Asymmetric) },
   new Variants[(String, Long) ===> Boolean] { private[this] val high = this has new Item(kv => kv._1.length < kv._2) },
   new Variants[ParFn[(String, Long)]] { private[this] val akin = this has new Item({ case (k, v) if ((k.length ^ v) & 1) == 0 => (k.drop(1), v) })}
 ){}

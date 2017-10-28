@@ -17,12 +17,13 @@ object Tag {
   def T(implicit nm: sourcecode.Name) = new Tag()(nm)
 
   // List these one by one to be sure the tag picks up the right name!
-  val ARR = T
-  val INT = T
-  val MAP = T
-  val SEQ = T
-  val SET = T
-  val STR = T
+  val ARR = T     // Backed by an array
+  val INT = T     // Uses integers
+  val MAP = T     // Is a map
+  val NOG = T     // Not (fully) generic; don't expect the type to stay the same!
+  val SEQ = T     // Is a sequence
+  val SET = T     // Is a set
+  val STR = T     // Uses strings
 }
 
 /** Information that you can use to filter tests (note: only flags are used for compile-time generation) */
@@ -47,6 +48,7 @@ trait TestInfo {
 
   def skipMissingZero    = if (oper.values.op.zero.isDefined)            None else Some(Outcome.Skip.op)
   def skipNonassociative = if (oper.values.op.assoc == OpFn.Associative) None else Some(Outcome.Skip.op)
+  def skipAsymmetric     = if (oper.values.op.sym == OpFn.Symmetric)     None else Some(Outcome.Skip.op)
 }
 
 /** Tags provide a way to select which laws are applicable for a given run.  For instance,
