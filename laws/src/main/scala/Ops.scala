@@ -81,7 +81,7 @@ final class Ops[A, B](f0: A ===> A, g0: A ===> B, op0: OpFn[A], p0: A ===> Boole
     *
     * Note: we're doing it this way since it's not practical to instrument the usage of something inside `Option`.
     */
-  def z: A = { used(5) = true; op0.zero.get }
+  def z: A = { used(4) = true; op0.zero.get }
 
   def setUnused(): this.type = { java.util.Arrays.fill(used, false); this }
 

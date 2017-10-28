@@ -128,35 +128,73 @@ extends Exploratory[(A, Array[A], Array[A])] {
   protected implicit def sizeOfArray[A] = new Sizable[Array[A]] { def sizeof(a: Array[A]) = a.length }
   protected implicit val sizeOfString = new Sizable[String] { def sizeof(s: String) = s.length }
 
-  protected val registry = Vector.newBuilder[Instance.FromArray[A, _]]
+  trait Touched[A, CC] extends Function0[Instance.FromArray[A, CC]] {
+    def accesses: Int
+    def name: String
+    def secretly: Instance.FromArray[A, CC]
+  }
+
+  protected val registry = Vector.newBuilder[Touched[A, _]]
 
   object Imm extends Instance.PackagePath {
     def nickname = "Imm"
     def fullyQualified = "scala.collection.immutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name) = {
-      val ans = inst.generatorCached(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[A, CC] = {
+      val gen = inst.generatorCached(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val ans = new Touched[A, CC]{
+        val secretly = gen
+        val name = nm.value.toString
+        var accesses: Int = 0
+        def apply(): Instance.FromArray[A, CC] = { accesses += 1; secretly }
+      }
       registry += ans
       ans
     }
     val hashSet     = C(_.to[collection.immutable.HashSet], SET)
+    val indexedSeq  = C(_.to[collection.immutable.IndexedSeq], SEQ)
+    val iterable    = C(_.to[collection.immutable.Iterable])
+    val linearSeq   = C(_.to[collection.immutable.LinearSeq], SEQ)
     val list        = C(_.toList, SEQ)
+    val queue       = C(_.to[collection.immutable.Queue], SEQ)
+    val seq         = C(_.to[collection.immutable.Seq], SEQ)
     val set         = C(_.toSet, SET)
     val sortedSet   = C(_.to[collection.immutable.SortedSet], SET)
     val stream      = C(_.to[Stream], SEQ)
+    val traversable = C(_.to[collection.immutable.Traversable])
+    val treeSet     = C(_.to[collection.immutable.TreeSet], SET)
     val vector      = C(_.toVector, SEQ)
   }
 
   object Mut extends Instance.PackagePath {
     def nickname = "Mut"
     def fullyQualified = "scala.collection.mutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name) = {
-      val ans = inst.generator(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[A, CC] = {
+      val gen = inst.generator(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val ans = new Touched[A, CC]{
+        val secretly = gen
+        val name = nm.value.toString
+        var accesses: Int = 0
+        def apply(): Instance.FromArray[A, CC] = { accesses += 1; secretly }
+      }
       registry += ans
       ans
     }
-    val arrayBuffer  = C(_.to[collection.mutable.ArrayBuffer], SEQ)
     val array        = C(_.clone, SEQ, ARR)
+    val arrayBuffer  = C(_.to[collection.mutable.ArrayBuffer], SEQ)
+    val arraySeq     = C(_.to[collection.mutable.ArraySeq], SEQ)
+    val arrayStack   = C(_.to[collection.mutable.ArrayStack], SEQ)
+    val buffer       = C(_.to[collection.mutable.Buffer], SEQ)
     val hashSet      = C(_.to[collection.mutable.HashSet], SET)
+    val indexedSeq   = C(_.to[collection.mutable.IndexedSeq], SEQ)
+    val iterable     = C(_.to[collection.mutable.Iterable])
+    val linearSeq    = C(_.to[collection.mutable.LinearSeq], SEQ)
+    val linkedHashSet= C(_.to[collection.mutable.LinkedHashSet], SEQ)
+    val listBuffer   = C(_.to[collection.mutable.ListBuffer], SEQ)
+    val priorityQueue= C(_.to[collection.mutable.PriorityQueue])
+    val queue        = C(_.to[collection.mutable.Queue], SEQ)
+    val seq          = C(_.to[collection.mutable.Seq], SEQ)
+    val treeSet      = C(_.to[collection.mutable.TreeSet], SET)
+    // val unrolledBuffer = C(_.to[collection.mutable.UnrolledBuffer], SEQ)
     val wrappedArray = C(_.clone: collection.mutable.WrappedArray[A], SEQ)
   }
 
@@ -170,7 +208,12 @@ extends Exploratory[(A, Array[A], Array[A])] {
     if (!validate(ixs)) None
     else Some((possible_a(ixs(0)), possible_x(ixs(1)), possible_y(ixs(2))))
 
-  lazy val all = registry.result
+  def force(): Any  // Makes sure all the objects that are used are loaded.
+
+  lazy val all = {
+    force()
+    registry.result
+  }
 }
 
 trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[(K, V)])] { self: InstantiatorsOf[(K, V)] =>
@@ -187,8 +230,14 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
   object ImmKV extends Instance.PackagePath {
     def nickname = "ImmKV"
     def fullyQualified = "scala.collection.immutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Tag*)(implicit nm: sourcecode.Name) = {
-      val ans = kvInst.generatorCached(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[(K, V), CC] = {
+      val gen = kvInst.generatorCached(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val ans = new Touched[(K, V), CC]{
+        val secretly = gen
+        val name = nm.value.toString
+        var accesses: Int = 0
+        def apply(): Instance.FromArray[(K, V), CC] = { accesses += 1; secretly }
+      }
       registry += ans
       ans
     }
@@ -201,8 +250,14 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
   object MutKV extends Instance.PackagePath {
     def nickname = "MutKV"
     def fullyQualified = "scala.collection.mutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Tag*)(implicit nm: sourcecode.Name) = {
-      val ans = kvInst.generator(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[(K, V), CC] = {
+      val gen = kvInst.generator(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val ans = new Touched[(K, V), CC]{
+        val secretly = gen
+        val name = nm.value.toString
+        var accesses: Int = 0
+        def apply(): Instance.FromArray[(K, V), CC] = { accesses += 1; secretly }
+      }
       registry += ans
       ans
     }
@@ -212,6 +267,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
     val openHashMap =   C({ a => val m = new collection.mutable.OpenHashMap[K, V];   for (kv <- a) m += kv; m })
     val sortedMap =     C({ a => val m = collection.mutable.SortedMap.empty[K, V];   for (kv <- a) m += kv; m })
     val treeMap =       C({ a => val m = new collection.mutable.TreeMap[K, V];       for (kv <- a) m += kv; m })
+    val weakHashMap =   C({ a => val m = new collection.mutable.WeakHashMap[K, V];   for (kv <- a) m += kv; m })
   }
 }
 
@@ -262,6 +318,8 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     Array.range(0,8111)
   )
   lazy val possible_y = possible_x
+
+  val force = Imm :: Mut :: Nil
 }
 
 object InstantiatorsOfStr extends InstantiatorsOf[String] {
@@ -284,6 +342,8 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
     Array.fill(184)("herring")
   )
   lazy val possible_y = possible_x
+
+  val force = Imm :: Mut :: Nil
 }
 
 object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with InstantiatorsOfKV[Long, String] {
@@ -303,6 +363,8 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
     Array(1L -> "herring", 2L -> "cod", 3L -> "salmon")
   )
   lazy val possible_y = possible_x
+
+  val force = ImmKV :: MutKV :: Nil
 }
 
 object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with InstantiatorsOfKV[String, Long] {
@@ -322,4 +384,6 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
     Array("herring" -> 1L, "cod" -> 2L, "salmon" -> 3L)
   )
   lazy val possible_y = possible_x
+
+  val force = ImmKV :: MutKV :: Nil
 }

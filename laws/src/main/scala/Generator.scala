@@ -150,17 +150,17 @@ object AllIntGenerators {
   }
 
   object Imm {
-    val hashSet = register(io.Imm)(_.hashSet)
-    val list = register(io.Imm)(_.list)
-    val set = register(io.Imm)(_.set)
-    val stream = register(io.Imm)(_.stream)
-    val vector = register(io.Imm)(_.vector)
+    val hashSet = register(io.Imm)(_.hashSet())
+    val list = register(io.Imm)(_.list())
+    val set = register(io.Imm)(_.set())
+    val stream = register(io.Imm)(_.stream())
+    val vector = register(io.Imm)(_.vector())
   }
 
   object Mut {
-    val arrayBuffer = register(io.Mut)(_.arrayBuffer)
-    val hashSet = register(io.Mut)(_.hashSet)
-    val wrappedArray = register(io.Mut)(_.wrappedArray)
+    val arrayBuffer = register(io.Mut)(_.arrayBuffer())
+    val hashSet = register(io.Mut)(_.hashSet())
+    val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
   val force = Imm :: Mut :: Nil
@@ -192,17 +192,38 @@ object AllStrGenerators {
   }
 
   object Imm {
-    val hashSet = register(io.Imm)(_.hashSet)
-    val list = register(io.Imm)(_.list)
-    val set = register(io.Imm)(_.set)
-    val stream = register(io.Imm)(_.stream)
-    val vector = register(io.Imm)(_.vector)
+    val hashSet = register(io.Imm)(_.hashSet())
+    val indexedSeq = register(io.Imm)(_.indexedSeq())
+    val iterable = register(io.Imm)(_.iterable())
+    val linearSeq = register(io.Imm)(_.linearSeq())
+    val list = register(io.Imm)(_.list())
+    val queue = register(io.Imm)(_.queue())
+    val seq = register(io.Imm)(_.seq())
+    val set = register(io.Imm)(_.set())
+    val sortedSet = register(io.Imm)(_.sortedSet())
+    val stream = register(io.Imm)(_.stream())
+    val traversable = register(io.Imm)(_.traversable())
+    val treeSet = register(io.Imm)(_.treeSet())
+    val vector = register(io.Imm)(_.vector())
   }
 
   object Mut {
-    val arrayBuffer = register(io.Mut)(_.arrayBuffer)
-    val hashSet = register(io.Mut)(_.hashSet)
-    val wrappedArray = register(io.Mut)(_.wrappedArray)
+    // val array = register(io.Mut)(_.array())
+    val arrayBuffer = register(io.Mut)(_.arrayBuffer())
+    val arraySeq = register(io.Mut)(_.arraySeq())
+    val arrayStack = register(io.Mut)(_.arrayStack())
+    val buffer = register(io.Mut)(_.buffer())
+    val hashSet = register(io.Mut)(_.hashSet())
+    val indexedSeq = register(io.Mut)(_.indexedSeq())
+    val iterable = register(io.Mut)(_.iterable())
+    val linearSeq = register(io.Mut)(_.linearSeq())
+    val linkedHashSet = register(io.Mut)(_.linkedHashSet())
+    val listBuffer = register(io.Mut)(_.listBuffer())
+    val priorityQueue = register(io.Mut)(_.priorityQueue())
+    val queue = register(io.Mut)(_.queue())
+    val seq = register(io.Mut)(_.seq())
+    val treeSet = register(io.Mut)(_.treeSet())
+    val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
   val force = Imm :: Mut :: Nil
@@ -235,19 +256,19 @@ object AllLongStrGenerators {
   }
 
   object ImmKV {
-    val hashMap =   register(io.ImmKV)(_.hashMap)
-    val listMap =   register(io.ImmKV)(_.listMap)
-    val sortedMap = register(io.ImmKV)(_.sortedMap)
-    val treeMap =   register(io.ImmKV)(_.treeMap)
+    val hashMap =   register(io.ImmKV)(_.hashMap())
+    val listMap =   register(io.ImmKV)(_.listMap())
+    val sortedMap = register(io.ImmKV)(_.sortedMap())
+    val treeMap =   register(io.ImmKV)(_.treeMap())
   }
 
   object MutKV {
-    val hashMap       = register(io.MutKV)(_.hashMap)
-    val listMap       = register(io.MutKV)(_.listMap)
-    val linkedHashMap = register(io.MutKV)(_.linkedHashMap)
-    val openHashMap   = register(io.MutKV)(_.openHashMap)
-    val sortedMap     = register(io.MutKV)(_.sortedMap)
-    val treeMap       = register(io.MutKV)(_.treeMap)
+    val hashMap       = register(io.MutKV)(_.hashMap())
+    val listMap       = register(io.MutKV)(_.listMap())
+    val linkedHashMap = register(io.MutKV)(_.linkedHashMap())
+    val openHashMap   = register(io.MutKV)(_.openHashMap())
+    val sortedMap     = register(io.MutKV)(_.sortedMap())
+    val treeMap       = register(io.MutKV)(_.treeMap())
   }
 
   val force = ImmKV :: MutKV :: Nil
@@ -280,19 +301,19 @@ object AllStrLongGenerators {
   }
 
   object ImmKV {
-    val hashMap =   register(io.ImmKV)(_.hashMap)
-    val listMap =   register(io.ImmKV)(_.listMap)
-    val sortedMap = register(io.ImmKV)(_.sortedMap)
-    val treeMap =   register(io.ImmKV)(_.treeMap)
+    val hashMap =   register(io.ImmKV)(_.hashMap())
+    val listMap =   register(io.ImmKV)(_.listMap())
+    val sortedMap = register(io.ImmKV)(_.sortedMap())
+    val treeMap =   register(io.ImmKV)(_.treeMap())
   }
 
   object MutKV {
-    val hashMap       = register(io.MutKV)(_.hashMap)
-    val listMap       = register(io.MutKV)(_.listMap)
-    val linkedHashMap = register(io.MutKV)(_.linkedHashMap)
-    val openHashMap   = register(io.MutKV)(_.openHashMap)
-    val sortedMap     = register(io.MutKV)(_.sortedMap)
-    val treeMap       = register(io.MutKV)(_.treeMap)
+    val hashMap       = register(io.MutKV)(_.hashMap())
+    val listMap       = register(io.MutKV)(_.listMap())
+    val linkedHashMap = register(io.MutKV)(_.linkedHashMap())
+    val openHashMap   = register(io.MutKV)(_.openHashMap())
+    val sortedMap     = register(io.MutKV)(_.sortedMap())
+    val treeMap       = register(io.MutKV)(_.treeMap())
   }
 
   val force = ImmKV :: MutKV :: Nil
