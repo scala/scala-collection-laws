@@ -336,3 +336,11 @@ object AllStrLongGenerators {
     all.map(g => g.className -> FileIO(new java.io.File(targetDir, g.className + ".scala"), g.code)).toMap
 }
 
+object GenerateAll {
+  def write(targetDir: java.io.File): Map[String, Boolean] =
+    AllIntGenerators.write(targetDir) ++
+    AllStrGenerators.write(targetDir) ++
+    AllLongStrGenerators.write(targetDir) ++
+    AllStrLongGenerators.write(targetDir)
+}
+

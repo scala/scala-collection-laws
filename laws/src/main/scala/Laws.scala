@@ -564,37 +564,131 @@ x.`distinct`.`size` == s.size && x.forall(s)
 "x.`groupBy`(g).toMap.forall{ case (k,vs) => x.filter(xi => g(xi)==k) theSameAs vs }".law
 
 
+
+"x.`nonEmpty` implies x.`take`(1).nonEmpty".law
+
+"x.`nonEmpty` implies x.`take`(1).`forall`(_ == x.`head`)".law(SEQ)
+
+"x.`headOption` == tryO{ x.`head` }".law(SEQ)
+
+"""
+val k = x.`drop`(n).`takeWhile`(_ != a)
+x.`indexOf`(a,n) match { 
+  case -1 => k.`size` == (0 max x.size-n)
+  case kk => n+k.size == kk && x.`drop`(kk).`head` == a 
+}
+""".law(SEQ)
+
+
+"x.`indexOf`(a) == x.`indexOf`(a, 0)".law
+
+"""
+y.`size` == 0 || { 
+  val i = x.`indexOfSlice`(y)
+  !x.`take`(math.max(0,i-1+y.size)).`containsSlice`(y) && ((i >= 0) implies (x.`drop`(i).`take`(y.size) theSameAs y)) 
+}
+""".law
+
+"""
+y.`size` == 0 || { 
+  val i = x.`indexOfSlice`(y,r)
+  !x.`drop`(r).`take`(math.max(0,i-1-r+y.size)).`containsSlice`(y) && ((i >= 0) implies (i >= r && (x.`drop`(i).`take`(y.size) theSameAs y)))
+}
+""".law
+
+"""
+val k = x.`drop`(n).`takeWhile`(xi => !p(xi))
+x.`indexWhere`(p,n) match { 
+  case -1 => k.`size` == (0 max x.size-n)
+  case kk => n+k.size == kk && p(x.`drop`(kk).`head`) 
+}
+""".law
+
+"x.`indexWhere`(p) == x.`indexWhere`(p, 0)".law
+
+"""
+val k = x.`takeWhile`(xi => !p(xi)).`size`
+x.`indexWhere`(p) match { 
+  case -1 => k == x.`size`
+  case q => q == k
+}
+""".law
+
+"x.`indices` == (0 until x.`size`)".law
+
+"x.`size` > 0 implies (x.`init` theSameAs x.`dropRight`(1))".law
+
+"x.`size` > 0 implies (x.`init`.size == x.size - 1)".law
+
+"x.`size` > 0 implies (x.`init` isPartOf x)".law
+
+"""
+x.`size` > 0 implies { 
+  val xx = x.`inits`.toVector.map(_.toVector)
+  (xx zip xx.`tail`).`forall`{ 
+    case (a,b) => a.`size` - 1 == b.size && (b isPartOf a)
+  } 
+}
+""".law(SEQ)
+
+"""
+val xx = x.`inits`.toVector.map(_.toVector)
+(xx zip xx.`drop`(1)).`forall`{ case (a,b) => a.`init` theSameAs b }
+""".law(SEQ)
+
+"x.`intersect`(y).`toSet` == (x.toSet & y.toSet)".law
+
+// y !RANGE ... sameType(x, x.`intersect`(y))
+
+"x.`iterator` theSameAs x".law
+
+"x.`size` > 0 implies (x.`takeRight`(1).`count`(_ == x.`last`) == 1)".law(SEQ)
+
+"""
+x.`lastIndexOf`(a,n) match {
+  case -1 => x.`take`(n+1).`indexOf`(a) == -1
+  case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexOf(a)
+}
+""".law
+
+
+"x.`lastIndexOf`(a) == x.lastIndexOf(a,x.`size`-1)".law
+
+"""
+y.`size` > 0 implies { 
+  val i = x.`lastIndexOfSlice`(y)
+  !x.`drop`(math.max(0,i+1)).`containsSlice`(y) && 
+  ((i >= 0) implies (x.`drop`(i).`take`(y.size) theSameAs y))
+}
+""".law
+
+"""
+y.`size` > 0 implies { 
+  val i = x.`lastIndexOfSlice`(y,r)
+  !x.`take`(r).`drop`(math.max(0,i+1)).`containsSlice`(y) && 
+  ((i >= 0) implies (i <= r && (x.`drop`(i).`take`(y.size) theSameAs y)))
+}
+""".law
+
+"""
+x.`lastIndexWhere`(p,n) match { 
+  case -1 => x.`take`(n+1).`indexWhere`(p) == -1
+  case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexWhere(p) 
+}
+""".law
+
+"x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)".law
+
+"x.`lastOption` == tryO{ x.`last` }".law
+
+"x.`lengthCompare`(n).signum == (x.`size` compare n).signum".law
+
+"""
+val xx = x.map(_.toString)
+xx eq xx.`mapConserve`(identity)
+""".law
+
 /********** TODO ***********
-!ARRAY !M ... !x.`nonEmpty` || (x match { case _: scala.collection.Seq[_] => Seq(x.`head`) theSameAs x.`take`(1); case _ => true })
-ARRAY ... !x.`nonEmpty` || (Seq(x.`head`) theSameAs x.`take`(1))
-x.`headOption` == tryO{ x.`head` }
-n a !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(_ != a); x.`indexOf`(a,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && x.`drop`(kk).`head` == a } }
-a !ITERATOR ... x.`indexOf`(a) == x.`indexOf`(a,0)
-a ITERATOR ... { val k = x.`takeWhile`(_ != a); x.`indexOf`(a) match { case -1 => k.`size` == x.size; case kk => x.`drop`(kk).`next` == a } }
-y ... y.`size` == 0 || { val i = x.`indexOfSlice`(y); !x.`take`(math.max(0,i-1+y.size)).`containsSlice`(y) && ((i >= 0) implies (x.`drop`(i).`take`(y.size) theSameAs y)) }
-y r ... y.`size` == 0 || { val i = x.`indexOfSlice`(y,r); !x.`drop`(r).`take`(math.max(0,i-1-r+y.size)).`containsSlice`(y) && ((i >= 0) implies (i >= r && (x.`drop`(i).`take`(y.size) theSameAs y))) }
-p n !ITERATOR ... n < 0 || { val k = x.`drop`(n).`takeWhile`(xi => !p(xi)); x.`indexWhere`(p,n) match { case -1 => k.`size` == (0 max x.size-n); case kk => n+k.size == kk && p(x.`drop`(kk).`head`) } }
-p !ITERATOR ... x.`indexWhere`(p) == x.`indexWhere`(p,0)
-p ITERATOR ... val k = x.`takeWhile`(xi => !p(xi)).`size`; x.`indexWhere`(p) match { case -1 => k == x.`size`; case q => q == k }
-x.`indices` == (0 until x.`size`)
-x.`size` == 0 || (x.`init` theSameAs x.`dropRight`(1))
-x.`size` == 0 || (x.`init`.size == x.size - 1)
-x.`size` == 0 || (x.`init` isPartOf x)
-x.`size` == 0 || { val xx = x.`inits`.toVector.map(_.toVector); (xx zip xx.`tail`).`forall`{ case (a,b) => a.`size` - 1 == b.size && (b isPartOf a) } }
-!S ... { val xx = x.`inits`.toVector.map(_.toVector); (xx zip xx.`drop`(1)).`forall`{ case (a,b) => a.`init` theSameAs b } }
-y ... x.`intersect`(y).`toSet` == (x.toSet & y.toSet)  // Need to improve this one
-y !RANGE ... sameType(x, x.`intersect`(y))
-x.`iterator` theSameAs x
-x.`size` == 0 || { Seq(x.`last`) theSameAs x.`takeRight`(1) }
-a n ... n < 0 || { x.`lastIndexOf`(a,n) match { case -1 => x.`take`(n+1).`indexOf`(a) == -1; case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexOf(a) } }
-a ... x.`lastIndexOf`(a) == x.lastIndexOf(a,x.`size`-1)
-y ... y.`size` == 0 || { val i = x.`lastIndexOfSlice`(y); !x.`drop`(math.max(0,i+1)).`containsSlice`(y) && ((i >= 0) implies (x.`drop`(i).`take`(y.size) theSameAs y)) }
-y r ... y.`size` == 0 || { val i = x.`lastIndexOfSlice`(y,r); !x.`take`(r).`drop`(math.max(0,i+1)).`containsSlice`(y) && ((i >= 0) implies (i <= r && (x.`drop`(i).`take`(y.size) theSameAs y))) }
-p n ... n < 0 || { x.`lastIndexWhere`(p,n) match { case -1 => x.`take`(n+1).`indexWhere`(p) == -1; case k => k == (n min x.`size`-1) - x.take(n+1).reverse.indexWhere(p) } }
-p ... x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)
-x.`lastOption` == tryO{ x.`last` }
-n ... x.`lengthCompare`(n).signum == (x.`size` compare n).signum
-!ITERATOR ... val xx = x.map(_.toString); xx eq xx.`mapConserve`(identity)
 x.`size` > 8 || x.`permutations`.size == x.toVector.groupBy(identity).map{ case (_,vs) => vs.size }.scanLeft((x.size,0)){ (c,i) => (c._1 - c._2, i) }.map{ case (n,k) => (1L to k).map(n+1 - _).product / (1L to k).product }.product
 x.`size` > 8 || x.`permutations`.size == x.`permutations`.toSet.size
 x.`size` > 8 || { val xs = x.toSet; x.`permutations`.forall(_.forall(xs)) }
