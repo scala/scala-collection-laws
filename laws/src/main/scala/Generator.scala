@@ -152,15 +152,36 @@ object AllIntGenerators {
 
   object Imm {
     val hashSet = register(io.Imm)(_.hashSet())
+    val indexedSeq = register(io.Imm)(_.indexedSeq())
+    val iterable = register(io.Imm)(_.iterable())
+    val linearSeq = register(io.Imm)(_.linearSeq())
     val list = register(io.Imm)(_.list())
+    val queue = register(io.Imm)(_.queue())
+    val seq = register(io.Imm)(_.seq())
     val set = register(io.Imm)(_.set())
+    val sortedSet = register(io.Imm)(_.sortedSet())
     val stream = register(io.Imm)(_.stream())
+    val traversable = register(io.Imm)(_.traversable())
+    val treeSet = register(io.Imm)(_.treeSet())
     val vector = register(io.Imm)(_.vector())
   }
 
   object Mut {
+    val array = register(io.Mut)(_.array(), "Array[Int]")
     val arrayBuffer = register(io.Mut)(_.arrayBuffer())
+    val arraySeq = register(io.Mut)(_.arraySeq())
+    val arrayStack = register(io.Mut)(_.arrayStack())
+    val buffer = register(io.Mut)(_.buffer())
     val hashSet = register(io.Mut)(_.hashSet())
+    val indexedSeq = register(io.Mut)(_.indexedSeq())
+    val iterable = register(io.Mut)(_.iterable())
+    val linearSeq = register(io.Mut)(_.linearSeq())
+    val linkedHashSet = register(io.Mut)(_.linkedHashSet())
+    val listBuffer = register(io.Mut)(_.listBuffer())
+    val priorityQueue = register(io.Mut)(_.priorityQueue())
+    val queue = register(io.Mut)(_.queue())
+    val seq = register(io.Mut)(_.seq())
+    val treeSet = register(io.Mut)(_.treeSet())
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
@@ -169,7 +190,11 @@ object AllIntGenerators {
     val range = register(io.ImmInt)(_.range(), "collection.immutable.Range")
   }
 
-  val force = Imm :: Mut :: ImmInt :: Nil
+  object MutInt {
+    val bitSet = register(io.MutInt)(_.bitSet(), "collection.mutable.BitSet")
+  }
+
+  val force = Imm :: Mut :: ImmInt :: MutInt :: Nil
 
   lazy val all = everyoneBuffer.result
 
@@ -277,9 +302,14 @@ object AllLongStrGenerators {
     val openHashMap   = register(io.MutKV)(_.openHashMap())
     val sortedMap     = register(io.MutKV)(_.sortedMap())
     val treeMap       = register(io.MutKV)(_.treeMap())
+    val weakHashMap   = register(io.MutKV)(_.weakHashMap())
   }
 
-  val force = ImmKV :: MutKV :: Nil
+  object MutLongV {
+    val longMap       = register(io.MutLongV)(_.longMap(), "collection.mutable.LongMap[String]")
+  }
+
+  val force = ImmKV :: MutKV :: MutLongV :: Nil
 
   lazy val all = everyoneBuffer.result
 
@@ -323,7 +353,9 @@ object AllStrLongGenerators {
     val openHashMap   = register(io.MutKV)(_.openHashMap())
     val sortedMap     = register(io.MutKV)(_.sortedMap())
     val treeMap       = register(io.MutKV)(_.treeMap())
+    val weakHashMap   = register(io.MutKV)(_.weakHashMap())
   }
+
   object MutKrefV {
     val anyRefMap     = register(io.MutKrefV)(_.anyRefMap())
   }
@@ -337,10 +369,47 @@ object AllStrLongGenerators {
 }
 
 object GenerateAll {
-  def write(targetDir: java.io.File): Map[String, Boolean] =
-    AllIntGenerators.write(targetDir) ++
-    AllStrGenerators.write(targetDir) ++
-    AllLongStrGenerators.write(targetDir) ++
-    AllStrLongGenerators.write(targetDir)
+  def write(targetDir: java.io.File): (Map[String, Boolean], Vector[String]) = {
+    val answer =    
+      AllIntGenerators.write(targetDir) ++
+      AllStrGenerators.write(targetDir) ++
+      AllLongStrGenerators.write(targetDir) ++
+      AllStrLongGenerators.write(targetDir)
+    val everySource: Vector[Touchable] =
+      InstantiatorsOfInt.all ++
+      InstantiatorsOfStr.all ++
+      InstantiatorsOfLongStr.all ++
+      InstantiatorsOfStrLong.all
+    val missingSources = everySource.filter(_.accesses == 0).map(_.path)
+    (answer, missingSources.sorted)
+  }
+
+  def run(args: Array[String]): Boolean = {
+    val path = args match {
+      case Array() => "../inst"
+      case Array(f) => f
+      case _ => throw new IllegalArgumentException(f"Zero or one paths for output only (found ${args.length})")
+    }
+
+    val (upd, miss) = write(new java.io.File(path))
+
+    println(f"Generated code for ${upd.size} collection/element combinations")
+    println(f"  ${upd.count(_._2)} updated since last run")
+
+    if (miss.nonEmpty) {
+      println(f"Generators unimplemented for ${miss.size} collection/element sets:")
+      miss.foreach(m => println("  " + m))
+      false
+    }
+    else true
+  }
+
+  def default() { 
+    run(Array.empty)
+  }
+
+  def main(args: Array[String]) {
+    if (!run(args)) sys.exit(1)
+  }
 }
 

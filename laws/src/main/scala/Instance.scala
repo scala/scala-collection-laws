@@ -108,6 +108,12 @@ object Instance { outer =>
   def over[A](allFlags: Tag*): Over[A] = new Over[A](allFlags: _*)
 }
 
+trait Touchable {
+  def accesses: Int
+  def name: String
+  def group: String
+  def path = group + ": " + name
+}
 
 /** Provides a source for individual instances we will test.
   * The variable names used are ones we can use to select
@@ -131,9 +137,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
   protected implicit def sizeOfArray[A] = new Sizable[Array[A]] { def sizeof(a: Array[A]) = a.length }
   protected implicit val sizeOfString = new Sizable[String] { def sizeof(s: String) = s.length }
 
-  trait Touched[A, CC] extends Function0[Instance.FromArray[A, CC]] {
-    def accesses: Int
-    def name: String
+  trait Touched[A, CC] extends Function0[Instance.FromArray[A, CC]] with Touchable {
     def secretly: Instance.FromArray[A, CC]
   }
 
@@ -146,8 +150,9 @@ extends Exploratory[(A, Array[A], Array[A])] {
       val gen = inst.generatorCached(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[A, CC]{
         val secretly = gen
-        val name = nm.value.toString
         var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
         def apply(): Instance.FromArray[A, CC] = { accesses += 1; secretly }
       }
       registry += ans
@@ -175,8 +180,9 @@ extends Exploratory[(A, Array[A], Array[A])] {
       val gen = inst.generator(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[A, CC]{
         val secretly = gen
-        val name = nm.value.toString
         var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
         def apply(): Instance.FromArray[A, CC] = { accesses += 1; secretly }
       }
       registry += ans
@@ -241,8 +247,9 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
       val gen = kvInst.generatorCached(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[(K, V), CC]{
         val secretly = gen
-        val name = nm.value.toString
         var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
         def apply(): Instance.FromArray[(K, V), CC] = { accesses += 1; secretly }
       }
       registry += ans
@@ -261,8 +268,9 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
       val gen = kvInst.generator(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[(K, V), CC]{
         val secretly = gen
-        val name = nm.value.toString
         var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
         def apply(): Instance.FromArray[(K, V), CC] = { accesses += 1; secretly }
       }
       registry += ans
@@ -303,7 +311,8 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   protected def allFlags = Array(INT)
 
   protected implicit val sizeOfRange = new Sizable[collection.immutable.Range] { def sizeof(r: collection.immutable.Range) = r.size }
-  protected implicit val sizeOfBitSet = new Sizable[collection.immutable.BitSet] { def sizeof(s: collection.immutable.BitSet) = s.size }
+  protected implicit val sizeOfIBitSet = new Sizable[collection.immutable.BitSet] { def sizeof(s: collection.immutable.BitSet) = s.size }
+  protected implicit val sizeOfMBitSet = new Sizable[collection.mutable.BitSet] { def sizeof(s: collection.mutable.BitSet) = s.size }
   object ImmInt extends Instance.PackagePath {
     // If we have other (String, _) types, move this out into a trait
     def nickname = "ImmInt"
@@ -312,8 +321,9 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
       val gen = inst.generatorCached(ccf, (NOG +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[Int, CC]{
         val secretly = gen
-        val name = nm.value.toString
         var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
         def apply(): Instance.FromArray[Int, CC] = { accesses += 1; secretly }
       }
       registry += ans
@@ -321,6 +331,24 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     }
     val bitSet = C({ a => val b = collection.immutable.BitSet.newBuilder; a.foreach{ x => if (x >= 0) b += x }; b.result }, SET)
     val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
+  }
+  object MutInt extends Instance.PackagePath {
+    // If we have other (String, _) types, move this out into a trait
+    def nickname = "MutInt"
+    def fullyQualified = "scala.collection.mutable"
+    def C[CC: TypeTag: Sizable](ccf: Array[Int] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[Int, CC] = {
+      val gen = inst.generatorCached(ccf, (NOG +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val ans = new Touched[Int, CC]{
+        val secretly = gen
+        var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
+        def apply(): Instance.FromArray[Int, CC] = { accesses += 1; secretly }
+      }
+      registry += ans
+      ans
+    }
+    val bitSet = C({ a => val b = new collection.mutable.BitSet; a.foreach{ x => if (x >= 0) b += x }; b }, SET)
   }
 
   lazy val possible_a = Array(0, 1, 2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 23, 31, 47, 152, 3133, 1294814, -1, -2, -6, -19, -1915, -19298157)
@@ -348,7 +376,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   )
   lazy val possible_y = possible_x
 
-  val force = Imm :: Mut :: ImmInt :: Nil
+  val force = Imm :: Mut :: ImmInt :: MutInt :: Nil
 }
 
 object InstantiatorsOfStr extends InstantiatorsOf[String] {
@@ -376,6 +404,7 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
 }
 
 object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with InstantiatorsOfKV[Long, String] {
+  import Instance.Sizable
   import Tag._
 
   protected implicit def orderingOfA = OrderingSource.orderingOfLongString
@@ -385,6 +414,29 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
   protected implicit def typeTagV = TypeTagSource.typeTagString
   protected def allFlags = Array[Tag]()
 
+  protected implicit val sizeOfLongMap_Long_String = 
+    new Sizable[collection.mutable.LongMap[String]] { 
+      def sizeof(m: collection.mutable.LongMap[String]) = m.size 
+    }
+  object MutLongV extends Instance.PackagePath {
+    // If we have other (String, _) types, move this out into a trait
+    def nickname = "MutLongV"
+    def fullyQualified = "scala.collection.mutable"
+    def C[CC: TypeTag: Sizable](ccf: Array[(Long, String)] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[(Long, String), CC] = {
+      val gen = kvInst.generator(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val ans = new Touched[(Long, String), CC]{
+        val secretly = gen
+        var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
+        def apply(): Instance.FromArray[(Long, String), CC] = { accesses += 1; secretly }
+      }
+      registry += ans
+      ans
+    }
+    val longMap = C({ a => val m = new collection.mutable.LongMap[String];     for (kv <- a) m += kv; m })
+  }
+
   lazy val possible_a = Array(3L -> "wish")
   lazy val possible_x = Array(
     Array.empty[(Long, String)],
@@ -393,7 +445,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
   )
   lazy val possible_y = possible_x
 
-  val force = ImmKV :: MutKV :: Nil
+  val force = ImmKV :: MutKV :: MutLongV :: Nil
 }
 
 object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with InstantiatorsOfKV[String, Long] {
@@ -419,8 +471,9 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
       val gen = kvInst.generator(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[(String, Long), CC]{
         val secretly = gen
-        val name = nm.value.toString
         var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
         def apply(): Instance.FromArray[(String, Long), CC] = { accesses += 1; secretly }
       }
       registry += ans
