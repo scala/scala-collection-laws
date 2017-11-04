@@ -1,5 +1,7 @@
 package laws
 
+import scala.util._
+
 /** The collection to be tested: this provides all elements and collections
   * and mappings thereon which are available inside the tests.
   */
@@ -101,7 +103,8 @@ with TestInfo {
 
   /** This is the actual test which runs a law and returns `Some(true)` if it
     * passes with these parameters, `Some(false)` if it fails, or `None` if
-    * the law is not valid for this collection.
+    * the law is not valid for this collection.  It does NOT keep track of whether
+    * the law has been run or not.
     */
   def runLaw(n: Int): Option[Boolean]
 
@@ -109,9 +112,42 @@ with TestInfo {
   def run: Boolean = runLaw(lawLine).get
 }
 object Test {
-  trait Companion {
+  case class Fail(law: Law, outcome: Outcome, test: Option[Test[_, _, _, _]], exception: Option[Throwable]) {}
+
+  case class Tested(succeeded: Map[Int, Long], failed: Map[Int, Fail], missed: Set[Int]) {}
+
+  trait Companion extends Named {
     /** The laws tested by this (kind of) test */
     def obeys: Map[Int, Law]
+
+    /** Keeps track of which laws were actually run */
+    lazy val ran = new collection.mutable.HashSet[Int]
+
+    /** Runs a single test */
+    def run(lln: Int): Either[Outcome, Long]
+
+    /** Runs the tests on all the laws */
+    def runAll(): Tested = {
+      val good = new collection.mutable.HashMap[Int, Long]
+      val bad = new collection.mutable.HashMap[Int, Fail]
+      val missed = new collection.mutable.HashSet[Int]
+      obeys.foreach{ case (lln, law) =>
+        Try{ run(lln) } match {
+          case Failure(e) => bad(lln) = Fail(law, Outcome.Error(e), None, Some(e))
+          case Success(x) => x match {
+            case Right(n) => if (n > 0) good(lln) = n else missed += lln
+            case Left(o) => o match {
+              case Outcome.Missing(n)                    => missed += lln
+              case Outcome.Failed(t: Test[_, _, _, _])   => bad(lln) = Fail(law, o, Some(t), None)
+              case Outcome.Threw(t: Test[_, _, _, _], e) => bad(lln) = Fail(law, o, Some(t), Some(e))
+              case Outcome.Error(e)                      => bad(lln) = Fail(law, o, None,    Some(e))
+              case _                                     => bad(lln) = Fail(law, o, None,    None)
+            }
+          }
+        }
+      }
+      Tested(good.toMap, bad.toMap, missed.toSet)
+    }
   }
 
   private class N(var count: Int = 0) { def ++(){ count += 1 } }

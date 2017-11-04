@@ -37,6 +37,7 @@ trait Generator[A, B, CC] {
         f"  import Test.ComparesTo",
         f"  import Test.Logic",
         f"",
+        f"",
         f"  def renumber(numb: Numbers) = ",
         f"    new $className(numb, ops, instance, lawLine)",
         f"",
@@ -72,6 +73,8 @@ trait Generator[A, B, CC] {
         f"",
         f"",
         f"object $className extends Test.Companion {",
+      f"""  def name = "$className" """,
+        f"",
         f"  val lawNumbers = ${appropriate.map(_.lineNumber).mkString("Set[Int](", ", ", ")")}",
         f"",
         f"  val obeys = lawNumbers.map(n => n -> Laws.byLineNumber(n)).toMap",
@@ -85,6 +88,8 @@ trait Generator[A, B, CC] {
         f"",
         f"  def runnerOf(lln: Int): Runner[$eltType, $altType, $colType, $className] =",
         f"    new Runner(lln, instanceExpy, opsExpy, factory)",
+        f"",
+        f"  def run(lln: Int): Either[Outcome, Long] = runnerOf(lln).run",
         f"}",
         f""
       )
@@ -369,8 +374,23 @@ object AllStrLongGenerators {
 }
 
 object GenerateAll {
+  def writeUniversalTest(targetDir: java.io.File, tests: Seq[String]): (String, Boolean) = {
+    val name = "Test_Everything"
+    val target = new java.io.File(targetDir, name + ".scala")
+    val lines = (
+      Array(
+        f"package laws",
+        f"",
+        f"object $name {",
+        f"}"
+      )
+    )
+    // FileIO(target, lines.mkString("\n"))
+    (name, false)
+  }
+
   def write(targetDir: java.io.File): (Map[String, Boolean], Vector[String]) = {
-    val answer =    
+    val tests =    
       AllIntGenerators.write(targetDir) ++
       AllStrGenerators.write(targetDir) ++
       AllLongStrGenerators.write(targetDir) ++
@@ -380,8 +400,9 @@ object GenerateAll {
       InstantiatorsOfStr.all ++
       InstantiatorsOfLongStr.all ++
       InstantiatorsOfStrLong.all
+    val universal = writeUniversalTest(targetDir, tests.map(_._1).toSeq)
     val missingSources = everySource.filter(_.accesses == 0).map(_.path)
-    (answer, missingSources.sorted)
+    (tests + universal, missingSources.sorted)
   }
 
   def run(args: Array[String]): Boolean = {

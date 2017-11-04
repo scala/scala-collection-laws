@@ -50,4 +50,6 @@ object Outcome {
   final case class Failed[T](test: T) extends Outcome {}
 
   final case class Threw[T](test: T, error: Throwable) extends Outcome {}
+
+  final case class Error(error: Throwable) extends Outcome {}
 }
