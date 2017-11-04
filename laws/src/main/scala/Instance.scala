@@ -191,7 +191,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val indexedSeq   = C(_.to[collection.mutable.IndexedSeq], SEQ)
     val iterable     = C(_.to[collection.mutable.Iterable])
     val linearSeq    = C(_.to[collection.mutable.LinearSeq], SEQ)
-    val linkedHashSet= C(_.to[collection.mutable.LinkedHashSet], SEQ)
+    val linkedHashSet= C(_.to[collection.mutable.LinkedHashSet], SET)
     val listBuffer   = C(_.to[collection.mutable.ListBuffer], SEQ)
     val priorityQueue= C(_.to[collection.mutable.PriorityQueue])
     val queue        = C(_.to[collection.mutable.Queue], SEQ)
