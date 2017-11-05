@@ -34,7 +34,13 @@ trait Generator[A, B, CC] {
         f"",
         f"class $className(numb: Numbers, oper: Ops[$opsTypes], inst: Instance[$instTypes], lln: Int)",
         f"extends $heritage[$colType, $className](numb, oper, inst, lln) {",
-        f"  import Test.ComparesTo",
+        if (instance.flags contains Tag.SEQ) {
+         "  import Test.EqualInOrder"
+        }
+        else {
+         "  import Test.EqualInCount"
+        },
+        f"  import Test.SubsetInCount",
         f"  import Test.Logic",
         f"",
         f"",
@@ -192,7 +198,7 @@ object AllIntGenerators {
 
   object ImmInt {
     val bitSet = register(io.ImmInt)(_.bitSet(), "collection.immutable.BitSet")
-    val range = register(io.ImmInt)(_.range(), "collection.immutable.Range")
+    //val range = register(io.ImmInt)(_.range(), "collection.immutable.Range")
   }
 
   object MutInt {
@@ -374,6 +380,11 @@ object AllStrLongGenerators {
 }
 
 object GenerateAll {
+  trait Universal {
+    def runners: Array[() => (String, () => Test.Tested)]
+    def runAll(): Map[String, Test.Tested] = runners.map{ f => val (s, t) = f(); println(f"Running $s"); (s, t()) }.toMap
+  }
+
   def writeUniversalTest(targetDir: java.io.File, tests: Seq[String]): (String, Boolean) = {
     val name = "Test_Everything"
     val target = new java.io.File(targetDir, name + ".scala")
@@ -381,12 +392,16 @@ object GenerateAll {
       Array(
         f"package laws",
         f"",
-        f"object $name {",
+        f"object $name extends GenerateAll.Universal {",
+        f"  val runners: Array[() => (String, () => Test.Tested)] = Array(",
+        tests.toList.sorted.map{ t => 
+      f"""    () => "$t" -> (() => $t.runAll())"""
+        }.mkString(",\n"),
+        f"  )",
         f"}"
       )
     )
-    // FileIO(target, lines.mkString("\n"))
-    (name, false)
+    (name, FileIO(target, lines.mkString("\n")))
   }
 
   def write(targetDir: java.io.File): (Map[String, Boolean], Vector[String]) = {

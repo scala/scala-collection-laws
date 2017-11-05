@@ -112,9 +112,10 @@ with TestInfo {
   def run: Boolean = runLaw(lawLine).get
 }
 object Test {
+  case class Pass(law: Law, iterations: Long, time: Double) {}
   case class Fail(law: Law, outcome: Outcome, test: Option[Test[_, _, _, _]], exception: Option[Throwable]) {}
 
-  case class Tested(succeeded: Map[Int, Long], failed: Map[Int, Fail], missed: Set[Int]) {}
+  case class Tested(succeeded: Map[Int, Pass], failed: Map[Int, Fail], missed: Set[Int]) {}
 
   trait Companion extends Named {
     /** The laws tested by this (kind of) test */
@@ -128,14 +129,17 @@ object Test {
 
     /** Runs the tests on all the laws */
     def runAll(): Tested = {
-      val good = new collection.mutable.HashMap[Int, Long]
+      val good = new collection.mutable.HashMap[Int, Pass]
       val bad = new collection.mutable.HashMap[Int, Fail]
       val missed = new collection.mutable.HashSet[Int]
       obeys.foreach{ case (lln, law) =>
-        Try{ run(lln) } match {
+        val before = System.nanoTime
+        val result = Try{ run(lln) }
+        val elapsed = 1e-9*(System.nanoTime - before)
+        result match {
           case Failure(e) => bad(lln) = Fail(law, Outcome.Error(e), None, Some(e))
           case Success(x) => x match {
-            case Right(n) => if (n > 0) good(lln) = n else missed += lln
+            case Right(n) => if (n > 0) good(lln) = Pass(law, n, elapsed) else missed += lln
             case Left(o) => o match {
               case Outcome.Missing(n)                    => missed += lln
               case Outcome.Failed(t: Test[_, _, _, _])   => bad(lln) = Fail(law, o, Some(t), None)
@@ -151,21 +155,25 @@ object Test {
   }
 
   private class N(var count: Int = 0) { def ++(){ count += 1 } }
-  implicit class ComparesTo[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
-    def theSameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
+  implicit class EqualInOrder[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
+    def sameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
       val meB, youB = collection.mutable.ArrayBuffer.empty[A]
       onceCC(me).foreach(meB += _)
       onceDD(you).foreach(youB += _)
       meB == youB
     }
-    def correspondsTo[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
+  }
+  implicit class EqualInCount[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
+    def sameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
       onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
       onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
       meM.forall{ case (a, n) => youM.get(a).exists(_.count == n.count) } &&
       youM.forall{ case (a, n) => meM contains a }
     }
-    def isPartOf[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
+  }
+  implicit class SubsetInCount[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
+    def partOf[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
       onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
       onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)

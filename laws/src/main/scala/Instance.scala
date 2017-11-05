@@ -330,7 +330,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
       ans
     }
     val bitSet = C({ a => val b = collection.immutable.BitSet.newBuilder; a.foreach{ x => if (x >= 0) b += x }; b.result }, SET)
-    val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
+    //val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
   }
   object MutInt extends Instance.PackagePath {
     // If we have other (String, _) types, move this out into a trait
@@ -371,8 +371,8 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     Array.range(0,32),
     Array.range(0,33),
     Array.range(0,192),
-    Array.fill(1025)(42),
-    Array.range(0,8111)
+    Array.fill(254)(42),
+    Array.range(0,811)
   )
   lazy val possible_y = possible_x
 
