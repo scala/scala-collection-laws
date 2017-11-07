@@ -161,27 +161,27 @@ set - only holds for collections that remove duplicates
 
 /******** Basic capabilities ********/
 
-"x.map(f) sameAs { val y = collection.mutable.ArrayBuffer.empty[A]; x.foreach(xi => y += f(xi)); y }".law(SEQ)
+"x.`map`(f) sameAs { val y = collection.mutable.ArrayBuffer.empty[A]; x.foreach(xi => y += f(xi)); y }".law(SEQ)
 
-"x.map(f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law(SET, BITSET_MAP_BREAKS_BOUNDS.!)
+"x.`map`(f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law(SET, BITSET_MAP_BREAKS_BOUNDS.!)
 
-// x sameType x.map(f)
+"x sameType x.`map`(f)".law(SUPER_ITREES.!, SUPER_MOPENHM.!)
 
 """{
-  val flat = x.flatMap(xi => y.toList.take(intFrom(xi)))
+  val flat = x.`flatMap`(xi => y.toList.take(intFrom(xi)))
   val ref = collection.mutable.ArrayBuffer.empty[A]
   x.foreach(xi => ref ++= y.toList.take(intFrom(xi)))
   flat sameAs ref
 }""".law(SEQ)
 
 """{
-  val flat = x.flatMap(xi => y.toList.take(intFrom(xi)))
+  val flat = x.`flatMap`(xi => y.toList.take(intFrom(xi)))
   val ref = collection.mutable.HashSet.empty[A]
   x.foreach(xi => ref ++= y.toList.take(intFrom(xi)))
   flat sameAs ref
 }""".law(SET)
 
-// x sameType x.flatMap(xi => y.toList.take($INT(xi))))
+"x sameType x.`flatMap`(xi => y.toList.take(intFrom(xi)%3))".law(SUPER_ITREES.!, SUPER_MOPENHM.!)
 
 "x.`exists`(p) == x.`find`(p).isDefined".law
 
@@ -267,7 +267,8 @@ b.result sameAs x
 
 "x sameAs x.`companion`(x.toList: _*)".law
 
-// !RANGE !SORTED !ARRAY !USESARRAY !N ... sameType(x, x.`companion`.empty[@A])
+// I don't think the companion should be the same type?
+// "x sameType x.`companion`(x.toList: _*)".law
 
 "x.`count`(p) > 0 == x.`exists`(p)".law
 
@@ -279,7 +280,7 @@ b.result sameAs x
 
 "x.filter(p).`forall`(p) == true".law
 
-// p !RANGE ... sameType(x, x.filter(p))
+"x sameType x.filter(p)".law
 
 "x.flatMap(xi => y.toList.take(intFrom(xi) % 3 max 0)) sameAs x.map(xi => y.toList.take(intFrom(xi) % 3 max 0)).`flatten`".law(MAP.!)
 
@@ -382,15 +383,13 @@ x.forall{ case (k, v) =>
 }
 """.law(MAP)
 
-// Need version that works for maps
-
-// y !RANGE !MUVU !SI8814 ... sameType(x, x.`++`(y))
+"x sameType x.`++`(y)".law(SUPER_IHASHM.!, SUPER_MXMAP.!)
 
 "x.`buffered` sameAs x".law
 
 "x.`collect`(pf) sameAs x.`filter`(pf.isDefinedAt).`map`(pf)".law
 
-// pf !RANGE !MUVU !SI6462 ... sameType(x, x.`collect`(pf))
+"x sameType x.`collect`(pf)".law(SUPER_ITREES.!, SUPER_MXMAP.!)
 
 "x.`contains`(a) == x.`exists`(_ == a)".law(MAP.!)
 
@@ -406,7 +405,7 @@ x.forall{ case (k, v) =>
 
 "x.`drop`(n) partOf x".law
 
-// n ... sameType(x, x.`drop`(n))
+"x sameType x.`drop`(n)".law
 
 """
 val c = x.`dropWhile`(p);
@@ -423,18 +422,21 @@ y.nonEmpty implies y.exists(yi => !p(yi))
 
 """x.`dropWhile`(p) partOf x""".law
 
-//p ... sameType(x, x.`dropWhile`(p))
+"x sameType x.`dropWhile`(p)".law
 
 """
 val (x1,x2) = x.`duplicate`
 x1.`corresponds`(x)(_ == _) && x2.corresponds(x)(_ == _)
 """.law
 
-// p ... val (x1,x2) = x.`duplicate`; sameType(x1, x2)
+"""
+val (x1,x2) = x.`duplicate`
+(x sameType x1) && (x1 sameType x2)
+""".law
 
 "x.`filterNot`(p) sameAs x.`filter`(xi => !p(xi))".law
 
-// p !RANGE ... sameType(x, x.`filterNot`(p))
+"x sameType x.`filterNot`(p)".law
 
 "n <= 0 || x.`grouped`(n).map(_.size).`sum` == x.`size`".law
 
@@ -454,14 +456,17 @@ x1.`corresponds`(x)(_ == _) && x2.corresponds(x)(_ == _)
 
 "(n <= x.`size`) implies (x.`padTo`(n, a) sameAs x)".law
 
-// a n !RANGE !MUVU ... sameType(x, x.`padTo`(n,a))
+"x sameType x.`padTo`(n,a)".law
 
 """
 val (t,f) = x.`partition`(p)
 (t sameAs x.`filter`(p)) && (f sameAs x.`filterNot`(p))
 """.law
 
-// p !RANGE ... val (t,f) = x.`partition`(p); sameType(t,f) && sameType(x,t)
+"""
+val (t,f) = x.`partition`(p)
+(t sameType f) && (t sameType x)
+""".law
 
 "(n <= x.`size`) implies (x.`patch`(n, y, m).`take`(n) sameAs x.take(n))".law
 
@@ -475,7 +480,7 @@ val (t,f) = x.`partition`(p)
 
 "n < 0 || m >= x.size || { x.`slice`(n, m) sameAs x.`drop`(n).`take`((0 max m)-n) }".law(SET.!)
 
-//n m !SI8819 ... n < 0 || m >= x.size || { sameType(x, x.`slice`(n, m)) }
+"n < 0 || m >= x.size || (x sameType x.`slice`(n, m))".law
 
 "x.`span`(p)._1.`forall`(p)".law
 
@@ -485,13 +490,16 @@ val (t,f) = x.`partition`(p)
 
 "val (x1, x2) = x.`span`(p); val n = x.`span`(p)._1.`size`; (x1 sameAs x.`take`(n)) && (x2 sameAs x.`drop`(n))".law
 
-//p ... val (x1, x2) = x.`span`(p); sameType(x1, x2) && sameType(x, x1)
+"""
+val (x1, x2) = x.`span`(p)
+(x1 sameType x2) && (x sameType x1)
+""".law
 
 "x.`take`(n).`size` == ((0 max n) min x.size)".law
 
 "x.`take`(n) partOf x".law
 
-//n ... sameType(x, x.`take`(n))
+"x sameType x.`take`(n)".law
 
 "x.`takeWhile`(p).`forall`(p)".law
 
@@ -499,7 +507,7 @@ val (t,f) = x.`partition`(p)
 
 "x.`takeWhile`(p).`size` + x.`dropWhile`(p).size == x.size".law
 
-//p ... sameType(x, x.`takeWhile`(p))
+"x sameType x.`takeWhile`(p)".law
 
 "x.`zip`(y).map(_._1) sameAs x.take(x.size min y.size)".law
 
@@ -517,7 +525,6 @@ val (t,f) = x.`partition`(p)
 
 "x.`zipWithIndex`.map(_._2) sameAs (0 until x.`size`)".law
 
-
 //!N !MUVU !SI6462 ... sameType(x, x.`zipWithIndex`.map(_._1))
 
 "x.`:++`(y) sameAs x.`++`(y)".law
@@ -528,19 +535,19 @@ val (t,f) = x.`partition`(p)
 
 "x.`::`(a).`head` == a".law
 
-//a ... sameType(x, x.`::`(a))
+"x sameType x.`::`(a)".law
 
 "x.`+:`(a).`size` == x.size+1".law
 
 "x.`+:`(a).`head` == a".law
 
-//a !RANGE !MUVU ... sameType(x, x.`+:`(a))
+"x sameType x.`+:`(a)".law
 
 "x.`:+`(a).`size` == x.size+1".law
 
 "x.`:+`(a).`last` == a".law
 
-//a !RANGE !MUVU ... sameType(x, x.`:+`(a))
+"x sameType x.`:+`(a)".law
 
 "val s = x.`+`(a).`size` - x.size; 0 <= s && s <= 1".law
 
@@ -548,11 +555,11 @@ val (t,f) = x.`partition`(p)
 
 "x.`+`(a).`contains`(a._1)".law(MAP)
 
-//a !RANGE !MUVU !SI8814 ... sameType(x, x.`+`(a))
+"x sameType x.`+`(a)".law(SUPER_MXMAP.!)
 
 "x.`:::`(y) sameAs y.`++`(x)".law
 
-//y ... sameType(x, x.`:::`(y))
+"x sameType x.`:::`(y)".law
 
 "x.`apply`(n) == x.`drop`(n).`head`".law(SEQ, Filt.xsize(_ > 0))
 
@@ -594,7 +601,7 @@ x.`distinct`.`size` == s.size && x.forall(s)
 
 "x.`dropRight`(nn) sameAs x.`take`(x.`size` - math.max(0, nn))".law(SET.!)
 
-//sameType(x, x.`reverse`)
+"x sameType x.`reverse`".law
 
 "x.`endsWith`(y) == (x.`drop`(math.max(0, x.`size`-y.size)) sameAs y)".law
 
@@ -671,7 +678,7 @@ val xx = x.`inits`.toVector.map(_.toVector)
 
 "x.`intersect`(y).`toSet` == (x.toSet & y.toSet)".law
 
-// y !RANGE ... sameType(x, x.`intersect`(y))
+"x sameType x.`intersect`(y)".law
 
 "x.`iterator` sameAs x".law
 
@@ -753,11 +760,11 @@ x.`reverse`.`forall`{ xi => ki += 1; xi == ix(k - ki) }
 
 "x.`reverseMap`(f) sameAs x.map(f).`reverse`".law(SEQ)
 
-// f !RANGE !MUVU ... sameType(x, x.`reverseMap`(f))
+"x sameType x.`reverseMap`(f)".law
 
 "x.`reverse_:::`(y) sameAs x.`:::`(y.`reverse`)".law(SEQ)
 
-// y ... sameType(x, x.`reverse_:::`(y))
+"x sameType x.`reverse_:::`(y)".law
 
 "x.`scan`(a)((l, r) => op(l, r)) sameAs x.toList.scanLeft(a)((l, r) => op(l, r))".law(SET.!, MAP.!)
 
@@ -819,7 +826,10 @@ val (x1,x2) = x.`splitAt`(n)
 (x1 sameAs x.`take`(n)) && (x2 sameAs x.`drop`(n))
 """.law
 
-// val (x1,x2) = x.`splitAt`(n); sameType(x1, x2) && sameType(x, x1)
+"""
+val (x1,x2) = x.`splitAt`(n)
+(x1 sameType x2) && (x sameType x1)
+""".law
 
 "x.`startsWith`(y,n) implies (x.`drop`(n).`take`(y.`size`) sameAs y)".law(Filt.xsize(_ > 0))
 
@@ -848,15 +858,15 @@ val xtl = x.`tails`.toList
 
 "x.`takeRight`(n) sameAs { val m = x.`size` - math.max(0, n); x.`drop`(m) }".law
 
-// n !RANGE ... sameType(x, x.`takeRight`(n))
+"x sameType x.`takeRight`(n)".law
 
-"x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(Filt.n(_ > 0))
+"x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARR.!, Filt.n(_ > 0))
 
-// n !RANGE ARRAY ... n < 1 || x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ sameAs x)
+"x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARR, Filt.n(_ > 0))
 
 "x.`union`(y).`toSet` == (x.toSet union y.toSet)".law
 
-// y !RANGE !MUVU ... sameType(x, x.`union`(y))
+"x sameType x.`union`(y)".law
 
 """
 val xa = x.`zip`(y).`unzip`._1.`toArray`
@@ -936,8 +946,9 @@ z.forall{ case (xi, yi) => xSet(xi) && ySet(yi) }
 
 "(x.`-`(a._1)) partOf x".law(MAP)
 
-// a !RANGE !M ... sameType(x, x.`-`(a))
-// a M ... sameType(x, x.`-`(a._1))
+"x sameType x.`-`(a)".law(MAP.!)
+
+"x sameType x.`-`(a._1)".law(MAP)
 
 "val x0 = x; x0.`-=`(a) sameAs x.`-`(a)".law(MAP.!)
 
@@ -1001,9 +1012,9 @@ x0 sameAs x.map{ case (a,b) => a -> f((a,b))._2 }
 
 "x.`updated`(a._1, a._2).`forall`{ case (k,v) => if (k == a._1) v == a._2 else x.`get`(k).exists(_ == v) }".law(MAP)
 
-// n a !RANGE !M ... n < 0 || n >= x.`size` || sameType(x, x.`updated`(n,a))
+"x sameType x.`updated`(n,a)".law(SEQ, Filt.xsize(_ > 0))
 
-// a M !SI8814 ... sameType(x, x.`updated`(a._1, a._2))
+"x sameType x.`updated`(a._1, a._2)".law(MAP, SUPER_MXMAP.!, Filt.xsize(_ > 0))
 
 "{ val x0 = x; x0.`update`(n, a); x0 sameAs x.`updated`(n,a) }".law(MAP.!, Filt.xsize(_ > 0))
 
@@ -1013,13 +1024,13 @@ x0 sameAs x.map{ case (a,b) => a -> f((a,b))._2 }
 
 "x.`forall`(xi => y.`contains`(xi) == x.`&`(y).contains(xi))".law
 
-// y !RANGE ... sameType(x, x.`&`(y))
+"x sameType x.`&`(y)".law
 
 "x.`&~`(y) partOf x".law
 
 "x.`forall`(xi => y.`contains`(xi) != x.`&~`(y).contains(xi))".law
 
-// y !RANGE ... sameType(x, x.`&~`(y))
+"x sameType x.`&~`(y)".law
 
 
 ////////////////////////////

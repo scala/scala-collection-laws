@@ -155,6 +155,9 @@ object Test {
   }
 
   private class N(var count: Int = 0) { def ++(){ count += 1 } }
+  implicit class SameCompilerType[A](me: A) {
+    def sameType[B](you: B)(implicit ev: A =:= B) = true
+  }
   implicit class EqualInOrder[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
     def sameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
       val meB, youB = collection.mutable.ArrayBuffer.empty[A]

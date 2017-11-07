@@ -11,7 +11,7 @@ import scala.reflect.runtime.universe.TypeTag
   *
   * That `A` is actually an element that can be found within `CC` is not enforced.
   */
-class Instance[A, CC: TypeTag] protected (a0: A, x0: () => CC, xsize0: Int, y0: () => CC, ysize0: Int, val flags: Set[Tag]) {
+class Instance[A, CC: TypeTag] protected (a0: A, x0: () => CC, xsize0: Int, y0: () => CC, ysize0: Int, val flags: Set[Tag], implicitMethods: MethodChecker = MethodChecker.empty) {
   val values = Instance.Values(a0, x0, xsize0, y0, ysize0)
 
   val used = Array(false, false, false)
@@ -31,7 +31,9 @@ class Instance[A, CC: TypeTag] protected (a0: A, x0: () => CC, xsize0: Int, y0: 
   /** The size of the collection `y` */
   def ysize: Int = { used(2) = true; ysize0 }
 
-  lazy val methods = MethodChecker.list(x)
+  lazy val methods = MethodChecker.from[CC] | implicitMethods
+
+  def moreMethods(mc: MethodChecker): Instance[A, CC] = new Instance[A, CC](a0, x0, xsize, y0, ysize, flags, methods | mc)
 
   def setUnused(): this.type = { java.util.Arrays.fill(used, false); this }
 
@@ -84,7 +86,11 @@ object Instance { outer =>
       flags
     )
 
-  trait FromArray[A, CC] extends ((A, Array[A], Array[A]) => Instance[A, CC]) with Named {
+  trait FromArray[A, CC] extends ((A, Array[A], Array[A]) => Instance[A, CC]) with Named { self =>
+    def moreMethods(mc: MethodChecker): FromArray[A, CC] = new FromArray[A, CC] {
+      def name = self.name
+      def apply(a: A, x: Array[A], y: Array[A]) = self.apply(a, x, y).moreMethods(mc)
+    }
     override def toString = f"$name from array"
   }
 
@@ -137,8 +143,16 @@ extends Exploratory[(A, Array[A], Array[A])] {
   protected implicit def sizeOfArray[A] = new Sizable[Array[A]] { def sizeof(a: Array[A]) = a.length }
   protected implicit val sizeOfString = new Sizable[String] { def sizeof(s: String) = s.length }
 
-  trait Touched[A, CC] extends Function0[Instance.FromArray[A, CC]] with Touchable {
+  trait Touched[A, CC] extends Function0[Instance.FromArray[A, CC]] with Touchable { self =>
     def secretly: Instance.FromArray[A, CC]
+    def moreMethods(mc: MethodChecker): Touched[A, CC] = new Touched[A, CC] {
+      def accesses = self.accesses
+      def name = self.name
+      def group = self.group
+      override def path = self.path
+      def apply() = self.apply().moreMethods(mc)
+      def secretly = self.secretly.moreMethods(mc)
+    }
   }
 
   protected val registry = Vector.newBuilder[Touched[A, _]]
@@ -169,7 +183,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val sortedSet   = C(_.to[collection.immutable.SortedSet], SET)
     val stream      = C(_.to[Stream], SEQ)
     val traversable = C(_.to[collection.immutable.Traversable])
-    val treeSet     = C(_.to[collection.immutable.TreeSet], SET)
+    val treeSet     = C(_.to[collection.immutable.TreeSet], SET, SUPER_ITREES)
     val vector      = C(_.toVector, SEQ)
   }
 
@@ -188,7 +202,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
       registry += ans
       ans
     }
-    val array        = C(_.clone, SEQ, ARR)
+    val array        = C(_.clone, SEQ, ARR).moreMethods(MethodChecker.from[collection.mutable.ArrayOps[A]])
     val arrayBuffer  = C(_.to[collection.mutable.ArrayBuffer], SEQ)
     val arraySeq     = C(_.to[collection.mutable.ArraySeq], SEQ)
     val arrayStack   = C(_.to[collection.mutable.ArrayStack], SEQ, ARRAYSTACK_ADDS_ON_FRONT)
@@ -255,7 +269,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
       registry += ans
       ans
     }
-    val hashMap =   C({ a => val mb = collection.immutable.HashMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result })
+    val hashMap =   C({ a => val mb = collection.immutable.HashMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, SUPER_IHASHM)
     val listMap =   C({ a => val mb = collection.immutable.ListMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result })
     val sortedMap = C({ a => val mb = collection.immutable.SortedMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result })
     val treeMap =   C({ a => val mb = collection.immutable.TreeMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result })
@@ -276,13 +290,13 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
       registry += ans
       ans
     }
-    val hashMap =       C({ a => val m = new collection.mutable.HashMap[K, V];       for (kv <- a) m += kv; m })
-    val listMap =       C({ a => val m = new collection.mutable.ListMap[K, V];       for (kv <- a) m += kv; m })
-    val linkedHashMap = C({ a => val m = new collection.mutable.LinkedHashMap[K, V]; for (kv <- a) m += kv; m })
-    val openHashMap =   C({ a => val m = new collection.mutable.OpenHashMap[K, V];   for (kv <- a) m += kv; m })
+    val hashMap =       C({ a => val m = new collection.mutable.HashMap[K, V];       for (kv <- a) m += kv; m }, SUPER_MXMAP)
+    val listMap =       C({ a => val m = new collection.mutable.ListMap[K, V];       for (kv <- a) m += kv; m }, SUPER_MXMAP)
+    val linkedHashMap = C({ a => val m = new collection.mutable.LinkedHashMap[K, V]; for (kv <- a) m += kv; m }, SUPER_MXMAP)
+    val openHashMap =   C({ a => val m = new collection.mutable.OpenHashMap[K, V];   for (kv <- a) m += kv; m }, SUPER_MXMAP, SUPER_MOPENHM)
     val sortedMap =     C({ a => val m = collection.mutable.SortedMap.empty[K, V];   for (kv <- a) m += kv; m })
-    val treeMap =       C({ a => val m = new collection.mutable.TreeMap[K, V];       for (kv <- a) m += kv; m })
-    val weakHashMap =   C({ a => val m = new collection.mutable.WeakHashMap[K, V];   for (kv <- a) m += kv; m })
+    val treeMap =       C({ a => val m = new collection.mutable.TreeMap[K, V];       for (kv <- a) m += kv; m }, SUPER_MXMAP)
+    val weakHashMap =   C({ a => val m = new collection.mutable.WeakHashMap[K, V];   for (kv <- a) m += kv; m }, SUPER_MXMAP)
   }
 }
 

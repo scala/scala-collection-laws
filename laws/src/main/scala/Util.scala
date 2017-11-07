@@ -35,11 +35,12 @@ final class CachedFn0[A](val underlying: () => A) extends (() => A) {
 }
 
 /** Checks to make sure a set of methods are available */
-class MethodChecker(methods: Set[String]) {
+class MethodChecker(val methods: Set[String]) {
   import scala.reflect._
   import runtime.universe._
   def passes(available: Set[String]) = methods.forall(available)
-  def apply[C: TypeTag](c: C): Boolean = passes(MethodChecker.list(c))
+  def passes(available: MethodChecker) = methods.forall(available.methods)
+  def |(that: MethodChecker): MethodChecker = new MethodChecker(methods | that.methods)
 }
 object MethodChecker {
   import scala.reflect._
@@ -47,10 +48,10 @@ object MethodChecker {
 
   val empty = new MethodChecker(Set.empty)
 
-  def list[C: TypeTag](c: C): Set[String] = {
+  def from[C: TypeTag]: MethodChecker = {
     val tp = implicitly[TypeTag[C]].tpe
     val meths = tp.members.collect{ case x if x.isMethod => x.asMethod }
-    meths.map(_.name.decodedName.toString).toSet
+    new MethodChecker(meths.map(_.name.decodedName.toString).toSet)
   }
 }
 

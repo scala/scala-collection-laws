@@ -42,6 +42,7 @@ trait Generator[A, B, CC] {
         },
         f"  import Test.SubsetInCount",
         f"  import Test.Logic",
+        f"  import Test.SameCompilerType",
         f"",
         f"",
         f"  def renumber(numb: Numbers) = ",

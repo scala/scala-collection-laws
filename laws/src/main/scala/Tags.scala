@@ -25,6 +25,12 @@ object Tag {
   val SET = T     // Is a set
   val STR = T     // Uses strings
 
+  // Everything below here is non-ideal but may reflect the best behavior we can get.
+  val SUPER_IHASHM  = T  // Some immutable.HashMap operations revert to the supertype
+  val SUPER_ITREES  = T  // Some immutable.TreeSet operations revert to the supertype 
+  val SUPER_MXMAP   = T  // Some mutable.Map subclass operations always revert to the supertype
+  val SUPER_MOPENHM = T  // mutable.OpenHashMap is especially bad with supertype reversion
+
   // Everything down here is _highly_ dubious behavior but is included to get tests to pass
   val ARRAYSTACK_ADDS_ON_FRONT = T  // Bizarre behavior of ArrayStack--it reverses _itself_ when calling result??!
   val PRIORITYQUEUE_IS_SPECIAL = T  // Inconsistent behavior regarding what is dequeued (ordered) vs. not
