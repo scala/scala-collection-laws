@@ -24,6 +24,11 @@ object Tag {
   val SEQ = T     // Is a sequence
   val SET = T     // Is a set
   val STR = T     // Uses strings
+
+  // Everything down here is _highly_ dubious behavior but is included to get tests to pass
+  val ARRAYSTACK_ADDS_ON_FRONT = T  // Bizarre behavior of ArrayStack--it reverses _itself_ when calling result??!
+  val PRIORITYQUEUE_IS_SPECIAL = T  // Inconsistent behavior regarding what is dequeued (ordered) vs. not
+  val BITSET_MAP_BREAKS_BOUNDS = T  // Because BitSet doesn't allow negative numbers, maps are problematic
 }
 
 /** Information that you can use to filter tests (note: only flags are used for compile-time generation) */
@@ -45,10 +50,6 @@ trait TestInfo {
   }
   def boxedRuntime: java.lang.Class[_]
   def runtimeColl: java.lang.Class[_]
-
-  def skipMissingZero    = if (oper.values.op.zero.isDefined)            None else Some(Outcome.Skip.op)
-  def skipNonassociative = if (oper.values.op.assoc == OpFn.Associative) None else Some(Outcome.Skip.op)
-  def skipAsymmetric     = if (oper.values.op.sym == OpFn.Symmetric)     None else Some(Outcome.Skip.op)
 }
 
 /** Tags provide a way to select which laws are applicable for a given run.  For instance,

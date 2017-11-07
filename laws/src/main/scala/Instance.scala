@@ -191,7 +191,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val array        = C(_.clone, SEQ, ARR)
     val arrayBuffer  = C(_.to[collection.mutable.ArrayBuffer], SEQ)
     val arraySeq     = C(_.to[collection.mutable.ArraySeq], SEQ)
-    val arrayStack   = C(_.to[collection.mutable.ArrayStack], SEQ)
+    val arrayStack   = C(_.to[collection.mutable.ArrayStack], SEQ, ARRAYSTACK_ADDS_ON_FRONT)
     val buffer       = C(_.to[collection.mutable.Buffer], SEQ)
     val hashSet      = C(_.to[collection.mutable.HashSet], SET)
     val indexedSeq   = C(_.to[collection.mutable.IndexedSeq], SEQ)
@@ -199,7 +199,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val linearSeq    = C(_.to[collection.mutable.LinearSeq], SEQ)
     val linkedHashSet= C(_.to[collection.mutable.LinkedHashSet], SET)
     val listBuffer   = C(_.to[collection.mutable.ListBuffer], SEQ)
-    val priorityQueue= C(_.to[collection.mutable.PriorityQueue])
+    val priorityQueue= C(_.to[collection.mutable.PriorityQueue], PRIORITYQUEUE_IS_SPECIAL)
     val queue        = C(_.to[collection.mutable.Queue], SEQ)
     val seq          = C(_.to[collection.mutable.Seq], SEQ)
     val treeSet      = C(_.to[collection.mutable.TreeSet], SET)
@@ -329,7 +329,10 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
       registry += ans
       ans
     }
-    val bitSet = C({ a => val b = collection.immutable.BitSet.newBuilder; a.foreach{ x => if (x >= 0) b += x }; b.result }, SET)
+    val bitSet = C(
+      { a => val b = collection.immutable.BitSet.newBuilder; a.foreach{ x => if (x >= 0) b += x }; b.result },
+      SET, BITSET_MAP_BREAKS_BOUNDS
+    )
     //val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
   }
   object MutInt extends Instance.PackagePath {
@@ -348,7 +351,10 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
       registry += ans
       ans
     }
-    val bitSet = C({ a => val b = new collection.mutable.BitSet; a.foreach{ x => if (x >= 0) b += x }; b }, SET)
+    val bitSet = C(
+      { a => val b = new collection.mutable.BitSet; a.foreach{ x => if (x >= 0) b += x }; b },
+      SET, BITSET_MAP_BREAKS_BOUNDS
+    )
   }
 
   lazy val possible_a = Array(0, 1, 2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 23, 31, 47, 152, 3133, 1294814, -1, -2, -6, -19, -1915, -19298157)
