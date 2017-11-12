@@ -284,7 +284,7 @@ b.result sameAs x
 
 "x.flatMap(xi => y.toList.take(intFrom(xi) % 3 max 0)) sameAs x.map(xi => y.toList.take(intFrom(xi) % 3 max 0)).`flatten`".law(MAP.!)
 
-"x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)".law/*(Filt.sym)*/
+"x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)".law(Filt.sym)
 
 "x.`foldLeft`(a)(op) == x.`/:`(a)(op)".law
 
@@ -299,7 +299,7 @@ b.result sameAs x
 
 "tryO{x.`min`} == tryO{ x.`reduce`(minOf) }".law
 
-"tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law/*(BITSET_MAP_BREAKS_BOUNDS.!)*/
+"tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law(BITSET_MAP_BREAKS_BOUNDS.!)
 
 "x.`nonEmpty` == x.`exists`(_ => true)".law
 

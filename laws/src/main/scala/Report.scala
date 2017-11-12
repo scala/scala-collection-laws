@@ -72,33 +72,43 @@ object Report {
       }
     }
 
-    def reportFailedLaws(ran: Map[String, Test.Tested]): Vector[String] = {
-      val broken = collection.mutable.LongMap.empty[Mu[List[(String, Test.Fail)]]]
-      ran.foreach{ case (name, tested) =>
-        tested.failed.foreach{ case (lln, failure) =>
-          broken.getOrElseUpdate(lln, Mu(List.empty[(String, Test.Fail)])).mutf((name, failure) :: _)
-        }
-      }
-      if (broken.isEmpty) Vector.empty
-      else {
-        broken.toVector.sortBy(_._1).flatMap{ case (lln, errs) =>
-          Vector(
-            f"*****************************************",
-            f"********** Failures in line $lln",
-            f"*****************************************",
-          ) ++
-          errs.value.
-            map{ case (name, failure) => f"****** $name ******\n$failure\n" }.
-            mkString("\n").lines.toVector ++
-          Vector("", "")
-        } ++
-        Vector(
-          f"************************************",
-          f"************************************",
-          f"************** ${broken.map(_._2.value.size).sum} errors",
-          f"************************************",
-          f"************************************"
-        )
+  def reportFailedLaws(ran: Map[String, Test.Tested]): Vector[String] = {
+    val broken = collection.mutable.LongMap.empty[Mu[List[(String, Test.Fail)]]]
+    ran.foreach{ case (name, tested) =>
+      tested.failed.foreach{ case (lln, failure) =>
+        broken.getOrElseUpdate(lln, Mu(List.empty[(String, Test.Fail)])).mutf((name, failure) :: _)
       }
     }
+    if (broken.isEmpty) Vector.empty
+    else {
+      broken.toVector.sortBy(_._1).flatMap{ case (lln, errs) =>
+        Vector(
+          f"*****************************************",
+          f"********** Failures in line $lln",
+          f"*****************************************",
+        ) ++
+        errs.value.
+          map{ case (name, failure) => f"****** $name ******\n$failure\n" }.
+          mkString("\n").lines.toVector ++
+        Vector("", "")
+      } ++
+      Vector(
+        f"************************************",
+        f"************************************",
+        f"************** ${broken.map(_._2.value.size).sum} errors",
+        f"************************************",
+        f"************************************"
+      )
+    }
+  }
+
+  def junitReport(ran: java.util.concurrent.ConcurrentHashMap[String, Test.Tested]) {
+    import scala.collection.JavaConverters._
+    val m = ran.asScala.toMap
+    reportUnusedMethods(m).foreach(println)
+    reportUnusedLaws(m).foreach(println)
+    val fails = reportFailedLaws(m)
+    fails.foreach(println)
+    assert(fails.isEmpty)
+  }
 }

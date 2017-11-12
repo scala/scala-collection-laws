@@ -386,7 +386,7 @@ object AllStrLongGenerators {
 }
 
 object GenerateAll {
-  def writeUniversalTest(targetDir: java.io.File, tests: Seq[String]): (String, Boolean) = {
+  def writeUniversalTest(targetDir: java.io.File, tests: List[String]): (String, Boolean) = {
     val name = "Test_Everything"
     val target = new java.io.File(targetDir, name + ".scala")
     val lines = (
@@ -395,11 +395,43 @@ object GenerateAll {
         f"",
         f"object $name extends AllRunner {",
         f"  val runners: Array[() => (String, () => Test.Tested)] = Array(",
-        tests.toList.sorted.map{ t => 
+        tests.map{ t => 
       f"""    () => "$t" -> (() => $t.runAll())"""
         }.mkString(",\n"),
         f"  )",
         f"}"
+      )
+    )
+    (name, FileIO(target, lines.mkString("\n")))
+  }
+
+  def writeJUnitAdaptor(targetDir: java.io.File, tests: List[String]): (String, Boolean) = {
+    val name = "Test_Everything_With_JUnit"
+    val targetPath = new java.io.File(targetDir, "src/test/scala")
+    if (!targetPath.exists) targetPath.mkdirs
+    val target = new java.io.File(targetPath, name + ".scala")
+    val lines = (
+      Array(
+        f"package laws",
+        f"",
+        f"class $name {"
+      ) ++
+      tests.zipWithIndex.flatMap{ case (t, i) => Array(
+        f"  @org.junit.Test",
+        f"  def run_$t {",
+        f"    val (n, test) = Test_Everything.runners($i).apply()",
+        f"    $name.result.put(n, test.apply())",
+        f"  }"
+      )} ++
+      Array(
+        f"}",
+        f"",
+        f"object $name {",
+        f"  val result = new java.util.concurrent.ConcurrentHashMap[String, Test.Tested]",
+        f"  @org.junit.BeforeClass def setup  { result.clear() }",
+        f"  @org.junit.AfterClass  def report { Report.junitReport(result) }",
+        f"}",
+        f""
       )
     )
     (name, FileIO(target, lines.mkString("\n")))
@@ -416,9 +448,11 @@ object GenerateAll {
       InstantiatorsOfStr.all ++
       InstantiatorsOfLongStr.all ++
       InstantiatorsOfStrLong.all
-    val universal = writeUniversalTest(targetDir, tests.map(_._1).toSeq)
+    val testNames = tests.map(_._1).toList.sorted
+    val universal = writeUniversalTest(targetDir, testNames)
+    val junit  = writeJUnitAdaptor(targetDir, testNames)
     val missingSources = everySource.filter(_.accesses == 0).map(_.path)
-    (tests + universal, missingSources.sorted)
+    (tests + universal + junit, missingSources.sorted)
   }
 
   def run(args: Array[String]): Boolean = {
