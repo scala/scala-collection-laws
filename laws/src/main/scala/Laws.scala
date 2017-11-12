@@ -165,7 +165,7 @@ set - only holds for collections that remove duplicates
 
 "x.`map`(f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law(SET, BITSET_MAP_BREAKS_BOUNDS.!)
 
-"x sameType x.`map`(f)".law(SUPER_ITREES.!, SUPER_MOPENHM.!)
+"x sameType x.`map`(f)".law(SUPER_ITREES.!, SUPER_MOPENHM.!, BITSET_MAP_BREAKS_BOUNDS.!)
 
 """{
   val flat = x.`flatMap`(xi => y.toList.take(intFrom(xi)))
@@ -233,26 +233,26 @@ x sameAs xx.result
 "x.`aggregate`(zero)((b,a) => b, (b1,b2) => b2) == zero".law(Filt.zero)
 
 """
-val arr = new Array[A](m)
-x.`copyToArray`(arr, n, m)
+val arr = new Array[A](nn)
+x.`copyToArray`(arr, n, nn)
 (arr.drop(n).take(m) zip x.toList).forall{ case (x,y) => x==y }
-""".law(SET.!, MAP.!, Filt.n(_ >= 0))
+""".law(SET.!, MAP.!, Filt.xsize(_ > 0))
 
 
 """
-val arr = new Array[A](m)
-x.`copyToArray`(arr, n, m)
+val arr = new Array[A](nn)
+x.`copyToArray`(arr, n, nn)
 val c = arr.drop(n).take(m min x.`size`)
 val cs = c.toSet
 c.size == cs.size && (cs subsetOf x.toSet)
-""".law(SET, Filt.n(_ >= 0))
+""".law(SET, Filt.xsize(_ > 0))
 
 """
-val arr = new Array[A](m)
+val arr = new Array[A](nn)
 val x0 = x
-x0.`copyToArray`(arr, n, m)
+x0.`copyToArray`(arr, n, nn)
 (n until ((n+m) min x.`size`)).forall(i => x0.get(arr(i)._1).exists(_ == arr(i)._2))
-""".law(MAP, Filt.n(_ >= 0))
+""".law(MAP, Filt.xsize(_ > 0))
 
 
 "x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)".law
@@ -284,7 +284,7 @@ b.result sameAs x
 
 "x.flatMap(xi => y.toList.take(intFrom(xi) % 3 max 0)) sameAs x.map(xi => y.toList.take(intFrom(xi) % 3 max 0)).`flatten`".law(MAP.!)
 
-"x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)".law(Filt.sym)
+"x.`foldLeft`(a)(op) == x.`foldRight`(a)(op)".law/*(Filt.sym)*/
 
 "x.`foldLeft`(a)(op) == x.`/:`(a)(op)".law
 
@@ -299,7 +299,7 @@ b.result sameAs x
 
 "tryO{x.`min`} == tryO{ x.`reduce`(minOf) }".law
 
-"tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law(BITSET_MAP_BREAKS_BOUNDS.!)
+"tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law/*(BITSET_MAP_BREAKS_BOUNDS.!)*/
 
 "x.`nonEmpty` == x.`exists`(_ => true)".law
 
@@ -350,9 +350,9 @@ c sameAs x.filter(p)""".law(SET)
 
 "x.`hasNext` implies tryO{ x.`next` }.isDefined".law
 
-"x.`++`(y).`size` == x.size + y.size".law(SET.!, MAP.!)
+"x.`++`(y).`size` == x.size + y.size".law(SEQ)
 
-"x.`++`(y).`size` <= x.size + y.size".law(SET, MAP)
+"x.`++`(y).`size` <= x.size + y.size".law(SEQ.!)
 
 "x.`++`(y).`size` == x.size + y.filter(yi => !x.`contains`(yi)).size".law(SET)
 
@@ -513,21 +513,24 @@ val (x1, x2) = x.`span`(p)
 
 "x.`zip`(y).map(_._2) sameAs y.take(x.size min y.size)".law
 
-//y !N !MUVU !SI6462 ... sameType(x, x.`zip`(y).map(_._1))
+"x sameType x.`zip`(y).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!)
 
 "x.`zipAll`(y, a, b).map(_._1) sameAs x.`padTo`(x.`size` max y.size, a)".law
 
 "x.`zipAll`(y, a, b).map(_._2) sameAs y.`padTo`(x.`size` max y.size, b)".law
 
-//y a b !N !MUVU !SI6462 ... sameType(x, x.`zipAll`(y, a, b).map(_._1))
+"x sameType x.`zipAll`(y, a, b).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!)
 
 "x.`zipWithIndex`.map(_._1) sameAs x".law
 
 "x.`zipWithIndex`.map(_._2) sameAs (0 until x.`size`)".law
 
-//!N !MUVU !SI6462 ... sameType(x, x.`zipWithIndex`.map(_._1))
+"x sameType x.`zipWithIndex`.map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!)
 
+/* 
+// The :++ method does not actually exist
 "x.`:++`(y) sameAs x.`++`(y)".law
+*/
 
 "x.`++:`(y) sameAs y.`++`(x)".law
 
@@ -621,7 +624,7 @@ x.`indexOf`(a,n) match {
   case -1 => k.`size` == (0 max x.size-n)
   case kk => n+k.size == kk && x.`drop`(kk).`head` == a 
 }
-""".law(SEQ, Filt.n(_ >= 0))
+""".law(SEQ, Filt.xsize(_ > 0))
 
 
 "x.`indexOf`(a) == x.`indexOf`(a, 0)".law
@@ -642,7 +645,7 @@ x.`indexWhere`(p,n) match {
   case -1 => k.`size` == (0 max x.size-n)
   case kk => n+k.size == kk && p(x.`drop`(kk).`head`) 
 }
-""".law(Filt.n(_ >= 0))
+""".law(Filt.xsize(_ > 0))
 
 "x.`indexWhere`(p) == x.`indexWhere`(p, 0)".law
 
@@ -860,9 +863,9 @@ val xtl = x.`tails`.toList
 
 "x sameType x.`takeRight`(n)".law
 
-"x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARR.!, Filt.n(_ > 0))
+"x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARR.!, Filt.xsize(_ > 1), Filt.n(_ > 0))
 
-"x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARR, Filt.n(_ > 0))
+"x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARR, Filt.xsize(_ > 1), Filt.n(_ > 0))
 
 "x.`union`(y).`toSet` == (x.toSet union y.toSet)".law
 
@@ -968,7 +971,7 @@ z.forall{ case (xi, yi) => xSet(xi) && ySet(yi) }
 
 "val x0 = x; x0.`reduceToSize`(n); x0.`size` == n".law(Filt.n(_ >= 0))
 
-"val x0 = x; x0.`reduceToSize`(n); x0 sameAs x.`take`(n)".law(SET.!, MAP.!, Filt.n(_ >= 0))
+"val x0 = x; x0.`reduceToSize`(n); x0 sameAs x.`take`(n)".law(SET.!, MAP.!, Filt.xsize(_ > 0))
 
 """
 tryE{ val x0 = x;  x0.`remove`(n, nn); x0 } match { 

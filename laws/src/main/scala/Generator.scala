@@ -22,6 +22,9 @@ trait Generator[A, B, CC] {
   def className: String = f"Test_${pkgName}_${ccType}_${safeElt}"
   def code: String = {
     val instance = instanceExplorer.completeIterator.take(1).toList.head
+    val quotedMethods = instance.methods.methods.
+      toList.sorted.
+      map{ s => "\"" + (if (s contains '\\') s.replaceAllLiterally("\\", "\\\\") else s) + "\"" }
     val appropriate = Laws.all.
       filter(law => law.checker passes instance.methods).
       filter(law => law.tags compatible (autoTags ++ instance.flags)).
@@ -85,6 +88,8 @@ trait Generator[A, B, CC] {
         f"  val lawNumbers = ${appropriate.map(_.lineNumber).mkString("Set[Int](", ", ", ")")}",
         f"",
         f"  val obeys = lawNumbers.map(n => n -> Laws.byLineNumber(n)).toMap",
+        f"",
+        f"  val methods = Set(${quotedMethods.mkString(", ")})",
         f"",
         f"  val factory: (Int, Instance[$instTypes], Ops[$opsTypes], Numbers) => $className =",
         f"    (l, i, o, n) => new $className(n, o, i, l)",
@@ -381,11 +386,6 @@ object AllStrLongGenerators {
 }
 
 object GenerateAll {
-  trait Universal {
-    def runners: Array[() => (String, () => Test.Tested)]
-    def runAll(): Map[String, Test.Tested] = runners.map{ f => val (s, t) = f(); println(f"Running $s"); (s, t()) }.toMap
-  }
-
   def writeUniversalTest(targetDir: java.io.File, tests: Seq[String]): (String, Boolean) = {
     val name = "Test_Everything"
     val target = new java.io.File(targetDir, name + ".scala")
@@ -393,7 +393,7 @@ object GenerateAll {
       Array(
         f"package laws",
         f"",
-        f"object $name extends GenerateAll.Universal {",
+        f"object $name extends AllRunner {",
         f"  val runners: Array[() => (String, () => Test.Tested)] = Array(",
         tests.toList.sorted.map{ t => 
       f"""    () => "$t" -> (() => $t.runAll())"""

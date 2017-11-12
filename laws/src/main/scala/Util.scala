@@ -1,5 +1,28 @@
 package laws
 
+/** N is a mutable counter */
+class N(var count: Int = 0) { 
+  /** Increment and return new value */
+  def ++(): Int = { 
+    count += 1
+    count
+  }
+}
+object N {
+  def apply(count: Int = 0) = new N(count)
+}
+
+/** Mu holds an arbitrary mutable value */
+class Mu[A](var value: A) {
+  def mutf(f: A => A): this.type = {
+    value = f(value)
+    this
+  }
+}
+object Mu {
+  def apply[A](value: A) = new Mu[A](value)
+}
+
 /** FormatErr represents an error in the formatting of a collection law.  Presently,
   * the only thing that can go wrong is an unclosed method name (the checked methods
   * should be enclosed in backticks).
@@ -48,10 +71,36 @@ object MethodChecker {
 
   val empty = new MethodChecker(Set.empty)
 
+  private val anyRefMethods =
+    implicitly[TypeTag[AnyRef]].tpe.members.
+      collect{ case x if x.isMethod => x.asMethod }.
+      filter(_.isPublic).
+      map(_.name.decodedName.toString).
+      toSet
+
+  private val ignoredMethods = Set(
+    "$init$",
+    "canEqual",
+    "clone",
+    "par",
+    "seq"
+  )
+
+  private val assumedMethods = Set(
+    "filter",
+    "flatMap",
+    "map"
+  )
+
   def from[C: TypeTag]: MethodChecker = {
     val tp = implicitly[TypeTag[C]].tpe
-    val meths = tp.members.collect{ case x if x.isMethod => x.asMethod }
-    new MethodChecker(meths.map(_.name.decodedName.toString).toSet)
+    val meths = tp.members.collect{ case x if x.isMethod => x.asMethod }.filter(_.isPublic)
+    new MethodChecker(
+      meths.map(_.name.decodedName.toString).toSet 
+      -- anyRefMethods
+      -- ignoredMethods
+      ++ assumedMethods
+    )
   }
 }
 

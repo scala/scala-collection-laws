@@ -98,3 +98,64 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     Right(n)
   }
 }
+
+trait AllRunner {
+  def runners: Array[() => (String, () => Test.Tested)]
+
+  def runAll(quiet: Boolean = false ): Map[String, Test.Tested] = 
+    runners.map{ f => 
+      val (s, t) = f()
+      if (!quiet) println(f"Running $s")
+        (s, t())
+    }.toMap
+
+  def runPar(atOnce: Int = 4, quiet: Boolean = true): Map[String, Test.Tested] = {
+    import scala.util._
+    import scala.concurrent.{Await, Future}
+    import scala.concurrent.duration._
+    import scala.concurrent.ExecutionContext.Implicits.global   // Maybe make a fixed-size thread pool?
+    val toRun = runners.map(_())
+    val ans = collection.mutable.AnyRefMap.empty[String, Test.Tested]
+    val slots = new Array[(String, Future[(String, Test.Tested)])](1 max (atOnce min toRun.length))
+    var i = 0;
+    var it = toRun.iterator
+    while (i < slots.length && it.hasNext) {
+      val (name, test) = it.next
+      slots(i) = name -> Future{ (name, test()) }
+      if (!quiet) println(name + " started...")
+      i += 1
+    }
+    while (i > 0) {
+      Await.ready(
+        Future.firstCompletedOf((if (i < slots.length) slots take i else slots).map(_._2)),
+        Duration.create(5, MINUTES)
+      )
+      var j = 0
+      var found = false
+      while (j < i) slots(j)._2.value match {
+          case None => j += 1
+          case Some(result) =>
+            result match {
+              case Success((name, tt)) => 
+                ans(name) = tt
+                if (!quiet) println("..." + name + " complete!")
+              case Failure(e) => throw e
+            }
+            found = true
+            if (it.hasNext) {
+              val (name, test) = it.next
+              slots(j) = name -> Future{ (name, test()) }
+              if (!quiet) println(name + " started...")
+              j += 1
+            }
+            else {
+              if (i-1 > j) slots(j) = slots(i-1)
+              i -= 1
+            }
+        }
+      if (!found) throw new Exception("Await timed out while running: " + slots.take(i).map(_._1))
+    }
+    ans.toMap
+  }
+}
+

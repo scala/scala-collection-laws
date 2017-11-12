@@ -115,11 +115,27 @@ object Test {
   case class Pass(law: Law, iterations: Long, time: Double) {}
   case class Fail(law: Law, outcome: Outcome, test: Option[Test[_, _, _, _]], exception: Option[Throwable]) {}
 
-  case class Tested(succeeded: Map[Int, Pass], failed: Map[Int, Fail], missed: Set[Int]) {}
+  case class Tested(succeeded: Map[Int, Pass], failed: Map[Int, Fail], missed: Set[Int], methods: Set[String]) {
+    def findMethodUsage: Map[String, (List[Int], List[Int])] = {
+      val usage = methods.toArray.map{ m => (m, (Mu(List.empty[Int]), Mu(List.empty[Int]))) }.toMap
+      for {
+        (_, Pass(law, _, _)) <- succeeded
+        m <- law.methods.right.getOrElse(Set.empty[String])
+      } usage.get(m).foreach(_._1.mutf(law.lineNumber :: _))
+      for {
+        (_, Fail(law, _, _, _)) <- failed
+        m <- law.methods.right.getOrElse(Set.empty[String])
+      } usage.get(m).foreach(_._2.mutf(law.lineNumber :: _))
+      usage.map{ case (m, (mu1, mu2)) => (m, (mu1.value.sorted, mu2.value.sorted)) }
+    }
+  }
 
   trait Companion extends Named {
     /** The laws tested by this (kind of) test */
     def obeys: Map[Int, Law]
+
+    /** The methods possessed by the collection in this kind of test */
+    def methods: Set[String]
 
     /** Keeps track of which laws were actually run */
     lazy val ran = new collection.mutable.HashSet[Int]
@@ -150,11 +166,10 @@ object Test {
           }
         }
       }
-      Tested(good.toMap, bad.toMap, missed.toSet)
+      Tested(good.toMap, bad.toMap, missed.toSet, methods)
     }
   }
 
-  private class N(var count: Int = 0) { def ++(){ count += 1 } }
   implicit class SameCompilerType[A](me: A) {
     def sameType[B](you: B)(implicit ev: A =:= B) = true
   }

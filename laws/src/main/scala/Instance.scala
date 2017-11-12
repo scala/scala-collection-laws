@@ -180,10 +180,10 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val queue       = C(_.to[collection.immutable.Queue], SEQ)
     val seq         = C(_.to[collection.immutable.Seq], SEQ)
     val set         = C(_.toSet, SET)
-    val sortedSet   = C(_.to[collection.immutable.SortedSet], SET)
+    val sortedSet   = C(_.to[collection.immutable.SortedSet], SET, SUPER_ON_ZIP)
     val stream      = C(_.to[Stream], SEQ)
     val traversable = C(_.to[collection.immutable.Traversable])
-    val treeSet     = C(_.to[collection.immutable.TreeSet], SET, SUPER_ITREES)
+    val treeSet     = C(_.to[collection.immutable.TreeSet], SET, SUPER_ITREES, SUPER_ON_ZIP)
     val vector      = C(_.toVector, SEQ)
   }
 
@@ -213,10 +213,10 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val linearSeq    = C(_.to[collection.mutable.LinearSeq], SEQ)
     val linkedHashSet= C(_.to[collection.mutable.LinkedHashSet], SET)
     val listBuffer   = C(_.to[collection.mutable.ListBuffer], SEQ)
-    val priorityQueue= C(_.to[collection.mutable.PriorityQueue], PRIORITYQUEUE_IS_SPECIAL)
+    val priorityQueue= C(_.to[collection.mutable.PriorityQueue], SUPER_ON_ZIP, PRIORITYQUEUE_IS_SPECIAL)
     val queue        = C(_.to[collection.mutable.Queue], SEQ)
     val seq          = C(_.to[collection.mutable.Seq], SEQ)
-    val treeSet      = C(_.to[collection.mutable.TreeSet], SET)
+    val treeSet      = C(_.to[collection.mutable.TreeSet], SET, SUPER_ON_ZIP)
     // val unrolledBuffer = C(_.to[collection.mutable.UnrolledBuffer], SEQ)
     val wrappedArray = C(_.clone: collection.mutable.WrappedArray[A], SEQ)
   }
@@ -345,7 +345,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     }
     val bitSet = C(
       { a => val b = collection.immutable.BitSet.newBuilder; a.foreach{ x => if (x >= 0) b += x }; b.result },
-      SET, BITSET_MAP_BREAKS_BOUNDS
+      SET, SUPER_ON_ZIP, BITSET_MAP_BREAKS_BOUNDS
     )
     //val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
   }
@@ -367,7 +367,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     }
     val bitSet = C(
       { a => val b = new collection.mutable.BitSet; a.foreach{ x => if (x >= 0) b += x }; b },
-      SET, BITSET_MAP_BREAKS_BOUNDS
+      SET, SUPER_ON_ZIP, BITSET_MAP_BREAKS_BOUNDS
     )
   }
 
@@ -454,7 +454,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
       registry += ans
       ans
     }
-    val longMap = C({ a => val m = new collection.mutable.LongMap[String];     for (kv <- a) m += kv; m })
+    val longMap = C({ a => val m = new collection.mutable.LongMap[String];     for (kv <- a) m += kv; m }, SUPER_ON_ZIP)
   }
 
   lazy val possible_a = Array(3L -> "wish")
