@@ -15,7 +15,7 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
     this("", tags, code)(file, line)
 
   /** Extracts the named methods within the code block of this law */
-  private[this] def findMyMethods: Either[FormatErr, Set[String]] = {
+  private[this] def findMyMethods: Either[Law.FormatErr, Set[String]] = {
     val b = Array.newBuilder[String]
     var i = 0
     while (i >= 0 && i < code.length) {
@@ -23,24 +23,24 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
       if (i >= 0) {
         val j = code.indexOf('`', i+1)
         if (j > i+1) b += code.substring(i+1, j)
-        else return Left(FormatErr("Unclosed method quotes", code, i, code.substring(i)))
+        else return Left(Law.FormatErr("Unclosed method quotes", code, i, code.substring(i)))
         i = j+1
       }
     }
     Right(b.result.toSet)
   }
 
-  /** Declare that a tag should not be present */
-  def not(t: Tag): Law = new Law(name, tags shun t, code, disabled)(file, line)
+  /** Declare that a flag should not be present */
+  def not(t: Flag): Law = new Law(name, tags shun t, code, disabled)(file, line)
 
-  /** Declare that several tags should not be present */
-  def not(t1: Tag, t2: Tag, tx: Tag*): Law = new Law(name, ((tags shun t1 shun t2) /: tx)((ts, t) => ts shun t), code, disabled)(file, line)
+  /** Declare that several flags should not be present */
+  def not(t1: Flag, t2: Flag, tx: Flag*): Law = new Law(name, ((tags shun t1 shun t2) /: tx)((ts, t) => ts shun t), code, disabled)(file, line)
 
-  /** Declare that an additional tag must be present */
-  def and(t: Tag): Law = new Law(name, tags need t, code, disabled)(file, line)
+  /** Declare that an additional flag must be present */
+  def and(t: Flag): Law = new Law(name, tags need t, code, disabled)(file, line)
 
-  /** Declare that several tags must be present */
-  def add(t1: Tag, t2: Tag, tx: Tag*): Law = new Law(name, ((tags need t1 need t2) /: tx)((ts, t) => ts need t), code, disabled)(file, line)
+  /** Declare that several flags must be present */
+  def add(t1: Flag, t2: Flag, tx: Flag*): Law = new Law(name, ((tags need t1 need t2) /: tx)((ts, t) => ts need t), code, disabled)(file, line)
 
   /** Add another check of TestInfo for some property */
   def filter(p: TestInfo => Option[Outcome.Skip]): Law = new Law(name, tags.filter(p), code, disabled)(file, line)
@@ -65,6 +65,14 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
     "\n// @ " + Sourced.local(file, line) + "\n"
 }
 object Law {
+  /** FormatErr represents an error in the formatting of a collection law.  Presently,
+    * the only thing that can go wrong is an unclosed method name (the checked methods
+    * should be enclosed in backticks).
+    */
+  case class FormatErr(description: String, context: String, position: Int, focus: String) {
+    override def toString = f"$description.  At $position found $focus.  In $context"
+  }
+
   def apply(code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(code)(file, line)
   def apply(name: String, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(name, code)(file, line)
   def apply(tags: Tags, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(tags, code)(file, line)  
@@ -72,7 +80,7 @@ object Law {
 
 
 object Laws {
-  import Tag._
+  import Flag._
   import Tags.Implicits._
 
   object Filt {
@@ -863,9 +871,9 @@ val xtl = x.`tails`.toList
 
 "x sameType x.`takeRight`(n)".law
 
-"x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARR.!, Filt.xsize(_ > 1), Filt.n(_ > 0))
+"x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARRAY.!, Filt.xsize(_ > 1), Filt.n(_ > 0))
 
-"x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARR, Filt.xsize(_ > 1), Filt.n(_ > 0))
+"x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARRAY, Filt.xsize(_ > 1), Filt.n(_ > 0))
 
 "x.`union`(y).`toSet` == (x.toSet union y.toSet)".law
 

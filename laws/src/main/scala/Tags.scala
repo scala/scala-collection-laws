@@ -2,42 +2,6 @@ package laws
 
 import scala.language.implicitConversions
 
-/** A tag that can be attached to a collection or law to categorize its properties */
-final class Tag()(implicit val nm: sourcecode.Name)
-extends Ordered[Tag] { 
-  override val toString = nm.value.toString
-  override def compare(that: Tag) = toString.compareTo(that.toString)
-  override def equals(that: Any) = that match {
-    case t: Tag => this.toString == that.toString
-    case _      => false
-  }
-  override val hashCode = toString.hashCode
-}
-object Tag {
-  def T(implicit nm: sourcecode.Name) = new Tag()(nm)
-
-  // List these one by one to be sure the tag picks up the right name!
-  val ARR = T     // Backed by an array
-  val INT = T     // Uses integers
-  val MAP = T     // Is a map
-  val NOG = T     // Not (fully) generic; don't expect the type to stay the same!
-  val SEQ = T     // Is a sequence
-  val SET = T     // Is a set
-  val STR = T     // Uses strings
-
-  // Everything below here is non-ideal but may reflect the best behavior we can get.
-  val SUPER_IHASHM  = T  // Some immutable.HashMap operations revert to the supertype
-  val SUPER_ITREES  = T  // Some immutable.TreeSet operations revert to the supertype 
-  val SUPER_MXMAP   = T  // Some mutable.Map subclass operations always revert to the supertype
-  val SUPER_MOPENHM = T  // mutable.OpenHashMap is especially bad with supertype reversion
-  val SUPER_ON_ZIP  = T  // Some collections lose their type when zipped (due to ordering or structure)
-  
-  // Everything down here is _highly_ dubious behavior but is included to get tests to pass
-  val ARRAYSTACK_ADDS_ON_FRONT = T  // Bizarre behavior of ArrayStack--it reverses _itself_ when calling result??!
-  val PRIORITYQUEUE_IS_SPECIAL = T  // Inconsistent behavior regarding what is dequeued (ordered) vs. not
-  val BITSET_MAP_BREAKS_BOUNDS = T  // Because BitSet doesn't allow negative numbers, maps are problematic
-}
-
 /** Information that you can use to filter tests (note: only flags are used for compile-time generation) */
 trait TestInfo {
   def num: Numbers
@@ -67,25 +31,25 @@ trait TestInfo {
   * Additional restriction of the set may be achieved by including tests in `select`.  All
   * such tests must pass for a particular set of parameters to be included in a test.
   */
-case class Tags(positive: Set[Tag], negative: Set[Tag], select: Vector[TestInfo => Option[Outcome.Skip]]) {
+case class Tags(positive: Set[Flag], negative: Set[Flag], select: Vector[TestInfo => Option[Outcome.Skip]]) {
   /** Tests whether any tags are present (either boolean or string-valued) */
   val isEmpty = positive.isEmpty && negative.isEmpty && select.isEmpty
 
   /** Checks whether a certain set of flags is compatible for code generation (compile-time compatible) */
-  def compatible(flags: Set[Tag]) =
+  def compatible(flags: Set[Flag]) =
     positive.forall(flags contains _) && !flags.exists(negative contains _)
 
   /** Checks whether a certain choice of parameters is suitable for testing at runtime */
   def validate(t: TestInfo): Option[Outcome.Skip] = select.iterator.map(p => p(t)).find(_.isDefined).flatten
 
   /** Sets a boolean tag that must be present */
-  def need(t: Tag): Tags =
+  def need(t: Flag): Tags =
     if (positive contains t) this
     else if (negative contains t) new Tags(positive + t, negative - t, select)
     else new Tags(positive + t, negative, select)
 
   /** Requires that a particular tag be absent */
-  def shun(t: Tag): Tags =
+  def shun(t: Flag): Tags =
     if (negative contains t) this
     else if (positive contains t) new Tags(positive - t, negative + t, select)
     else new Tags(positive, negative + t, select)
@@ -106,23 +70,23 @@ case class Tags(positive: Set[Tag], negative: Set[Tag], select: Vector[TestInfo 
 object Tags {
   /** Taggish represents values that can be tags: either a key alone, or a key-value pair (all strings). */
   sealed trait Taggish {}
-  final case class PosTag(tag: Tag) extends Taggish {}
-  final case class NegTag(tag: Tag) extends Taggish {}
+  final case class PosTag(flag: Flag) extends Taggish {}
+  final case class NegTag(flag: Flag) extends Taggish {}
   final case class SelectTag(p: TestInfo => Option[Outcome.Skip]) extends Taggish {}
   //final case class SelectTag(p: List[String] => Boolean) extends Taggish {}
   /** Implicits contains implicit conversions to values that can be tags. */
   object Implicits {
-    implicit class TagIsTaggish(t: Tag) {
-      def y: PosTag  = PosTag(t)
-      def n: NegTag  = NegTag(t)
-      def ! : NegTag = NegTag(t)
+    implicit class TagIsTaggish(flag: Flag) {
+      def y: PosTag  = PosTag(flag)
+      def n: NegTag  = NegTag(flag)
+      def ! : NegTag = NegTag(flag)
     }
-    implicit def tagIsPositiveByDefault(t: Tag): PosTag = PosTag(t)
-    implicit def select(p: TestInfo => Option[Outcome.Skip]): SelectTag = SelectTag(p)
+    implicit def flagIsPositiveByDefault(flag: Flag): PosTag = PosTag(flag)
+    implicit def selectWrapsFunction(p: TestInfo => Option[Outcome.Skip]): SelectTag = SelectTag(p)
   }
 
   /** Canonical empty set of tags. (That is, no tags.) */
-  val empty = new Tags(Set.empty[Tag], Set.empty[Tag], Vector.empty[TestInfo => Option[Outcome.Skip]])
+  val empty = new Tags(Set.empty[Flag], Set.empty[Flag], Vector.empty[TestInfo => Option[Outcome.Skip]])
 
   /** Create a mixed set of boolean and predicate tags.
     *

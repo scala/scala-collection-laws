@@ -3,7 +3,7 @@ package laws
 trait Generator[A, B, CC] {
   def instanceExplorer(): Exploratory[Instance[A, CC]]
   def opsExplorer(): Exploratory[Ops[A, B]]
-  def autoTags: Set[Tag]
+  def autoTags: Set[Flag]
   def ccType: String
   def eltType: String
   def eltCC: String = eltType
@@ -37,7 +37,7 @@ trait Generator[A, B, CC] {
         f"",
         f"class $className(numb: Numbers, oper: Ops[$opsTypes], inst: Instance[$instTypes], lln: Int)",
         f"extends $heritage[$colType, $className](numb, oper, inst, lln) {",
-        if (instance.flags contains Tag.SEQ) {
+        if (instance.flags contains Flag.SEQ) {
          "  import Test.EqualInOrder"
         }
         else {
@@ -114,7 +114,7 @@ abstract class IntGenerator[CC] extends Generator[Int, Long, CC] {
   val heritage = "IntTest"
   val eltType = "Int"
   val altType = "Long"
-  val autoTags = Set(Tag.INT)
+  val autoTags = Set(Flag.INT)
 }
 
 abstract class StrGenerator[CC] extends Generator[String, Option[String], CC] {
@@ -122,7 +122,7 @@ abstract class StrGenerator[CC] extends Generator[String, Option[String], CC] {
   val heritage = "StrTest"
   val eltType = "String"
   val altType = "Option[String]"
-  val autoTags = Set(Tag.STR)
+  val autoTags = Set(Flag.STR)
   override def className: String = f"Test_${pkgName}_${ccType}_Str"
 }
 
@@ -131,7 +131,7 @@ abstract class LongStrGenerator[CC] extends Generator[(Long, String), (String, L
   val heritage = "LongStrTest"
   val eltType = "(Long, String)"
   val altType = "(String, Long)"
-  val autoTags = Set.empty[Tag]
+  val autoTags = Set.empty[Flag]
 }
 
 abstract class StrLongGenerator[CC] extends Generator[(String, Long), (Long, String), CC] {
@@ -139,7 +139,7 @@ abstract class StrLongGenerator[CC] extends Generator[(String, Long), (Long, Str
   val heritage = "StrLongTest"
   val eltType = "(String, Long)"
   val altType = "(Long, String)"
-  val autoTags = Set.empty[Tag]
+  val autoTags = Set.empty[Flag]
 }
 
 /** Generates all classes that take Int.

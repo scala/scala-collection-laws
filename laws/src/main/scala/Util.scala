@@ -1,3 +1,7 @@
+/** 
+Utils contains various small utility classes and has no dependencies.
+*/
+
 package laws
 
 /** N is a mutable counter */
@@ -21,14 +25,6 @@ class Mu[A](var value: A) {
 }
 object Mu {
   def apply[A](value: A) = new Mu[A](value)
-}
-
-/** FormatErr represents an error in the formatting of a collection law.  Presently,
-  * the only thing that can go wrong is an unclosed method name (the checked methods
-  * should be enclosed in backticks).
-  */
-case class FormatErr(description: String, context: String, position: Int, focus: String) {
-  override def toString = f"$description.  At $position found $focus.  In $context"
 }
 
 /** Trait that captures the idea of having a source from which one is generated.
@@ -104,6 +100,10 @@ object MethodChecker {
   }
 }
 
+/** Utility methods to perform file I/O in the context of code generation, where there
+  * is some name-mangling, and you don't want to write the file if you haven't changed
+  * the contents.
+  */
 object FileIO {
   /** Removes all the test files in a particular directory; throws an exception if anything goes wrong. */
   def desource(dir: java.io.File) {

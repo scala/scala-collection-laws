@@ -71,7 +71,7 @@ with TestInfo {
   /** Converts a value to a characteristic integer.  (Default is just hashcode.) */
   def intFrom(a: A): Int = a.##
 
-  def flags: Set[Tag] = instance.flags
+  def flags: Set[Flag] = instance.flags
 
   def oper: Ops[_, _] = ops
 

@@ -11,7 +11,7 @@ import scala.reflect.runtime.universe.TypeTag
   *
   * That `A` is actually an element that can be found within `CC` is not enforced.
   */
-class Instance[A, CC: TypeTag] protected (a0: A, x0: () => CC, xsize0: Int, y0: () => CC, ysize0: Int, val flags: Set[Tag], implicitMethods: MethodChecker = MethodChecker.empty) {
+class Instance[A, CC: TypeTag] protected (a0: A, x0: () => CC, xsize0: Int, y0: () => CC, ysize0: Int, val flags: Set[Flag], implicitMethods: MethodChecker = MethodChecker.empty) {
   val values = Instance.Values(a0, x0, xsize0, y0, ysize0)
 
   val used = Array(false, false, false)
@@ -64,21 +64,21 @@ object Instance { outer =>
     def fullyQualified: String
   }
 
-  def apply[A, CC: TypeTag](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int)(flags: Set[Tag] = Set.empty): Instance[A, CC] =
+  def apply[A, CC: TypeTag](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int)(flags: Set[Flag] = Set.empty): Instance[A, CC] =
     new Instance(
       a,
       () => x, xsize,
       () => y, ysize,
       flags
     )
-  def from[A, CC: TypeTag: Sizable](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC)(flags: Set[Tag] = Set.empty): Instance[A, CC] =
+  def from[A, CC: TypeTag: Sizable](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC)(flags: Set[Flag] = Set.empty): Instance[A, CC] =
     new Instance(
       a,
       () => ccf(x), implicitly[Sizable[CC]].sizeof(ccf(x)),
       () => ccf(y), implicitly[Sizable[CC]].sizeof(ccf(y)),
       flags
     )
-  def cacheFrom[A, CC: TypeTag: Sizable](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC)(flags: Set[Tag] = Set.empty): Instance[A, CC] =
+  def cacheFrom[A, CC: TypeTag: Sizable](a: A, x: Array[A], y: Array[A])(ccf: Array[A] => CC)(flags: Set[Flag] = Set.empty): Instance[A, CC] =
     new Instance(
       a,
       new CachedFn0(() => ccf(x)), implicitly[Sizable[CC]].sizeof(ccf(x)),
@@ -94,24 +94,24 @@ object Instance { outer =>
     override def toString = f"$name from array"
   }
 
-  def generator[A, CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name): FromArray[A, CC] =
+  def generator[A, CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Flag*)(implicit nm: sourcecode.Name): FromArray[A, CC] =
     new FromArray[A, CC] {
       def apply(a: A, x: Array[A], y: Array[A]) = from(a, x, y)(ccf)(flags.toSet)
       def name = nm.value
     }
-  def generatorCached[A, CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name): FromArray[A, CC] =
+  def generatorCached[A, CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Flag*)(implicit nm: sourcecode.Name): FromArray[A, CC] =
     new FromArray[A, CC] {
       def apply(a: A, x: Array[A], y: Array[A]) = cacheFrom(a, x, y)(ccf)(flags.toSet)
       def name = nm.value
     }
 
-  class Over[A](allFlags: Tag*) {
-    def generator[CC](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name, tt: TypeTag[CC], sz: Sizable[CC]): FromArray[A, CC] =
+  class Over[A](allFlags: Flag*) {
+    def generator[CC](ccf: Array[A] => CC, flags: Flag*)(implicit nm: sourcecode.Name, tt: TypeTag[CC], sz: Sizable[CC]): FromArray[A, CC] =
       outer.generator(ccf, (allFlags ++ flags): _*)
-    def generatorCached[CC](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name, tt: TypeTag[CC], sz: Sizable[CC]): FromArray[A, CC] =
+    def generatorCached[CC](ccf: Array[A] => CC, flags: Flag*)(implicit nm: sourcecode.Name, tt: TypeTag[CC], sz: Sizable[CC]): FromArray[A, CC] =
       outer.generatorCached(ccf, (allFlags ++ flags): _*)
   }
-  def over[A](allFlags: Tag*): Over[A] = new Over[A](allFlags: _*)
+  def over[A](allFlags: Flag*): Over[A] = new Over[A](allFlags: _*)
 }
 
 trait Touchable {
@@ -131,11 +131,11 @@ trait Touchable {
 abstract class InstantiatorsOf[A]
 extends Exploratory[(A, Array[A], Array[A])] {
   import Instance.Sizable
-  import Tag._
+  import Flag._
 
   protected implicit def orderingOfA: Ordering[A]
   protected implicit def typeTagA: TypeTag[A]
-  protected def allFlags: Array[Tag]
+  protected def allFlags: Array[Flag]
   protected val inst = Instance.over[A](allFlags: _*)
 
   protected implicit def sizeOfSeq[A, S[A] <: collection.Seq[A]] = new Sizable[S[A]] { def sizeof(s: S[A]) = s.length }
@@ -160,7 +160,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
   object Imm extends Instance.PackagePath {
     def nickname = "Imm"
     def fullyQualified = "scala.collection.immutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[A, CC] = {
+    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Touched[A, CC] = {
       val gen = inst.generatorCached(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[A, CC]{
         val secretly = gen
@@ -190,7 +190,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
   object Mut extends Instance.PackagePath {
     def nickname = "Mut"
     def fullyQualified = "scala.collection.mutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[A, CC] = {
+    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Touched[A, CC] = {
       val gen = inst.generator(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[A, CC]{
         val secretly = gen
@@ -202,7 +202,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
       registry += ans
       ans
     }
-    val array        = C(_.clone, SEQ, ARR).moreMethods(MethodChecker.from[collection.mutable.ArrayOps[A]])
+    val array        = C(_.clone, SEQ, ARRAY).moreMethods(MethodChecker.from[collection.mutable.ArrayOps[A]])
     val arrayBuffer  = C(_.to[collection.mutable.ArrayBuffer], SEQ)
     val arraySeq     = C(_.to[collection.mutable.ArraySeq], SEQ)
     val arrayStack   = C(_.to[collection.mutable.ArrayStack], SEQ, ARRAYSTACK_ADDS_ON_FRONT)
@@ -245,7 +245,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
   */
 trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[(K, V)])] { self: InstantiatorsOf[(K, V)] =>
   import Instance.Sizable
-  import Tag._
+  import Flag._
 
   protected implicit def orderingOfK: Ordering[K]
 
@@ -257,7 +257,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
   object ImmKV extends Instance.PackagePath {
     def nickname = "ImmKV"
     def fullyQualified = "scala.collection.immutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[(K, V), CC] = {
+    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Touched[(K, V), CC] = {
       val gen = kvInst.generatorCached(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[(K, V), CC]{
         val secretly = gen
@@ -278,7 +278,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
   object MutKV extends Instance.PackagePath {
     def nickname = "MutKV"
     def fullyQualified = "scala.collection.mutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[(K, V), CC] = {
+    def C[CC: TypeTag: Sizable](ccf: Array[(K, V)] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Touched[(K, V), CC] = {
       val gen = kvInst.generator(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[(K, V), CC]{
         val secretly = gen
@@ -318,7 +318,7 @@ object TypeTagSource {
 
 object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   import Instance.Sizable
-  import Tag._
+  import Flag._
 
   protected implicit def orderingOfA = OrderingSource.orderingOfInt
   protected implicit def typeTagA = TypeTagSource.typeTagInt
@@ -331,8 +331,8 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // If we have other (String, _) types, move this out into a trait
     def nickname = "ImmInt"
     def fullyQualified = "scala.collection.immutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[Int] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[Int, CC] = {
-      val gen = inst.generatorCached(ccf, (NOG +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+    def C[CC: TypeTag: Sizable](ccf: Array[Int] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Touched[Int, CC] = {
+      val gen = inst.generatorCached(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[Int, CC]{
         val secretly = gen
         var accesses: Int = 0
@@ -353,8 +353,8 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // If we have other (String, _) types, move this out into a trait
     def nickname = "MutInt"
     def fullyQualified = "scala.collection.mutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[Int] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[Int, CC] = {
-      val gen = inst.generatorCached(ccf, (NOG +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+    def C[CC: TypeTag: Sizable](ccf: Array[Int] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Touched[Int, CC] = {
+      val gen = inst.generatorCached(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[Int, CC]{
         val secretly = gen
         var accesses: Int = 0
@@ -400,7 +400,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
 }
 
 object InstantiatorsOfStr extends InstantiatorsOf[String] {
-  import Tag._
+  import Flag._
 
   protected implicit def orderingOfA = OrderingSource.orderingOfString
   protected implicit def typeTagA = TypeTagSource.typeTagString
@@ -425,14 +425,14 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
 
 object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with InstantiatorsOfKV[Long, String] {
   import Instance.Sizable
-  import Tag._
+  import Flag._
 
   protected implicit def orderingOfA = OrderingSource.orderingOfLongString
   protected implicit def orderingOfK = OrderingSource.orderingOfLong
   protected implicit def typeTagA = TypeTagSource.typeTagLongString
   protected implicit def typeTagK = TypeTagSource.typeTagLong
   protected implicit def typeTagV = TypeTagSource.typeTagString
-  protected def allFlags = Array[Tag]()
+  protected def allFlags = Array[Flag]()
 
   protected implicit val sizeOfLongMap_Long_String = 
     new Sizable[collection.mutable.LongMap[String]] { 
@@ -442,7 +442,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
     // If we have other (String, _) types, move this out into a trait
     def nickname = "MutLongV"
     def fullyQualified = "scala.collection.mutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[(Long, String)] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[(Long, String), CC] = {
+    def C[CC: TypeTag: Sizable](ccf: Array[(Long, String)] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Touched[(Long, String), CC] = {
       val gen = kvInst.generator(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[(Long, String), CC]{
         val secretly = gen
@@ -470,14 +470,14 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
 
 object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with InstantiatorsOfKV[String, Long] {
   import Instance.Sizable
-  import Tag._
+  import Flag._
 
   protected implicit def orderingOfA = OrderingSource.orderingOfStringLong
   protected implicit def orderingOfK = OrderingSource.orderingOfString
   protected implicit def typeTagA = TypeTagSource.typeTagStringLong
   protected implicit def typeTagK = TypeTagSource.typeTagString
   protected implicit def typeTagV = TypeTagSource.typeTagLong
-  protected def allFlags = Array[Tag]()
+  protected def allFlags = Array[Flag]()
 
   protected implicit val sizeOfAnyRefMap_String_Long = 
     new Sizable[collection.mutable.AnyRefMap[String, Long]] { 
@@ -487,7 +487,7 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
     // If we have other (String, _) types, move this out into a trait
     def nickname = "MutKrefV"
     def fullyQualified = "scala.collection.mutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[(String, Long)] => CC, flags: Tag*)(implicit nm: sourcecode.Name): Touched[(String, Long), CC] = {
+    def C[CC: TypeTag: Sizable](ccf: Array[(String, Long)] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Touched[(String, Long), CC] = {
       val gen = kvInst.generator(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Touched[(String, Long), CC]{
         val secretly = gen
