@@ -457,7 +457,7 @@ object GenerateAll {
 
   def run(args: Array[String]): Boolean = {
     val path = args match {
-      case Array() => "../inst"
+      case Array() => "../tests"
       case Array(f) => f
       case _ => throw new IllegalArgumentException(f"Zero or one paths for output only (found ${args.length})")
     }

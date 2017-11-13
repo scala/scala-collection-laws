@@ -1,3 +1,17 @@
+name := "collections-laws-tests"
+
+version := "0.5.0"
+
+scalaVersion := "2.12.4"
+libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
+libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.1.3"
+libraryDependencies += "com.novocode" % "junit-interface" % "0.9"
+
+unmanagedJars in Compile += file("../laws/target/scala-2.12/collections-laws_2.12-0.5.0.jar")
+unmanagedJars in Test    += file("../laws/target/scala-2.12/collections-laws_2.12-0.5.0.jar")
+
+/*
+// Old version.  Needs to be tweaked to work.
 (sourceGenerators in Compile) += Def.task {
   val out = (sourceManaged in Compile).value
   if (!out.exists) IO.createDirectory(out)
@@ -7,3 +21,4 @@
   toError(runner.value.run(runTarget, classPath.files, args, streams.value.log))
   (out ** "*.scala").get
 }.taskValue
+*/

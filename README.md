@@ -8,6 +8,8 @@ regressions in basic functionality in any collection.
 These tests are expressed as a series of "laws": one-liners that express relationships
 between collections operations that should be true.
 
+** EVERYTHING BELOW HERE IS OUT OF DATE **
+
 These laws are then applied to a set of collection variants which are specified by
 a simple of textual replacement macro language.
 
