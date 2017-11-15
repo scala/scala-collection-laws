@@ -77,7 +77,7 @@ with TestInfo {
 
   def inst: Instance[_, _] = instance
 
-  def boxedRuntime = a.getClass
+  protected def boxedRuntime = a.getClass
 
   def runtimeColl = x.getClass
 

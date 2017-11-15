@@ -16,6 +16,7 @@ object N {
   def apply(count: Int = 0) = new N(count)
 }
 
+
 /** Mu holds an arbitrary mutable value */
 class Mu[A](var value: A) {
   def mutf(f: A => A): this.type = {
@@ -26,6 +27,7 @@ class Mu[A](var value: A) {
 object Mu {
   def apply[A](value: A) = new Mu[A](value)
 }
+
 
 /** Trait that captures the idea of having a source from which one is generated.
   */
@@ -42,16 +44,28 @@ object Sourced {
     local(file, line)
 }
 
+
 /** Trait that captures the idea of having a known variable name */
 trait Named {
   def name: String
 }
+
 
 /** Caches a computation that we expect to generate something immutable (so a cache is fine) */
 final class CachedFn0[A](val underlying: () => A) extends (() => A) {
   private lazy val cache = underlying()
   def apply(): A = cache
 }
+
+
+/** A typeclass that provides the ability to check the size of something.
+  *
+  * Intended for use with collections.
+  */
+trait Sizable[CC] {
+  def sizeof(c: CC): Int
+}
+
 
 /** Checks to make sure a set of methods are available */
 class MethodChecker(val methods: Set[String]) {
@@ -99,6 +113,35 @@ object MethodChecker {
     )
   }
 }
+
+
+/** Builds and caches an array of values.  (Not thread-safe.)
+  *
+  * It just acts like a buffer that fixes its contents once in use.
+  *
+  * It is useful for cases where you want to list names that are automatically picked up by the `sourcecode` package.
+  */
+trait Variants[A] {
+  type Item = A
+  private[this] val myRegistered = collection.mutable.ArrayBuffer.empty[Item]
+  private[this] var myCachedArray: Option[Array[A]] = None
+
+  final def has(item: Item): Item = { myRegistered += item; item }
+
+  final def all(implicit ev: reflect.ClassTag[Item]): Array[Item] =
+    myCachedArray match {
+      case None =>
+        val a = new Array[Item](myRegistered.length)
+        var i = 0; while (i < a.length) { a(i) = myRegistered(i); i += 1 }
+        myCachedArray = Some(a)
+        a
+      case Some(a) =>
+        a
+    }
+
+  final def index(i: Int)(implicit ev: reflect.ClassTag[Item]): Item = all(ev).apply(i)
+}
+
 
 /** Utility methods to perform file I/O in the context of code generation, where there
   * is some name-mangling, and you don't want to write the file if you haven't changed

@@ -2,27 +2,6 @@ package laws
 
 import scala.language.implicitConversions
 
-/** Information that you can use to filter tests (note: only flags are used for compile-time generation) */
-trait TestInfo {
-  def num: Numbers
-  def oper: Ops[_, _]
-  def inst: Instance[_, _]
-  final def runtimeElt: java.lang.Class[_] = {
-    val r = boxedRuntime
-    if      (r == classOf[java.lang.Integer])       classOf[Int]
-    else if (r == classOf[java.lang.Long])          classOf[Long]
-    else if (r == classOf[java.lang.Double])        classOf[Double]
-    else if (r == classOf[java.lang.Float])         classOf[Float]
-    else if (r == classOf[java.lang.Character])     classOf[Char]
-    else if (r == classOf[java.lang.Byte])          classOf[Byte]
-    else if (r == classOf[java.lang.Short])         classOf[Short]
-    else if (r == classOf[scala.runtime.BoxedUnit]) classOf[Unit]
-    else                                            r
-  }
-  def boxedRuntime: java.lang.Class[_]
-  def runtimeColl: java.lang.Class[_]
-}
-
 /** Tags provide a way to select which laws are applicable for a given run.  For instance,
   * if you are testing collections with `Int`s and with `String`s, some tests may be
   * specific to the collection type; in that case you would tag the appropriate laws

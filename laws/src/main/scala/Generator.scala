@@ -110,7 +110,7 @@ trait Generator[A, B, CC] {
 }
 
 abstract class IntGenerator[CC] extends Generator[Int, Long, CC] {
-  val opsExplorer = IntOpsExplorer
+  val opsExplorer = Ops.IntExplorer
   val heritage = "IntTest"
   val eltType = "Int"
   val altType = "Long"
@@ -118,7 +118,7 @@ abstract class IntGenerator[CC] extends Generator[Int, Long, CC] {
 }
 
 abstract class StrGenerator[CC] extends Generator[String, Option[String], CC] {
-  val opsExplorer = StrOpsExplorer
+  val opsExplorer = Ops.StrExplorer
   val heritage = "StrTest"
   val eltType = "String"
   val altType = "Option[String]"
@@ -127,7 +127,7 @@ abstract class StrGenerator[CC] extends Generator[String, Option[String], CC] {
 }
 
 abstract class LongStrGenerator[CC] extends Generator[(Long, String), (String, Long), CC] {
-  val opsExplorer = LongStrOpsExplorer
+  val opsExplorer = Ops.LongStrExplorer
   val heritage = "LongStrTest"
   val eltType = "(Long, String)"
   val altType = "(String, Long)"
@@ -135,7 +135,7 @@ abstract class LongStrGenerator[CC] extends Generator[(Long, String), (String, L
 }
 
 abstract class StrLongGenerator[CC] extends Generator[(String, Long), (Long, String), CC] {
-  val opsExplorer = StrLongOpsExplorer
+  val opsExplorer = Ops.StrLongExplorer
   val heritage = "StrLongTest"
   val eltType = "(String, Long)"
   val altType = "(Long, String)"
@@ -443,7 +443,7 @@ object GenerateAll {
       AllStrGenerators.write(targetDir) ++
       AllLongStrGenerators.write(targetDir) ++
       AllStrLongGenerators.write(targetDir)
-    val everySource: Vector[Touchable] =
+    val everySource: Vector[Instance.Deployed] =
       InstantiatorsOfInt.all ++
       InstantiatorsOfStr.all ++
       InstantiatorsOfLongStr.all ++
