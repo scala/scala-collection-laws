@@ -11,6 +11,19 @@ import scala.reflect.runtime.universe.TypeTag
   *
   * Collections that can take any generic type go in here.  Collections that can only
   * take certain types go in more specific subclasses (or, in the case of maps, an alternate trait) below.
+  *
+  * The organization of the instantiators is rather repetitive, but favors transparency of
+  * how the underlying collection is being generated.
+  *
+  * Each collection gets a single line inside a `C` creator utility method which hooks up a function
+  * that generates the appropriate collection from an array, and sets any appropriate flags.  This
+  * utility method also registers the collection.
+  *
+  * To organize the collections by common packages, inner objects are used.  These supply both a nickname
+  * for the package, used in the test file name, and the full package path.  Since objects are lazily
+  * initialized, the package-specific objects then need to be evaluated.  This is both an advantage and a
+  * disadvantage: you can have more instantiators specified than you ever create, but it is also possible
+  * to miss them entirely by missing the initializer (see `force`).
   */
 abstract class InstantiatorsOf[A]
 extends Exploratory[(A, Array[A], Array[A])] {
@@ -27,7 +40,12 @@ extends Exploratory[(A, Array[A], Array[A])] {
   protected implicit def sizeOfOnce[A, O[A] <: collection.Traversable[A]] = new Sizable[O[A]] { def sizeof(o: O[A]) = o.size }
   protected implicit def sizeOfArray[A] = new Sizable[Array[A]] { def sizeof(a: Array[A]) = a.length }
   protected implicit val sizeOfString = new Sizable[String] { def sizeof(s: String) = s.length }
+  protected implicit def sizeOfIterator[A] = new Sizable[Iterator[A]] { def sizeof(i: Iterator[A]) = i match {
+    case iks: Root.IteratorKnowsSize[_] => iks.knownSize
+    case _                              => throw new Exception("Actually, `Iterator` hasn't the foggiest idea what its size is.")
+  }}
 
+  /** Marks when an instantiator is used (for completeness checking) */
   trait Deployed[A, CC] extends Function0[Instance.FromArray[A, CC]] with Instance.Deployed { self =>
     def secretly: Instance.FromArray[A, CC]
 
@@ -110,6 +128,39 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val treeSet      = C(_.to[collection.mutable.TreeSet], SET, SUPER_ON_ZIP)
     // val unrolledBuffer = C(_.to[collection.mutable.UnrolledBuffer], SEQ)
     val wrappedArray = C(_.clone: collection.mutable.WrappedArray[A], SEQ)
+  }
+
+  object Root extends Instance.PackagePath {
+    def nickname = "Root"
+    def fullyQualified = "scala.collection"
+    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Deployed[A, CC] = {
+      val gen = inst.makeWith(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val ans = new Deployed[A, CC]{
+        val secretly = gen
+        var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
+        def apply(): Instance.FromArray[A, CC] = { accesses += 1; secretly }
+      }
+      registry += ans
+      ans
+    }
+
+    class IteratorKnowsSize[A](a: Array[A]) extends scala.collection.AbstractIterator[A] {
+      val knownSize = a.length
+      private[this] var i = 0
+      def hasNext = i < a.length
+      def next =
+        if (!hasNext) Iterator.empty.next
+        else {
+          val ans = a(i);
+          i += 1
+          ans
+        }
+    }
+
+    // MUST use lower-camel-cased collection class name for code generator to work properly!
+    val iterator        = C(a => (new IteratorKnowsSize[A](a)): Iterator[A])
   }
 
   def possible_a: Array[A]
@@ -245,6 +296,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     )
     //val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
   }
+
   object MutInt extends Instance.PackagePath {
     // If we have other (String, _) types, move this out into a trait
     def nickname = "MutInt"
@@ -295,7 +347,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   lazy val possible_y = possible_x
 
   /** This is important!  This registers the collections that you actually want to have available! */
-  val force = Imm :: Mut :: ImmInt :: MutInt :: Nil
+  val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: Nil
 }
 
 object InstantiatorsOfStr extends InstantiatorsOf[String] {
@@ -320,7 +372,7 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
   lazy val possible_y = possible_x
 
   /** This is important!  This registers the collections that you actually want to have available! */
-  val force = Imm :: Mut :: Nil
+  val force = Imm :: Mut :: Root :: Nil
 }
 
 object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with InstantiatorsOfKV[Long, String] {

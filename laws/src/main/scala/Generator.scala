@@ -202,6 +202,10 @@ object AllIntGenerators {
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
+  object Root {
+    val iterator = register(io.Root)(_.iterator())
+  }
+
   object ImmInt {
     val bitSet = register(io.ImmInt)(_.bitSet(), "collection.immutable.BitSet")
     //val range = register(io.ImmInt)(_.range(), "collection.immutable.Range")
@@ -211,7 +215,7 @@ object AllIntGenerators {
     val bitSet = register(io.MutInt)(_.bitSet(), "collection.mutable.BitSet")
   }
 
-  val force = Imm :: Mut :: ImmInt :: MutInt :: Nil
+  val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: Nil
 
   lazy val all = everyoneBuffer.result
 
@@ -275,7 +279,11 @@ object AllStrGenerators {
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
-  val force = Imm :: Mut :: Nil
+  object Root {
+    val iterator = register(io.Root)(_.iterator())
+  }
+
+  val force = Imm :: Mut :: Root :: Nil
 
   lazy val all = everyoneBuffer.result
 
