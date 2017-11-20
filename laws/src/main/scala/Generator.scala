@@ -1,5 +1,9 @@
 package laws
 
+/** Generates code for a particular element/collection combination.
+  *
+  * To understand what the various methods do, inspect where they are used inside the code generation.
+  */
 trait Generator[A, B, CC] {
   def instanceExplorer(): Exploratory[Instance[A, CC]]
   def opsExplorer(): Exploratory[Ops[A, B]]
@@ -19,7 +23,11 @@ trait Generator[A, B, CC] {
   def colType: String = f"$pkgFull.$ccType[$eltCC]"
   def instTypes: String = f"$eltType, $colType"
   def opsTypes: String = f"$eltType, $altType"
+
+  /** The name of the generated test class */
   def className: String = f"Test_${pkgName}_${ccType}_${safeElt}"
+
+  /** Generates the code */
   def code: String = {
     val instance = instanceExplorer.completeIterator.take(1).toList.head
     val quotedMethods = instance.methods.methods.
@@ -109,6 +117,7 @@ trait Generator[A, B, CC] {
   }
 }
 
+/** Generates tests for collections using `Int` elements */
 abstract class IntGenerator[CC] extends Generator[Int, Long, CC] {
   val opsExplorer = Ops.IntExplorer
   val heritage = "IntTest"
@@ -117,6 +126,7 @@ abstract class IntGenerator[CC] extends Generator[Int, Long, CC] {
   val autoTags = Set(Flag.INT)
 }
 
+/** Generates tests for collections using `String` elements */
 abstract class StrGenerator[CC] extends Generator[String, Option[String], CC] {
   val opsExplorer = Ops.StrExplorer
   val heritage = "StrTest"
@@ -126,6 +136,7 @@ abstract class StrGenerator[CC] extends Generator[String, Option[String], CC] {
   override def className: String = f"Test_${pkgName}_${ccType}_Str"
 }
 
+/** Generates tests for collections (maps, specifically) using `(Long, String)` elements */
 abstract class LongStrGenerator[CC] extends Generator[(Long, String), (String, Long), CC] {
   val opsExplorer = Ops.LongStrExplorer
   val heritage = "LongStrTest"
@@ -134,6 +145,7 @@ abstract class LongStrGenerator[CC] extends Generator[(Long, String), (String, L
   val autoTags = Set.empty[Flag]
 }
 
+/** Generates tests for collections (maps, specifically) using `(String, Long)` elements */
 abstract class StrLongGenerator[CC] extends Generator[(String, Long), (Long, String), CC] {
   val opsExplorer = Ops.StrLongExplorer
   val heritage = "StrLongTest"
@@ -142,13 +154,14 @@ abstract class StrLongGenerator[CC] extends Generator[(String, Long), (Long, Str
   val autoTags = Set.empty[Flag]
 }
 
-/** Generates all classes that take Int.
+/** Generates all classes testing collections that take `Int` element types.
   *
   * Many commonalities with `AllStrGenerators`, but it's a such a pain to make everything generic that it's not worth abstracting.
   */
 object AllIntGenerators {
   val io = InstantiatorsOfInt
 
+  /** An actual generator */
   class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[Int, CC], ct: String = "")(implicit name: sourcecode.Name)
   extends IntGenerator[CC] {
     def generatorName = f"AllIntGenerators.${p.nickname}.${name.value}"
@@ -161,12 +174,20 @@ object AllIntGenerators {
 
   private val everyoneBuffer = Array.newBuilder[Gen[_, _]]
 
+  /** Registers a particular generator to write its output to a file */
   def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[Int, CC], ct: String = "")(implicit name: sourcecode.Name): Gen[P, CC] = {
     val ans = new Gen(p)(iexp, ct)(name)
     everyoneBuffer += ans
     ans
   }
 
+  /** Generators for all immutable collections.
+    *
+    * This is a fairly tedious listing of everything in the corresponding instantiator.
+    *
+    * For now, this is kept separate to make it easier to temporarily leave out problematic collections.
+    * (You'll get a warning if you leave one out, though.)
+    */
   object Imm {
     val hashSet = register(io.Imm)(_.hashSet())
     val indexedSeq = register(io.Imm)(_.indexedSeq())
@@ -183,6 +204,13 @@ object AllIntGenerators {
     val vector = register(io.Imm)(_.vector())
   }
 
+  /** Generators for all mutable collections.
+    *
+    * This is a fairly tedious listing of everything in the corresponding instantiator.
+    *
+    * For now, this is kept separate to make it easier to temporarily leave out problematic collections.
+    * (You'll get a warning if you leave one out, though.)
+    */
   object Mut {
     val array = register(io.Mut)(_.array(), "Array[Int]")
     val arrayBuffer = register(io.Mut)(_.arrayBuffer())
@@ -202,30 +230,43 @@ object AllIntGenerators {
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
+  /** Generator for iterators. */
   object Root {
     val iterator = register(io.Root)(_.iterator())
   }
 
+  /** Generator for immutable collections that take only ints (which belong here, since we're dealing with ints). */
   object ImmInt {
     val bitSet = register(io.ImmInt)(_.bitSet(), "collection.immutable.BitSet")
     //val range = register(io.ImmInt)(_.range(), "collection.immutable.Range")
   }
 
+  /** Generator for mutable collections that take only ints (which belong here, since we're dealing with ints). */
   object MutInt {
     val bitSet = register(io.MutInt)(_.bitSet(), "collection.mutable.BitSet")
   }
 
+  /** This line is needed to actually perform the registration of all generators! */
   val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: Nil
 
+  /** All registered generators */
   lazy val all = everyoneBuffer.result
 
+  /** Writes all the classes to the indicated directory.  Returns a map indicating which ones
+    * actually changed.  (If the generated code is identical to the file, the file is not re-written.)
+    */
   def write(targetDir: java.io.File): Map[String, Boolean] =
     all.map(g => g.className -> FileIO(new java.io.File(targetDir, g.className + ".scala"), g.code)).toMap
 }
 
+/** Generates all classes that test collections taking `String` element types.
+  *
+  * Many commonalities with `AllStrGenerators`, but it's a such a pain to make everything generic that it's not worth abstracting.
+  */
 object AllStrGenerators {
   val io = InstantiatorsOfStr
 
+  /** An actual generator */
   class Gen[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[String, CC], ct: String = "")(implicit name: sourcecode.Name)
   extends StrGenerator[CC] {
     def generatorName = f"AllStrGenerators.${p.nickname}.${name.value}"
@@ -238,12 +279,20 @@ object AllStrGenerators {
 
   private val everyoneBuffer = Array.newBuilder[Gen[_, _]]
 
+  /** Registers a particular generator to write its output to a file */
   def register[P <: Instance.PackagePath, CC](p: P)(iexp: P => Instance.FromArray[String, CC], ct: String = "")(implicit name: sourcecode.Name): Gen[P, CC] = {
     val ans = new Gen(p)(iexp, ct)(name)
     everyoneBuffer += ans
     ans
   }
 
+  /** Generators for all immutable collections.
+    *
+    * This is a fairly tedious listing of everything in the corresponding instantiator.
+    *
+    * For now, this is kept separate to make it easier to temporarily leave out problematic collections.
+    * (You'll get a warning if you leave one out, though.)
+    */
   object Imm {
     val hashSet = register(io.Imm)(_.hashSet())
     val indexedSeq = register(io.Imm)(_.indexedSeq())
@@ -260,6 +309,13 @@ object AllStrGenerators {
     val vector = register(io.Imm)(_.vector())
   }
 
+  /** Generators for all mutable collections.
+    *
+    * This is a fairly tedious listing of everything in the corresponding instantiator.
+    *
+    * For now, this is kept separate to make it easier to temporarily leave out problematic collections.
+    * (You'll get a warning if you leave one out, though.)
+    */
   object Mut {
     val array = register(io.Mut)(_.array(), "Array[String]")
     val arrayBuffer = register(io.Mut)(_.arrayBuffer())
@@ -279,18 +335,28 @@ object AllStrGenerators {
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
+  /** Generator for iterators. */
   object Root {
     val iterator = register(io.Root)(_.iterator())
   }
 
+  /** This line is needed to actually perform the registration of all generators! */
   val force = Imm :: Mut :: Root :: Nil
 
+  /** All registered generators */
   lazy val all = everyoneBuffer.result
 
+  /** Writes all the classes to the indicated directory.  Returns a map indicating which ones
+    * actually changed.  (If the generated code is identical to the file, the file is not re-written.)
+    */
   def write(targetDir: java.io.File): Map[String, Boolean] =
     all.map(g => g.className -> FileIO(new java.io.File(targetDir, g.className + ".scala"), g.code)).toMap
 }
 
+/** Generates all classes that test collections (maps) with `(Long, String)` element types.
+  *
+  * Many commonalities with other generators, but it's a such a pain to make everything generic that it's not worth abstracting.
+  */
 object AllLongStrGenerators {
   val io = InstantiatorsOfLongStr
 
@@ -334,6 +400,7 @@ object AllLongStrGenerators {
     val longMap       = register(io.MutLongV)(_.longMap(), "collection.mutable.LongMap[String]")
   }
 
+  /** This line is needed to actually perform the registration of all generators! */
   val force = ImmKV :: MutKV :: MutLongV :: Nil
 
   lazy val all = everyoneBuffer.result
@@ -342,6 +409,9 @@ object AllLongStrGenerators {
     all.map(g => g.className -> FileIO(new java.io.File(targetDir, g.className + ".scala"), g.code)).toMap
 }
 
+/** Generates all classes that test collections (maps) with `(String, Long)`
+  * Many commonalities with other generators, but it's a such a pain to make everything generic that it's not worth abstracting.
+  */
 object AllStrLongGenerators {
   val io = InstantiatorsOfStrLong
 
@@ -385,6 +455,7 @@ object AllStrLongGenerators {
     val anyRefMap     = register(io.MutKrefV)(_.anyRefMap())
   }
 
+  /** This line is needed to actually perform the registration of all generators! */
   val force = ImmKV :: MutKV :: MutKrefV :: Nil
 
   lazy val all = everyoneBuffer.result
@@ -393,7 +464,14 @@ object AllStrLongGenerators {
     all.map(g => g.className -> FileIO(new java.io.File(targetDir, g.className + ".scala"), g.code)).toMap
 }
 
+/** The global generator that runs all particular generators of tests
+  * and generates supervisory test files that run all the tests.
+  */
 object GenerateAll {
+  /** Creates a master test that runs all the tests.
+    *
+    * The output is suitable for exploring with `Reports`.
+    */
   def writeUniversalTest(targetDir: java.io.File, tests: List[String]): (String, Boolean) = {
     val name = "Test_Everything"
     val target = new java.io.File(targetDir, name + ".scala")
@@ -413,6 +491,11 @@ object GenerateAll {
     (name, FileIO(target, lines.mkString("\n")))
   }
 
+  /** Creates a master jUnit test that marks all the tests for running via jUnit.
+    *
+    * Also hooks into the `@BeforeClass` and `@AfterClass` machinery to
+    * give summary reports.
+    */
   def writeJUnitAdaptor(targetDir: java.io.File, tests: List[String]): (String, Boolean) = {
     val name = "Test_Everything_With_JUnit"
     val targetPath = new java.io.File(targetDir, "src/test/scala")
@@ -445,6 +528,12 @@ object GenerateAll {
     (name, FileIO(target, lines.mkString("\n")))
   }
 
+  /** Write all tests and test-supervisors to the given dirrectory.
+    *
+    * Returns a map that indicates whether or not each test file
+    * was actually updated, and a `Vector` that names all the
+    * collections that were somehow left out of testing.
+    */
   def write(targetDir: java.io.File): (Map[String, Boolean], Vector[String]) = {
     val tests =    
       AllIntGenerators.write(targetDir) ++
@@ -463,6 +552,14 @@ object GenerateAll {
     (tests + universal + junit, missingSources.sorted)
   }
 
+  /** Writes all the tests into a named directory (if the argument list is length one),
+    * or into the default directory (if the argument list is empty).  It is an error
+    * to pass multiple arguments.
+    *
+    * Returns `true` if all collections have tests, `false` if any were missed (i.e.
+    * were registered in `Instantiators` but weren't generated), and throws an
+    * exception if anything unexpected happens.
+    */
   def run(args: Array[String]): Boolean = {
     val path = args match {
       case Array() => "../tests"
@@ -483,12 +580,17 @@ object GenerateAll {
     else true
   }
 
+  /** Writes all the tests into the default directory (which is `../tests`). */
   def default() { 
     run(Array.empty)
   }
 
+  /** Writes all the tests into the named (if there is one argument) or default
+    * directory (if there are no arguments).
+    *
+    * Exits with an error code if any collections are completely untested.
+    */
   def main(args: Array[String]) {
     if (!run(args)) sys.exit(1)
   }
 }
-

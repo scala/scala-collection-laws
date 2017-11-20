@@ -30,21 +30,6 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
     Right(b.result.toSet)
   }
 
-  /** Declare that a flag should not be present */
-  def not(t: Flag): Law = new Law(name, tags shun t, code, disabled)(file, line)
-
-  /** Declare that several flags should not be present */
-  def not(t1: Flag, t2: Flag, tx: Flag*): Law = new Law(name, ((tags shun t1 shun t2) /: tx)((ts, t) => ts shun t), code, disabled)(file, line)
-
-  /** Declare that an additional flag must be present */
-  def and(t: Flag): Law = new Law(name, tags need t, code, disabled)(file, line)
-
-  /** Declare that several flags must be present */
-  def add(t1: Flag, t2: Flag, tx: Flag*): Law = new Law(name, ((tags need t1 need t2) /: tx)((ts, t) => ts need t), code, disabled)(file, line)
-
-  /** Add another check of TestInfo for some property */
-  def filter(p: TestInfo => Option[Outcome.Skip]): Law = new Law(name, tags.filter(p), code, disabled)(file, line)
-
   /** Methods in the law that are backtick-quoted, indicating that the collection should only be used if it has those methods */
   val methods = findMyMethods
 
@@ -78,11 +63,29 @@ object Law {
   def apply(tags: Tags, code: String)(implicit file: sourcecode.File, line: sourcecode.Line) = new Law(tags, code)(file, line)  
 }
 
-
+/** Specifies all the individual laws that should hold for collections.
+  *
+  * Flags are used to indicate which laws are appropriate for which collections (if they are not universally applicable).
+  *
+  * Flags do not need to be used to select collections on the basis of available methods; just quote the methods
+  * in backticks and the code generator will figure it out.
+  *
+  * Do NOT ignore warnings about ignored values!  If you forget `.law` on the end of a code string, you
+  * will get one of these.  All the law generation/registration extension methods return `Unit` so'
+  * that these warnings are meaningful.
+  */
 object Laws {
   import Flag._
   import Tags.Implicits._
 
+  /** Implements runtime filters for various values that tests may use.
+    * 
+    * Make sure you filter out, at runtime, only things where other alternatives exist!
+    * For instance, if you want `n` to be greater than 3, you should first filter to make sure
+    * that `xsize` is greater than 3; otherwise a smaller collection will be chosen, the
+    * filtering will reject everything, and the algorithm will not explore any further because
+    * that collection size was never used.
+    */
   object Filt {
     def n(q: Int => Boolean)  = (ti: TestInfo) => if (q(ti.num.values.n))  None else Some(Outcome.Skip.n)
     def nn(q: Int => Boolean) = (ti: TestInfo) => if (q(ti.num.values.nn)) None else Some(Outcome.Skip.nn)
@@ -111,6 +114,7 @@ object Laws {
     /** Used to force implicit resolution of this class if it's otherwise ambiguous */
     def make: this.type = this
 
+    /** The text used for code generation (slightly cleaned up from the string literal) */
     lazy val text: String = { 
       var i = 0;
       while (i < rawText.length && (rawText(i) == '\n' || rawText(i) == '\r')) i += 1;
@@ -149,9 +153,13 @@ object Laws {
     }
   }
 
-///////////////////////////
-// Individual laws begin //
-///////////////////////////
+//////////////////////////////
+// Individual laws begin.   // 
+// Indentation removed for  //
+// greater clarity but this //
+// is still inside the      //
+// Laws object!             //
+//////////////////////////////
 
 /*
 *****************************************************************************
@@ -1044,11 +1052,19 @@ x0 sameAs x.map{ case (a,b) => a -> f((a,b))._2 }
 "x sameType x.`&~`(y)".law
 
 
-////////////////////////////
-// End of individual laws //
-////////////////////////////
+/////////////////////////////
+// End of individual laws. //
+// Still inside Laws       //
+// object.  Normal         //
+// indentation resumes.    //
+/////////////////////////////
 
+  /** Complete listing of laws (including disabled ones that aren't used for code generation) */
   val complete = b.result
+
+  /** Complete listing of laws that are not disabled */
   val all = complete.filterNot(_.disabled)
+
+  /** Map from line numbers to the corresponding law. */
   lazy val byLineNumber = complete.map(law => law.lineNumber -> law).toMap
 }

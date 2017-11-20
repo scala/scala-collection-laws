@@ -1,10 +1,16 @@
 package laws
 
+/** Reports on the results of tests. */
 object Report {
   private implicit class ClipStringWithDots(s: String) {
     def tldr(n: Int) = if (s.length <= n) s else s.take(n-3) + "..."
   }
 
+  /** Counts how many times each law is used, given a map with all test results.
+    *
+    * Returns, for each line number of a valid law, the number of collections
+    * for which the law passed and failed, respectively.
+    */
   def countLawUsage(ran: Map[String, Test.Tested]): Map[Int, (Int, Int)] = {
     val score = laws.Laws.all.map(law => law.lineNumber -> (N(0), N(0))).toMap
     ran.foreach{ case (_, t) =>
@@ -14,11 +20,18 @@ object Report {
     score.map{ case (k, (ns, nf)) => (k, (ns.count, nf.count)) }
   }
 
+  /** Counts how many times each method was used on each collection.
+    *
+    * Returns a map from test names to counts.  Each count is a map from method names to
+    * a pair: number of laws using that method that succeeed, number of laws using that
+    * method that failed.
+    */
   def countMethodUsage(ran: Map[String, Test.Tested]): Map[String, Map[String, (Int, Int)]] =
     ran.map{ case (coll, result) => 
       coll -> result.findMethodUsage.map{ case (k, (ls, lf)) => (k, (ls.size, lf.size)) }
     }
 
+  /** Produces a report on which laws weren't used in any tests. */
   def reportUnusedLaws(ran: Map[String, Test.Tested]): Vector[String] = {
     val counts = countLawUsage(ran)
     val unused = counts.filter{ case (_, (ns, nf)) => ns == 0 && nf == 0 }
@@ -47,6 +60,7 @@ object Report {
     }
   }
 
+  /** Produces a report on which methods were never tested (for each collection) */
   def reportUnusedMethods(ran: Map[String, Test.Tested]): Vector[String] = ran.
     groupBy(_._1.split('_').drop(1).take(2).mkString("_")).
     toVector.sortBy(_._1).
@@ -72,6 +86,10 @@ object Report {
       }
     }
 
+  /** Produces a report on what laws failed.
+    *
+    * The result is empty if all laws succeeded.
+    */
   def reportFailedLaws(ran: Map[String, Test.Tested]): Vector[String] = {
     val broken = collection.mutable.LongMap.empty[Mu[List[(String, Test.Fail)]]]
     ran.foreach{ case (name, tested) =>
@@ -102,6 +120,9 @@ object Report {
     }
   }
 
+  /** If we ran the tests with jUnit, the results are in a `ConcurrentHashMap`.
+    * Print out the results, throwing an error afterwards if any laws failed.
+    */
   def junitReport(ran: java.util.concurrent.ConcurrentHashMap[String, Test.Tested]) {
     import scala.collection.JavaConverters._
     val m = ran.asScala.toMap

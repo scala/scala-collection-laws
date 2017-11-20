@@ -126,7 +126,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val queue        = C(_.to[collection.mutable.Queue], SEQ)
     val seq          = C(_.to[collection.mutable.Seq], SEQ)
     val treeSet      = C(_.to[collection.mutable.TreeSet], SET, SUPER_ON_ZIP)
-    // val unrolledBuffer = C(_.to[collection.mutable.UnrolledBuffer], SEQ)
+    // val unrolledBuffer = C(_.to[collection.mutable.UnrolledBuffer], SEQ)  // Unrolled buffer is weird!
     val wrappedArray = C(_.clone: collection.mutable.WrappedArray[A], SEQ)
   }
 
@@ -245,6 +245,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
   }
 }
 
+/** Default explicit orderings for the element types we have */
 object OrderingSource {
   val orderingOfLong = implicitly[Ordering[Long]]
   val orderingOfInt = implicitly[Ordering[Int]]
@@ -253,6 +254,7 @@ object OrderingSource {
   val orderingOfStringLong = implicitly[Ordering[(String, Long)]]
 }
 
+/** Default explicit type tags for the element types we have */
 object TypeTagSource {
   val typeTagInt = implicitly[TypeTag[Int]]
   val typeTagLong = implicitly[TypeTag[Long]]
@@ -261,6 +263,7 @@ object TypeTagSource {
   val typeTagStringLong = implicitly[TypeTag[(String, Long)]]
 }
 
+/** Instantiates collections with an `Int` element type.*/
 object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   import Flag._
 
@@ -272,6 +275,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   protected implicit val sizeOfIBitSet = new Sizable[collection.immutable.BitSet] { def sizeof(s: collection.immutable.BitSet) = s.size }
   protected implicit val sizeOfMBitSet = new Sizable[collection.mutable.BitSet] { def sizeof(s: collection.mutable.BitSet) = s.size }
 
+  /** Extra instantiators specific to Ints in immutable collections */
   object ImmInt extends Instance.PackagePath {
     // If we have other (String, _) types, move this out into a trait
     def nickname = "ImmInt"
@@ -297,6 +301,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     //val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
   }
 
+  /** Extra instantiators sepcific to Ints in mutable collections */
   object MutInt extends Instance.PackagePath {
     // If we have other (String, _) types, move this out into a trait
     def nickname = "MutInt"
@@ -321,7 +326,10 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     )
   }
 
+  /** Singleton `Int` values to test */
   lazy val possible_a = Array(0, 1, 2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 23, 31, 47, 152, 3133, 1294814, -1, -2, -6, -19, -1915, -19298157)
+
+  /** Collection contents to test (for the primary `x` collection) */
   lazy val possible_x = Array(
     Array.empty[Int],
     Array(0),
@@ -344,12 +352,14 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     Array.fill(254)(42),
     Array.range(0,811)
   )
+  /** The `y` collection can take on the same values as the `x` */
   lazy val possible_y = possible_x
 
   /** This is important!  This registers the collections that you actually want to have available! */
   val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: Nil
 }
 
+/** Instantiates collections with a `String` element type.*/
 object InstantiatorsOfStr extends InstantiatorsOf[String] {
   import Flag._
 
@@ -357,9 +367,12 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
   protected implicit def typeTagA = TypeTagSource.typeTagString
   protected def allFlags = Array(STR)
 
+  /** Singleton `String` values to test */
   lazy val possible_a = Array(
     "", "0", "one", "salmon", "\u0000\u0000\u0000\u0000", "the quick brown fox jumps over the lazy dog", "\u1517\u1851..!"
   )
+
+  /** Collection contents to test (for the primary `x` collection) */
   lazy val possible_x = Array(
     Array.empty[String],
     Array(possible_a(1)),
@@ -369,12 +382,17 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
     Array.range(-44, 45).map(_.toString),
     Array.fill(184)("herring")
   )
+  /** The `y` collection can take on the same values as the `x` */
   lazy val possible_y = possible_x
 
   /** This is important!  This registers the collections that you actually want to have available! */
   val force = Imm :: Mut :: Root :: Nil
 }
 
+/** Instantiates `(Long, String)` pairs for use with maps.
+  *
+  * Other collections could be tested with this tuple as the element type, but they're not.
+  */
 object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with InstantiatorsOfKV[Long, String] {
   import Flag._
 
@@ -390,6 +408,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
       def sizeof(m: collection.mutable.LongMap[String]) = m.size 
     }
 
+  /** Instantiators for special mutable maps requiring a `Long` key type */
   object MutLongV extends Instance.PackagePath {
     // If we have other (String, _) types, move this out into a trait
     def nickname = "MutLongV"
@@ -409,18 +428,31 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
     val longMap = C({ a => val m = new collection.mutable.LongMap[String];     for (kv <- a) m += kv; m }, SUPER_ON_ZIP)
   }
 
+  /** Very limited set of possible singletons */
   lazy val possible_a = Array(3L -> "wish")
+
+  /** Very limited set of possible values for arrays. */
   lazy val possible_x = Array(
     Array.empty[(Long, String)],
     possible_a,
-    Array(1L -> "herring", 2L -> "cod", 3L -> "salmon")
+    Array(1L -> "herring", 2L -> "cod", 3L -> "salmon"),
+    Array(9L -> "nine", 3L -> "three", 7L -> "seven", -1L -> "negative", 42L -> "Adams", 6L -> "vi"),
+    (0 to 44).map(i => i.toLong -> i.toString).toArray
   )
+  /** The `y` collection can take on the same values as the `x` */
   lazy val possible_y = possible_x
 
-  /** This is important!  This registers the collections that you actually want to have available! */
+  /** This is important!  This registers the collections that you actually want to have available!
+    *
+    * In particular, notice that we're only taking the key-value instantiators, so we only register maps, not all collections.
+    */
   val force = ImmKV :: MutKV :: MutLongV :: Nil
 }
 
+/** Instantiates `(Long, String)` pairs for use with maps.
+  *
+  * Other collections could be tested with this tuple as the element type, but they're not.
+  */
 object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with InstantiatorsOfKV[String, Long] {
   import Flag._
 
@@ -452,17 +484,22 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
       registry += ans
       ans
     }
-    val anyRefMap = C({ a => val m = new collection.mutable.AnyRefMap[String, Long];     for (kv <- a) m += kv; m })
+    val anyRefMap = C({ a => val m = new collection.mutable.AnyRefMap[String, Long]; for (kv <- a) m += kv; m })
   }
 
   lazy val possible_a = Array("wish" -> 3L)
   lazy val possible_x = Array(
     Array.empty[(String, Long)],
     possible_a,
-    Array("herring" -> 1L, "cod" -> 2L, "salmon" -> 3L)
+    Array("herring" -> 1L, "cod" -> 2L, "salmon" -> 3L),
+    Array("nine" -> 9L, "three" -> 3L, "seven" -> 7L, "negative" -> -1L, "Adams" -> 42L, "vi" -> 6L),
+    (0 to 44).map(i => i.toString -> i.toLong).toArray
   )
   lazy val possible_y = possible_x
 
-  /** This is important!  This registers the collections that you actually want to have available! */
+  /** This is important!  This registers the collections that you actually want to have available!
+    *
+    * In particular, notice that we're only taking the key-value instantiators, so we only register maps, not all collections.
+    */
   val force = ImmKV :: MutKV :: MutKrefV :: Nil
 }

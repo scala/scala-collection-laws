@@ -4,6 +4,17 @@ import scala.util._
 
 /** The collection to be tested: this provides all elements and collections
   * and mappings thereon which are available inside the tests.
+  *
+  * Tests are immutable; if you want a different set of values,
+  * create a new test.  You can use the `renumber`, `reoperate`, and
+  * `reinstance` methods to create a new test with the corresponding
+  * values changed.
+  *
+  * Subclasses are intended to implement tests for _every_ valid
+  * law, so a `relaw` method, to switch the law line number,
+  * is provided as well.  This method is not safe in that the
+  * line number could be invalid.  The `run` method will then
+  * throw an exception.
   */
 abstract class Test[A, B, CC, T <: Test[A, B, CC, T]](
   val num: Numbers,
@@ -112,10 +123,17 @@ with TestInfo {
   def run: Boolean = runLaw(lawLine).get
 }
 object Test {
+  /** Information about a test that has passed its law for every combination of parameters */
   case class Pass(law: Law, iterations: Long, time: Double) {}
+
+  /** Information about a test that has failed its law for some combination of parameters */
   case class Fail(law: Law, outcome: Outcome, test: Option[Test[_, _, _, _]], exception: Option[Throwable]) {}
 
+  /** Information about the test results for all relevant laws on a particular collection */
   case class Tested(succeeded: Map[Int, Pass], failed: Map[Int, Fail], missed: Set[Int], methods: Set[String]) {
+    /** For each method name, lists the line numbers of all laws that passed all attempted values (first list)
+      * and the line numbers of laws that failed some value (second list)
+      */
     def findMethodUsage: Map[String, (List[Int], List[Int])] = {
       val usage = methods.toArray.map{ m => (m, (Mu(List.empty[Int]), Mu(List.empty[Int]))) }.toMap
       for {
@@ -130,6 +148,10 @@ object Test {
     }
   }
 
+  /** A generic companion to test classes.
+    *
+    * Some of the methods are abstract and are filled in by the code generator.
+    */
   trait Companion extends Named {
     /** The laws tested by this (kind of) test */
     def obeys: Map[Int, Law]
@@ -170,9 +192,12 @@ object Test {
     }
   }
 
+  /** Tests whether the compiler believes the left-hand and right-hand types are the same */
   implicit class SameCompilerType[A](me: A) {
     def sameType[B](you: B)(implicit ev: A =:= B) = true
   }
+
+  /** Tests whether two collections have the same elements in the same order */
   implicit class EqualInOrder[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
     def sameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
       val meB, youB = collection.mutable.ArrayBuffer.empty[A]
@@ -181,6 +206,8 @@ object Test {
       meB == youB
     }
   }
+
+  /** Tests whether two collections have the same number of each element. */
   implicit class EqualInCount[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
     def sameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
@@ -190,6 +217,8 @@ object Test {
       youM.forall{ case (a, n) => meM contains a }
     }
   }
+
+  /** Tests whether the right-hand collection has every element the left-hand collection does (it may have more). */
   implicit class SubsetInCount[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
     def partOf[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
@@ -198,6 +227,8 @@ object Test {
       meM.forall{ case (a, n) => youM.get(a).exists(_.count >= n.count) }
     }
   }
+
+  /** Shorthand short-circuiting logic operators */
   implicit class Logic(lhs: Boolean) {
     def implies(rhs: => Boolean) = !lhs || rhs
     def impliedBy(rhs: => Boolean) = lhs || !rhs
@@ -209,6 +240,7 @@ object Test {
 // Selection of element type for tests //
 /////////////////////////////////////////
 
+/** Tests that use `Int` values extend this class. */
 abstract class IntTest[CC, T <: IntTest[CC, T]](
   numb: Numbers, oper: Ops[Int, Long], inst: Instance[Int, CC], lln: Int
 )(
@@ -224,7 +256,7 @@ extends Test[Int, Long, CC, T](numb, oper, inst, lln)(file, line, name) {
   override def intFrom(a: Int) = a
 }
 
-
+/** Tests that use `String` values extend this class. */
 abstract class StrTest[CC, T <: StrTest[CC, T]](
   numb: Numbers, oper: Ops[String, Option[String]], inst: Instance[String, CC], lln: Int
 )(
@@ -240,6 +272,7 @@ extends Test[String, Option[String], CC, T](numb, oper, inst, lln)(file, line, n
   override def intFrom(s: String) = s.length
 }
 
+/** Tests (for maps) that use `(Long, String)` values extend this class. */
 abstract class LongStrTest[CC, T <: LongStrTest[CC, T]](
   numb: Numbers, oper: Ops[(Long, String), (String, Long)], inst: Instance[(Long, String), CC], lln: Int
 )(
@@ -256,6 +289,7 @@ extends Test[(Long, String), (String, Long), CC, T](numb, oper, inst, lln)(file,
   override def intFrom(kv: (Long, String)) = kv._1.toInt
 }
 
+/** Tests (for maps) that use `(String, Long)` values extend this class. */
 abstract class StrLongTest[CC, T <: StrLongTest[CC, T]](
   numb: Numbers, oper: Ops[(String, Long), (Long, String)], inst: Instance[(String, Long), CC], lln: Int
 )(

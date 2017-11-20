@@ -186,6 +186,7 @@ object Ops {
     val uninhabited = this has new Item(Function.unlift((s: String) => None: Option[String]))
   }
 
+  /** Steps through varitions of operations that can be applied to collections */
   class Explorer[A, B](
     varFns: Variants[A ===> A],
     varToBs: Variants[A ===> B],
@@ -205,6 +206,11 @@ object Ops {
 
   object StrExplorer extends Explorer[String, Option[String]](StrFns, StrToOpts, StrOpFns, StrPreds, StrParts) {}
 
+  /** Really simple (non-diverse) set of operations for maps with `Long` keys.
+    *
+    * Be careful to avoid `Long` operations that might make keys collide!
+    * Tests are generally written assuming that there won't be collsions after mapping.
+    */
   object LongStrExplorer extends Explorer[(Long, String), (String, Long)](
     new Variants[(Long, String) ===> (Long, String)] { private[this] val inc1 = this has new Item(kv => (kv._1+1, kv._2)) },
     new Variants[(Long, String) ===> (String, Long)] { private[this] val swap = this has new Item(kv => (kv._2, kv._1)) },
@@ -213,11 +219,16 @@ object Ops {
     new Variants[ParFn[(Long, String)]] { private[this] val akin = this has new Item({ case (k, v) if ((k ^ v.length) & 1) == 0 => (k-2, v) })}
   ){}
 
+  /** Really simple (non-diverse) set of operations for maps with `String` keys.
+    * 
+    * Be careful to avoid string operations that might make keys collide!
+    * Tests are generally written assuming that there won't be collsions after mapping.
+    */
   object StrLongExplorer extends Explorer[(String, Long), (Long, String)](
-    new Variants[(String, Long) ===> (String, Long)] { private[this] val crop = this has new Item(kv => (kv._1.drop(1), kv._2)) },
+    new Variants[(String, Long) ===> (String, Long)] { private[this] val dots = this has new Item(kv => (kv._1 + "..", kv._2)) },
     new Variants[(String, Long) ===> (Long, String)] { private[this] val swap = this has new Item(kv => (kv._2, kv._1)) },
     new Variants[OpFn[(String, Long)]] { private[this] val sums = this has new Item((kv, cu) => (kv._1 + cu._1, kv._2 + cu._2), None, OpFn.Nonassociative, OpFn.Asymmetric) },
     new Variants[(String, Long) ===> Boolean] { private[this] val high = this has new Item(kv => kv._1.length < kv._2) },
-    new Variants[ParFn[(String, Long)]] { private[this] val akin = this has new Item({ case (k, v) if ((k.length ^ v) & 1) == 0 => (k.drop(1), v) })}
+    new Variants[ParFn[(String, Long)]] { private[this] val akin = this has new Item({ case (k, v) if ((k.length ^ v) & 1) == 0 => (k + "!", v) })}
   ){}
 }
