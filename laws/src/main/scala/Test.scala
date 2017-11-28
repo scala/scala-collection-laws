@@ -127,7 +127,13 @@ object Test {
   case class Pass(law: Law, iterations: Long, time: Double) {}
 
   /** Information about a test that has failed its law for some combination of parameters */
-  case class Fail(law: Law, outcome: Outcome, test: Option[Test[_, _, _, _]], exception: Option[Throwable]) {}
+  case class Fail(law: Law, outcome: Outcome, test: Option[Test[_, _, _, _]], exception: Option[Throwable]) {
+    override def toString = {
+      val testString = if (outcome.hasTest && test.isDefined) "Some(...)" else test.toString
+      val exceptionString = if (outcome.hasException && exception.isDefined) "Some(...)" else exception.map(e => Outcome.partialStackTrace(e)).toString
+      f"Fail($law, $outcome, ${}, $testString, $exceptionString}"
+    }
+  }
 
   /** Information about the test results for all relevant laws on a particular collection */
   case class Tested(succeeded: Map[Int, Pass], failed: Map[Int, Fail], missed: Set[Int], methods: Set[String]) {

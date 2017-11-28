@@ -44,6 +44,15 @@ class Instance[A, CC: TypeTag] protected (
 
   def touched = used(0) || used(1) || used(2)
 
+  /** Override this method to provide a more useful description in case of error
+    * if the default `toString` is not helpful.
+    */
+  protected def stringify(cc: CC): String = cc match {
+    case i: Iterator[_] => i.mkString("Iterator(", ", ", ")")
+    case a: Array[_]    => a.mkString("Array(", ", ", ")")
+    case _              => cc.toString()
+  }
+
   override def equals(that: Any) = that match {
     case i: Instance[_, _] => (this eq i) || (this.values == i.values)
     case _                 => false
@@ -54,7 +63,7 @@ class Instance[A, CC: TypeTag] protected (
   }
   override lazy val toString = {
     def clip(s: String, n: Int) = if (s.length <= n) s else s.substring(0, n-3)+"..."
-    f"Provider: singleton $a0 with\n  ${clip(x0().toString, 61)} ; len $xsize0\n  ${clip(y0().toString, 61)} ; len $ysize0"
+    f"Provider: singleton $a0 with\n  ${clip(stringify(x0()), 61)} ; len $xsize0\n  ${clip(stringify(y0()), 61)} ; len $ysize0"
   }
 }
 object Instance { outer =>

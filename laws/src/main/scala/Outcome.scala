@@ -1,12 +1,33 @@
 package laws
 
 /** Marker trait for results of running a test of a law */
-sealed trait Outcome {}
+sealed trait Outcome {
+  def hasTest: Boolean = false
+  def hasException: Boolean = false
+}
 
 /** Handles results of tests including, most importantly,
   * capturing relevant information about failed tests.
   */
 object Outcome {
+  /** Takes the deepest part of the stack trace up to the point where it hits a test */
+  def partialStackTrace(error: Throwable, prefix: String = ""): String = {
+    val st = error.getStackTrace
+    if (st.isEmpty || st.forall(_.toString.trim.isEmpty)) {
+      val e2 = error.getCause
+      if (e2 == null) prefix + error.toString + "\n(no stack trace information)\n"
+      else partialStackTrace(e2, prefix + error.toString + " because\n")
+    }
+    else {
+      val part = st.reverse.dropWhile{ elt => 
+        val s = elt.toString 
+        !s.startsWith("laws.") || s.contains("AllRunner") || s.contains("Test_Everything") || s.contains("runAll")
+      }
+      if (part.length == st.length) st.mkString(prefix + error.toString + "\n", "\n", "\n")
+      else part.reverse.mkString(prefix + error.toString + "\n", "\n", "\n...\n")
+    }
+  }
+
   /** Indicates that a law passed a test. */
   final case object Success extends Outcome {}
 
@@ -92,14 +113,23 @@ object Outcome {
   final case class Missing(lawLine: Int) extends Outcome {}
 
   /** The test ran, but failed. */
-  final case class Failed[T](test: T) extends Outcome {}
+  final case class Failed[T](test: T) extends Outcome {
+    override def hasTest = true
+  }
 
   /** The test was attempted but it threw an exception while it was running. */
-  final case class Threw[T](test: T, error: Throwable) extends Outcome {}
+  final case class Threw[T](test: T, error: Throwable) extends Outcome {
+    override def hasTest = true
+    override def hasException = true
+    override def toString = f"Threw($test, ${partialStackTrace(error)})"
+  }
 
   /** An exception was thrown while getting ready to run a test, but the test didn't actually run.
     *
     * This should never happen unless there's a bug in the testing framework (or a very bad library bug).
     */
-  final case class Error(error: Throwable) extends Outcome {}
+  final case class Error(error: Throwable) extends Outcome {
+    override def hasException = true
+    override def toString = f"Error(${partialStackTrace(error)})";
+  }
 }

@@ -53,7 +53,7 @@ object Report {
         else (
           f"${onlyFailed.size} laws never succeeded on line${if (onlyFailed.size==1) "" else "s"}" +:
           onlyFailed.toVector.sortBy(_._1).map{ case (k, (_, nf)) =>
-            f"  #$k%-4d failed $nf time${if (nf == 1) "" else "s" }".padTo(28, ' ') + Laws.byLineNumber(k).code.mkString("\u21B5").tldr(50)
+            f"  #$k%-4d failed $nf time${if (nf == 1) "" else "s" }".padTo(28, ' ') + Laws.byLineNumber(k).code.lines.mkString("\u21B5 ").tldr(50)
           }
         )
       )

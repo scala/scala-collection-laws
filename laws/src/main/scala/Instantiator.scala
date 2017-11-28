@@ -160,7 +160,11 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val iterator        = C(a => (new IteratorKnowsSize[A](a)): Iterator[A])
+    //val iterator = C(a => (new IteratorKnowsSize[A](a)): Iterator[A])
+    val iterator = C(a => {
+        if (a.length < 10) new IteratorKnowsSize[A](a)
+        else (for (i <- 0 until a.length*2) yield a(i)).iterator
+      })
   }
 
   def possible_a: Array[A]

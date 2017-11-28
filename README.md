@@ -1,232 +1,295 @@
 scala-collections-laws
 ======================
 
-Partially automatic generation of tests for the Scala collections library.  The 
+Partially automatic generation of tests for the Scala collections library.  The
 goal is to have a quasi-comprehensive set of collections tests that will catch
 regressions in basic functionality in any collection.
 
-These tests are expressed as a series of "laws": one-liners that express relationships
-between collections operations that should be true.
+These tests are expressed as a series of "laws": one-liners (mostly) that express
+relationships that should be true of some or all collections.
 
-** EVERYTHING BELOW HERE IS OUT OF DATE **
+These laws are written into a series of collection-specific tests by a code generator
+(so that implicit resolution and the like is also tested) which can be run with
+a method call so the results can be inspected, or can be run from the command-line
+with results printed out, or can be invoked by JUnit as a standard test.
 
-These laws are then applied to a set of collection variants which are specified by
-a simple of textual replacement macro language.
+## Warning--this is a complete rewrite from earlier versions!
 
-## Latest nontrivial changes
-
- * Branching macros (choose which replacement based on a flag).
-See section "Altering collections in a way that causes many tests to fail".
+Earlier versions of scala-collections-laws had several weird text-based DSLs.  This
+has been abandoned in favor of plain Scala code with the `sourcecode` plugin helping
+to produce meaningful automatic reports.
 
 ## Quick start
 
 Clone the repository and run
 
 ```bash
-sbt -mem 6144 "tests/runMain tests.generated.collection.Test_All"
+bash run.sh
 ```
 
-If all goes well, the build process will do some compilation and code generation
-in project `laws`, then more compilation in project `init`, followed by more
-code generation and a test coverage report looking something like this:
+on a Unix-based machine.  It should produce output that includes stuff like
 
 ```
-Created tests for 101 conditions.  Method coverage:
-Array_Int_ (NEW); missed 13:
-    array          copyToArray    deep           elemManifest   elemTag
-    flatten        newBuilder     parCombiner    reversed
-    sliceWithKnownBound           sliceWithKnownDelta           thisCollection
-    toCollection
-collection_IndexedSeq_Int_ (NEW); complete
-collection_IterableView_Int_Iterable_Int__ (old); complete
-...
-collection_mutable_WrappedArray_Int_ (NEW); missed 4:
-    array          deep           elemManifest   elemTag
+[info] Running laws.GenerateAll
+Generated code for 88 collection/element combinations
+  88 updated since last run
 ```
 
-Then it will continue on to compile the created tests in project `tests`
-(one file per collection variant, plus the Test_All file) and run them.
-Compilation typically takes on the order of 15 minutes and the tests
-execute in about two minutes.
-
-Again, if all goes well it will conclude with a zero exit code and report some
-trivial summary statistics:
+This is the code generator and law framework in the `laws` folder generating
+source files in `tests`.  The tests are then compiled, and the output
+continues with
 
 ```
-Test lines 185 were not used.
-101 collections run against suite of 348 tests (17416 total)
+[info] Compiling 87 Scala sources to /home/kerrr/code/scala/lightbend/laws/tests/target/scala-2.12/classes...
+[info] Compiling 1 Scala source to /home/kerrr/code/scala/lightbend/laws/tests/target/scala-2.12/test-classes...
+Untested methods in ImmInt_BitSet:
+  ^                  andThen            apply              compare            
+  compose            empty              firstKey           from               
+  ...
+```
+
+and finally ends with
+
+```
+Untested methods in Root_Iterator:
+  hasDefiniteSize    isTraversableAgain sliding$default$2  
+3 laws never used
+  #980   val x0 = x; x0.`reduceToSize`(n); x0.`size` == n
+  #1018  { val x0 = x; x0.`trimEnd`(n); x0 sameAs x.`dropRight`(n) }
+  #1020  { val x0 = x; x0.`trimStart`(n); x0 sameAs x.`drop`(n) }
+[info] Passed: Total 86, Failed 0, Errors 0, Passed 86
 ```
 
 Congratuations!  Your collections were quasi-comprehensively tested.
-
-If you prefer to separate the compilation and test-running phases, just run
-
-```bash
-sbt -mem 4096 tests/compile
-```
-
-first.  This will compile the `laws` and `init` projects as necessary, and call
-their code generation routines.  Note that generated files are only rewritten
-when the contents change.
 
 ## Common tasks
 
 ### Catching a regression
 
 Catching a regression typically does not require deep knowledge of the workings
-of scala-collections-laws.  However, you will need to tell sbt which copy of
-Scala you want to test.  In `build.sbt` in the root directory of the project,
-add a line similar to
+of scala-collections-laws.  Simply change the target version of Scala in the
+`tests/build.sbt` file (and in `laws/build.sbt` if the change is not binary
+compatible with the version already in `laws/build.sbt`) and use `run.sh` again.
 
-```scala
-scalaHome in ThisBuild := Some(file("/usr/local/share/scala/2.11/repo/build/pack"))
-```
+#### Regression class 1: expected relationship fails.
 
-assuming that you've got your copy of the Scala repository in `/usr/local/share/scala/2.11/repo`.
-
-The `scalaVersion` line should be set to the most recent version of Scala if that version is
-binary compatible.  If not, the line can be whatever you want, but you need to remove
-the `libraryDependencies` line from `laws/build.sbt` and instead drop a compatible
-`scala-reflect.jar` in the `laws/lib` (as a SBT unmanaged dependency).
-
-
-#### Regression class 1: failed assertion.
-
-Test files contain methods that try different combinations of inputs to laws
+The test files contain methods that try different combinations of inputs to laws
 that require the same inputs.  If a single assertion fails in one of these
-methods, the testing in that method terminates.  If very many failures exist,
-this means that problems must be repaired one at a time before later ones are
-revealed.  However, with regressions the problem is typically more shallow.
+methods, the testing in that method terminates.
 
-Suppose we were working on `Range.scala` and provided this definition for `splitAt`:
+For example, suppose we expected `Iterator` to obey
 
 ```scala
-  final override def splitAt(n: Int) = (take(n), drop(n+1))
+x.`hasNext` == x.`drop`(1).hasNext
 ```
 
-If we run this through the collections tests, we should get output similar to the following:
+(the backquotes indicate that the collection must have that method for the test to run).
 
-```
-1 collections failed assertions:
-  collection_immutable_Range on lines 323 159 270
-Details follow.
-/=========
-| Test line 323 with a = -70; n = 0; x = Range(0, 1, 2, 3) in group 1
-|   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_a_n_x$1$$anonfun$apply$mcVI$sp$5.apply$mcVI$sp(Test_collection_immutable_Range.scala:86)
-|   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_a_n_x$1$$anonfun$apply$mcVI$sp$5.apply(Test_collection_immutable_Range.scala:79)
-| ...
-| 
-| Test line 159 with m = -1; n = 0; x = Range(0, 1, 2, 3); y = Range(4, 5, 6, 7, 8) in group 1
-|   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x_y$1$$anonfun$apply$mcVI$sp$41$$anonfun$apply$mcVI$sp$129.apply(Test_collection_immutable_Range.scala:545)
-|   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x_y$1$$anonfun$apply$mcVI$sp$41$$anonfun$apply$mcVI$sp$129.apply(Test_collection_immutable_Range.scala:540)
-| ...
-| 
-| Test line 270 with n = 0; x = Range(0, 1, 2, 3) in group 1
-|   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_n_x$1.apply$mcVI$sp(Test_collection_immutable_Range.scala:610)
-|   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_n_x$1.apply(Test_collection_immutable_Range.scala:597)
-| ...
-\=========
-```
-
-The error message tells us that something is wrong with the tests for `collection.immutable.Range`
-(more on this later) and gives us an abbreviated stack trace.
-
-We then go to the `single-line.tests` file, located at `laws/src/main/resources/single-line.tests` and find
-that the three lines in question are:
+In addition to the normal report, at the end we would see something like
 
 ```scala
-/* 159 */ y n m !SI8474 ... (n <= x.`size`) implies (x.`patch`(n, y, m).`drop`((0 max n)+y.`size`) theSameAs x.`drop`((0 max n)+(0 max m)))
-/* 270 */ n !SI8815 ... val (x1,x2) = x.`splitAt`(n); (x1 theSameAs x.`take`(n)) && (x2 theSameAs x.`drop`(n))
-/* 323 */ n a !M ... n < 0 || n >= x.`size` || { x.`updated`(n,a) theSameAs (x.`take`(n).`:+`(a).`++`(x.`drop`(n+1))) }
+1 laws never succeeded on line
+  #1054 failed 2 times      x.`hasNext` == x.`drop`(1).hasNext
+*****************************************
+********** Failures in line 1054
+*****************************************
+****** Test_Root_Iterator_Int ******
+Fail(x.`hasNext` == x.`drop`(1).hasNext
+// @ Laws.scala, line 1054
+,Failed(Test_Root_Iterator_Int @ Test_Root_Iterator_Int.scala, line 6
+  Numbers: 0, 0, -1, 0, 0
+  Provider: singleton 0 with
+    Iterator(0) ; len 1
+    Iterator() ; len 0
+  Ops
+    plusOne   @ Ops.scala, line 136
+    bit33     @ Ops.scala, line 146
+    summation @ Ops.scala, line 156
+    mod3      @ Ops.scala, line 166
+    halfEven  @ Ops.scala, line 178
+),Some(Test_Root_Iterator_Int @ Test_Root_Iterator_Int.scala, line 6
+  Numbers: 0, 0, -1, 0, 0
+  Provider: singleton 0 with
+    Iterator(0) ; len 1
+    Iterator() ; len 0
+  Ops
+    plusOne   @ Ops.scala, line 136
+    bit33     @ Ops.scala, line 146
+    summation @ Ops.scala, line 156
+    mod3      @ Ops.scala, line 166
+    halfEven  @ Ops.scala, line 178
+),None)
+
+****** Test_Root_Iterator_Str ******
+...
+(very similar information repeats regarding `String` element type)
+...
+************************************
+************************************
+************** 2 errors
+************************************
+************************************
+[error] Test laws.Test_Everything_With_JUnit failed: assertion failed
+[error] Failed: Total 87, Failed 1, Errors 0, Passed 86
+[error] Failed tests:
+[error] 	laws.Test_Everything_With_JUnit
+[error] (test:test) sbt.TestsFailedException: Tests unsuccessful
 ```
 
-Of these three, line 270 seems the simplest to verify.  We go to the REPL, copying
-the values for `n` and `x` listed in the error message and start building up the test line by hand:
+Every time the law fails--for every collection that runs it, for every element
+type that is used for it--it will appear in the output list.  Consequently,
+the list can be very long if something major has gone wrong.
 
-```scala
-scala> val n = 0
-n: Int = 0
+In this case, there is only a single failure and the information provided allows
+us to replicate it in the REPL easily.  In this case, we can see by inspection
+that the law is silly and go to `Laws.scala` line 1054 to fix it.
 
-scala> val x = 0 to 3
-x: scala.collection.immutable.Range.Inclusive = Range(0, 1, 2, 3)
+In the case of errors that are more mysterious, the test prints out enough information
+to manually reconstruct the test case, albeit with a little effort.  In this case, one
+can manually create the `Numbers`, `Ops`, and `Instance` values like so:
 
-scala> x.splitAt(0)
-res0: (scala.collection.immutable.Range, scala.collection.immutable.Range) = (Range(),Range(1, 2, 3))
+```
+tests$ sbt -J-Xmx6G -J-XX:MaxMetaspaceSize=4G
+[info] Loading global plugins from /home/kerrr/.sbt/0.13/plugins
+[info] Set current project to collections-laws-tests (in build file:/home/kerrr/code/scala/lightbend/laws/tests/)
+> console
+[info] Starting scala interpreter...
+[info]
+Welcome to Scala 2.12.4 (OpenJDK 64-Bit Server VM, Java 1.8.0_151).
+Type in expressions for evaluation. Or try :help.
+
+scala> import laws._
+import laws._
+
+scala> val num = Numbers(0, 0, -1, 0, 0)
+num: laws.Numbers = Numbers: 0, 0, -1, 0, 0
+
+scala> val ops = Int
+Int            IntTest   Integer2int   InternalError          
+IntGenerator   Integer   Integral      InterruptedException   
+
+scala> val ops = Str
+StrGenerator       StrictMath           StringContext                     
+StrLongGenerator   String               StringFormat                      
+StrLongTest        StringBuffer         StringIndexOutOfBoundsException   
+StrTest            StringBuilder                                          
+Stream             StringCanBuildFrom                                     
+
+scala> val ops = Ops(Ops.IntFns.plusOne, Ops.IntToLongs.bit33, Ops.IntOpFns.summation, Ops.IntPreds.mod3, Ops.IntParts.halfEven)
+ops: laws.Ops[Int,Long] =
+Ops
+  plusOne   @ Ops.scala, line 136
+  bit33     @ Ops.scala, line 146
+  summation @ Ops.scala, line 156
+  mod3      @ Ops.scala, line 166
+  halfEven  @ Ops.scala, line 178
+
+scala> val inst = InstantiatorsOfInt.Root.iterator().apply(0, Array(0), Array.empty[Int])
+inst: laws.Instance[Int,Iterator[Int]] =
+Provider: singleton 0 with
+  Iterator(0) ; len 1
+  Iterator() ; len 0
 ```
 
-And here we see what is wrong: the `take` range is correct, but the `drop` one is missing the first element.
+and used in a custom source file in the `tests` directory; or the variables used
+can be manually filled in and the test pasted in inline (not very interesting in
+this case; it's just `def x = Iterator(0)`--make sure to use `def` for collections
+with state!).
 
+In principle one ought to be able to create a new test instance with e.g.
+`val test = new Test_Root_Iterator_Int(num, ops, inst, 1054)` inside SBT, but
+I've hit classloader issues before, so don't count on this working.
 
 #### Regression class 2: runtime exception
 
-The test framework tries very hard (harder than `scala.util.Try`) to catch runtime exceptions.
-However, it does not possess information about the precise location of the exception; this leads
-to a little extra manual work.
-
-Suppose after reverting the change to `Range.scala`, we decide that it doesn't make sense
-to split negative elements:
+The test framework tries to catch runtime exceptions.  Generally, as long as the
+collection can be built without error, the information will be similar to the
+relationship failure class.  For instance, if we decide arrays should obey
 
 ```scala
-  final override def splitAt(n: Int) =
-    if (n < 0) throw new InvalidArgumentException("Negative in split")
-    else (take(n), drop(n))
+"xsize > 0 implies x(xsize-1) == x(-1)".law(ARR)
 ```
 
-We then promptly forget we did this and start running collections tests.
+(which it would if we had negative indices running from the end of the array), we
+get the following:
 
 ```
-1 collections crashed during tests with an unanticipated exception:
-  collection_immutable_Range
-Details follow.
-/=========
-| Negative in split
-|   scala.collection.immutable.Range.splitAt(Range.scala:287)
-|   scala.collection.SeqLike$class.patch(SeqLike.scala:504)
-|   scala.collection.AbstractSeq.patch(Seq.scala:41)
-|   tests.generated.collection.Test_collection_immutable_Range$$anonfun$test_m_n_x_y$1$$anonfun$apply$mcVI$sp$41$$anonfun$apply$mcVI$sp$129$$anonfun$apply$5.apply$mcZ$sp(Test_collection_immutable_Range.scala:543)
-  (lots more lines here)
-|   sbt.Logger$$anon$4.apply(Logger.scala:90)
-|   sbt.TrapExit$App.run(TrapExit.scala:244)
-|   java.lang.Thread.run(Thread.java:662)
-\=========
-
-
-1 collections failed (1 with crashes, 0 with failed assertions)
-Test lines 185 were not used.
-100 collections run against suite of 348 tests (17395 total)
-java.lang.RuntimeException: Nonzero exit code: 1
-        at scala.sys.package$.error(package.scala:27)
+********** Failures in line 1054
+*****************************************
+****** Test_Mut_Array_Str ******
+Fail(xsize > 0 implies x(xsize-1) == x(-1)
+// # ARRAY
+// @ Laws.scala, line 1054
+,Threw(Test_Mut_Array_Str @ Test_Mut_Array_Str.scala, line 6
+  Numbers: 0, 0, -1, 0, 0
+  Provider: singleton  with
+    Array(0) ; len 1
+    Array() ; len 0
+  Ops
+    upper      @ Ops.scala, line 141
+    natural    @ Ops.scala, line 151
+    concat     @ Ops.scala, line 161
+    increasing @ Ops.scala, line 172
+    oddMirror  @ Ops.scala, line 184
+,java.lang.ArrayIndexOutOfBoundsException: -1),Some(Test_Mut_Array_Str @ Test_Mut_Array_Str.scala, line 6
+  Numbers: 0, 0, -1, 0, 0
+  Provider: singleton  with
+    Array(0) ; len 1
+    Array() ; len 0
+  Ops
+    upper      @ Ops.scala, line 141
+    natural    @ Ops.scala, line 151
+    concat     @ Ops.scala, line 161
+    increasing @ Ops.scala, line 172
+    oddMirror  @ Ops.scala, line 184
+),Some(java.lang.ArrayIndexOutOfBoundsException: -1))
 ```
 
-Since we get the stack trace, we can see exactly where the exception arose in
-our code: it's in `splitAt`.  But what was the test that triggered this problem?
-The very long line above ends with `Test_collection_immutable_Range.scala:543`.
-If we go look in this file (it's at `tests/target/scala-2.11/src_managed/main`)
-we find the following at line 543:
+The test, array and element type, and exception thrown are all visible from inspection,
+and replicating the error can be done as in the previous case.
+
+If, however, there is an exception during creation of the collection, the error
+reporting is less complete.  For instance, if we change iterator creation from
+
+```scala
+val iterator = C(a => (new IteratorKnowsSize[A](a)): Iterator[A])
+```
+
+to
+
+```scala
+val iterator = C(a => {
+    if (a.length < 10) new IteratorKnowsSize[A](a)
+    else (for (i <- 0 until a.length*2) yield a(i)).iterator
+  })
+```
+
+we get the following error:
 
 ```
-if (!{(n <= x.size) implies (x.patch(n, y, m).take(n) theSameAs x.take(n))}) { throw new AssertionError("Test line 157 with "+message) }
+********** Failures in line 184
+*****************************************
+****** Test_Root_Iterator_Int ******
+Fail(x sameType x.`map`(f)
+// # !BITSET_MAP_BREAKS_BOUNDS !SUPER_ITREES !SUPER_MOPENHM
+// @ Laws.scala, line 184
+,Error(java.lang.ArrayIndexOutOfBoundsException),None,Some(java.lang.ArrayIndexOutOfBoundsException))
 ```
 
-which informs us that the test line was 157 in `single-line.tests`.  There is
-no indication of what combination of variables was used; typically the stack
-trace plus the law line is plenty to figure that out.
-
-From this we surmise that somewhere in `patch` there is a call to `splitAt`, and it
-fails on negative indices in a bad way.  This is unacceptable, so we again revert
-the change to `splitAt`.
-
+plus similar errors for every other test that `Iterator` has.  This situation
+could be improved, but presently, this is all you have to go on.
 
 #### Regression class 3: compilation error
 
 The presumption is that compilation errors will be rare.  If a change has caused
 a compilation error, you will have to work through SBT's error reporting facilities
-and look at the generated code to figure out what went wrong.  Since each line of
-code specifies the line of the law which generated it, you can quickly get back
-to the test itself if you need to.
+and look at the generated code to figure out what went wrong.  Since each method
+is named after the line that the law came from, you can generally quickly get back
+to the offending law.
 
-This procedure is documented below in the "Creating a new law" section.
-
+In some cases, the code generation itself may be inappropriate.  In this case,
+the code generation routines in `Generator#code` and/or `GenerateAll` (both in
+Generator.scala) should be examined.
 
 
 ### Dealing with collections bugs
@@ -234,62 +297,49 @@ This procedure is documented below in the "Creating a new law" section.
 The collections tests will not pass successfully if even a single error is found.
 This requires the entire test-suite to avoid any existing bugs in the source code.
 
-The convention for bugs is to place the issue number in the `flags` line of the
-affected collection(s) in the format `SI1234` (no dash) in the file `replacements.tests`
-in `laws/src/main/resources`.  The offending test is then marked with `!SI1234`.
-This indicates to not run the test if the offending flag is present in the collection.
+The convention for bugs is to create a new flag (in Flag.scala) with the issue
+number, e.g.
 
-#### Adding new bugs
-
-If the collections are changed in a way that makes a test fail, but the change
-is important, one may wish to simply add a new bug.  After entering the bug in
-the issue tracker, find the failing collection(s) in `replacements.tests`.  You
-will find something like
-
-```
-Int collection.SortedSet[Int]
-flags --> S SORTED
-$NEW --> (collection.SortedSet.empty[Int] ++ $ )
+```scala
+val ISSUE_1234 = T
 ```
 
-Just add the issue number to the `flags` line, or create the line if it doesn't
-exist.  Note--there must be no blank lines between the name of the collection
-and the various settings applied to it!
+Then, you decorate each affected collection with the bug, e.g. by changing
+the collection instantiator in `InstantiatorsOf[A]#Imm` from
 
-Good:
-
-```
-Int collection.SortedSet[Int]
-flags --> S SORTED SI1234
-$NEW --> (collection.SortedSet.empty[Int] ++ $ )
+```scala
+val seq         = C(_.to[collection.immutable.Seq], SEQ)
 ```
 
-Bad:
+to
 
-```
-Int collection.SortedSet[Int]
-
-flags --> S SORTED SI1234
-$NEW --> (collection.SortedSet.empty[Int] ++ $ )
+```scala
+val seq         = C(_.to[collection.immutable.Seq], SEQ, ISSUE_1234)
 ```
 
-Then, in `single-line.tests` find the offending line(s) and mark them to reject
-that flag.
+Finally, you can create positive and negative versions of each test, as necessary.
 
-Before:
+For instance, if the functionality is simply broken, you would write a law like
 
-```
-S !M ... x theSameAs x.`keySet`
-```
-
-After:
-
-```
-S !M !SI1234 ... x theSameAs x.`keySet`
+```scala
+"x.`foo` sameAs x".law(ISSUE_1234.!)
 ```
 
-Run the tests again, and the `keySet` law will no longer be run on `SortedSet`.
+On the other hand, if you want to verify the undesired behavior, you can write an
+alternate test for the buggy case:
 
+```scala
+"x.`foo` sameAs x".law(ISSUE_1234.!)
+
+"x.`foo` sameAs x.`reverse`".law(ISSUE_1234)
+```
+
+When the bug is fixed, it should be removed from the test sources.  Presently
+there is no ability to have a single set of laws that handles multiple versions
+of Scala with different sets of bugs, but git branches can be used to maintain
+slightly different versions of the source for each Scala version.
+
+# TODO -- EDIT BELOW HERE
 
 #### Testing existing bugs
 
