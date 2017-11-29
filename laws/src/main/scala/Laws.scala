@@ -757,7 +757,7 @@ val size =
 x.`permutations`.size == size
 """.law(Filt.xsize(_ <= 8))  // Gets WAY too big above 8!
 
-"""x.`permutations`.size == x.`permutations`.toSet.size""".law(Filt.xsize(_ <= 8))  // Too big above 8!
+"x.`permutations`.size == x.`permutations`.toSet.size".law(Filt.xsize(_ <= 8))  // Too big above 8!
 
 """
 val xs = x.toSet

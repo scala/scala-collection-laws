@@ -40,8 +40,8 @@ source files in `tests`.  The tests are then compiled, and the output
 continues with
 
 ```
-[info] Compiling 87 Scala sources to /home/kerrr/code/scala/lightbend/laws/tests/target/scala-2.12/classes...
-[info] Compiling 1 Scala source to /home/kerrr/code/scala/lightbend/laws/tests/target/scala-2.12/test-classes...
+[info] Compiling 87 Scala sources to /.../laws/tests/target/scala-2.12/classes...
+[info] Compiling 1 Scala source to /.../laws/tests/target/scala-2.12/test-classes...
 Untested methods in ImmInt_BitSet:
   ^                  andThen            apply              compare            
   compose            empty              firstKey           from               
@@ -107,18 +107,7 @@ Fail(x.`hasNext` == x.`drop`(1).hasNext
     summation @ Ops.scala, line 156
     mod3      @ Ops.scala, line 166
     halfEven  @ Ops.scala, line 178
-),Some(Test_Root_Iterator_Int @ Test_Root_Iterator_Int.scala, line 6
-  Numbers: 0, 0, -1, 0, 0
-  Provider: singleton 0 with
-    Iterator(0) ; len 1
-    Iterator() ; len 0
-  Ops
-    plusOne   @ Ops.scala, line 136
-    bit33     @ Ops.scala, line 146
-    summation @ Ops.scala, line 156
-    mod3      @ Ops.scala, line 166
-    halfEven  @ Ops.scala, line 178
-),None)
+),Some(...),None)
 
 ****** Test_Root_Iterator_Str ******
 ...
@@ -150,8 +139,8 @@ can manually create the `Numbers`, `Ops`, and `Instance` values like so:
 
 ```
 tests$ sbt -J-Xmx6G -J-XX:MaxMetaspaceSize=4G
-[info] Loading global plugins from /home/kerrr/.sbt/0.13/plugins
-[info] Set current project to collections-laws-tests (in build file:/home/kerrr/code/scala/lightbend/laws/tests/)
+[info] Loading global plugins from /.../.sbt/0.13/plugins
+[info] Set current project to collections-laws-tests (in build file:/.../laws/tests/)
 > console
 [info] Starting scala interpreter...
 [info]
@@ -220,7 +209,7 @@ get the following:
 Fail(xsize > 0 implies x(xsize-1) == x(-1)
 // # ARRAY
 // @ Laws.scala, line 1054
-,Threw(Test_Mut_Array_Str @ Test_Mut_Array_Str.scala, line 6
+, Threw(Test_Mut_Array_Str @ Test_Mut_Array_Str.scala, line 6
   Numbers: 0, 0, -1, 0, 0
   Provider: singleton  with
     Array(0) ; len 1
@@ -231,18 +220,24 @@ Fail(xsize > 0 implies x(xsize-1) == x(-1)
     concat     @ Ops.scala, line 161
     increasing @ Ops.scala, line 172
     oddMirror  @ Ops.scala, line 184
-,java.lang.ArrayIndexOutOfBoundsException: -1),Some(Test_Mut_Array_Str @ Test_Mut_Array_Str.scala, line 6
-  Numbers: 0, 0, -1, 0, 0
-  Provider: singleton  with
-    Array(0) ; len 1
-    Array() ; len 0
-  Ops
-    upper      @ Ops.scala, line 141
-    natural    @ Ops.scala, line 151
-    concat     @ Ops.scala, line 161
-    increasing @ Ops.scala, line 172
-    oddMirror  @ Ops.scala, line 184
-),Some(java.lang.ArrayIndexOutOfBoundsException: -1))
+, java.lang.ArrayIndexOutOfBoundsException: -1
+laws.Test_Mut_Array_Str.$anonfun$runLaw1054$1(Test_Mut_Array_Str.scala:934)
+laws.Test$Logic.implies(Test.scala:239)
+laws.Test_Mut_Array_Str.runLaw1054(Test_Mut_Array_Str.scala:934)
+laws.Test_Mut_Array_Str.$anonfun$lawTable$196(Test_Mut_Array_Str.scala:1135)
+laws.Test_Mut_Array_Str.$anonfun$runLaw$1(Test_Mut_Array_Str.scala:1138)
+laws.Test_Mut_Array_Str.$anonfun$runLaw$1$adapted(Test_Mut_Array_Str.scala:1138)
+scala.Option.map(Option.scala:146)
+laws.Test_Mut_Array_Str.runLaw(Test_Mut_Array_Str.scala:1138)
+laws.Test.run(Test.scala:123)
+laws.Runner.runOne(Runner.scala:44)
+laws.Runner.runNums(Runner.scala:62)
+laws.Runner.runOps(Runner.scala:94)
+laws.Runner.run(Runner.scala:126)
+laws.Test_Mut_Array_Str$.run(Test_Mut_Array_Str.scala:1161)
+...
+), (), Some(...), Some(...)}
+
 ```
 
 The test, array and element type, and exception thrown are all visible from inspection,
@@ -273,11 +268,36 @@ we get the following error:
 Fail(x sameType x.`map`(f)
 // # !BITSET_MAP_BREAKS_BOUNDS !SUPER_ITREES !SUPER_MOPENHM
 // @ Laws.scala, line 184
-,Error(java.lang.ArrayIndexOutOfBoundsException),None,Some(java.lang.ArrayIndexOutOfBoundsException))
+, Error(java.lang.ArrayIndexOutOfBoundsException: 12
+scala.runtime.ScalaRunTime$.array_apply(ScalaRunTime.scala:55)
+laws.InstantiatorsOf$Root$.$anonfun$iterator$2(Instantiator.scala:166)
+laws.InstantiatorsOf$Root$.$anonfun$iterator$2$adapted(Instantiator.scala:166)
+scala.collection.TraversableLike.$anonfun$map$1(TraversableLike.scala:234)
+scala.collection.immutable.Range.foreach(Range.scala:156)
+scala.collection.TraversableLike.map(TraversableLike.scala:234)
+scala.collection.TraversableLike.map$(TraversableLike.scala:227)
+scala.collection.AbstractTraversable.map(Traversable.scala:104)
+laws.InstantiatorsOf$Root$.$anonfun$iterator$1(Instantiator.scala:166)
+laws.Instance$.from(Instance.scala:95)
+laws.Instance$$anon$2.apply(Instance.scala:121)
+laws.Instance$$anon$2.apply(Instance.scala:120)
+scala.Function3.$anonfun$tupled$1(Function3.scala:35)
+scala.Option.map(Option.scala:146)
+laws.Exploratory$$anon$2.lookup(Explore.scala:124)
+laws.Exploratory.$anonfun$lookup$1(Explore.scala:120)
+scala.Option.flatMap(Option.scala:171)
+laws.Exploratory.lookup(Explore.scala:120)
+laws.Exploratory.lookup$(Explore.scala:120)
+laws.Exploratory$$anon$2.lookup(Explore.scala:122)
+laws.Runner.run(Runner.scala:123)
+laws.Test_Root_Iterator_Int$.run(Test_Root_Iterator_Int.scala:649)
+...
+), (), None, Some(...)}
 ```
 
 plus similar errors for every other test that `Iterator` has.  This situation
-could be improved, but presently, this is all you have to go on.
+could be improved (by better capturing context), but presently, this is all you
+have to go on.
 
 #### Regression class 3: compilation error
 
@@ -339,426 +359,221 @@ there is no ability to have a single set of laws that handles multiple versions
 of Scala with different sets of bugs, but git branches can be used to maintain
 slightly different versions of the source for each Scala version.
 
-# TODO -- EDIT BELOW HERE
-
-#### Testing existing bugs
-
-After a bug has been fixed, it could (potentially) be removed from collections
-tests.  However, ideally, scala-collections-tests should succeed without error
-on the latest released version of Scala.  To allow this, do the following.
-
-1. Use a local copy of Scala as described in Catching a Regression.
-
-2. Use a local copy of scala-reflect.jar as described in Catching a Regression.
-Make sure you do not commit `laws/build.sbt`.
-
-3. In the file `laws/src/main/resources/deflag-version.map`, make sure there is
-a line corresponding to the latest Scala release and to the next release:
-
-```
-2.11.4 -->
-2.11.x -->
-```
-
-4. Change `scalaVersion in ThisBuild` in the (root) `build.sbt` to the next
-release version.
-
-5. Add any flags you want to try removing in `deflag-version.map`:
-
-```
-2.11.x --> SI1234
-```
-
-(This change is reasonable to commit, since presumably everyone using 2.11.x will
-find the bug fixed.)
-
-If the bug is in fact fixed, the convention is to mark it with the name of the last
-release where it is still present:  `SI1234` becomes `SI1234IN11X4`.  For now you
-must use only caps or numbers (and start with a letter).
-
-#### Removing existing bugs
-
-If you find that a bug has been fixed in the latest released version of Scala,
-you may wish to remove the flag.  Simply find all instances in `single-line.tests`,
-`replacements.tests`, and `deflag-version.map` and delete them.
-
-If this would make a line test have nothing before the `...`, delete `...` as well.
-If it leaves `flags -->` empty in a `replacements.tests` collection, delete the
-`flags` line.  You may also wish to delete previously released versions from the
-list in `deflag-version.map`.
-
-
 ### Adding or altering laws
 
-Because generated code contains the line numbers of the laws in `single-line.tests`,
-any change that alters the line numbers will result in a lot of recompilation.  If
-you're trying to go through test cycles quickly, try to get the file into the right
-shape first, then work on content.
+Laws are all specified in `Laws.scala` inside strings which are marked for
+code generation by appending `.law`, possibly with arguments.
 
-First, read the comments at the top of `single-line.tests`.  These contain brief
-instructions on how the file is formatted and what the convention for various
-variables means.  In brief, a law is a line of the form
+Laws should only be run on collections that actually have the appropriate methods.
+In order to mark which methods in the code need to be tested, write them inside
+backticks, i.e.
 
 ```
-requirements ... code with `methods` to test marked in `backticks`
+"x.`tail` == x.`drop`(1)".law
 ```
 
-If there are no requirements, the `...` should be omitted.  Any collection that
-contains the methods marked in backticks will have that test run, unless it fails
-to meet the other requirements.
+(Note that the above is not a valid law, as `tail` and `drop(1)` have different
+behavior on empty collections.)
 
-The requirements are a mix of variables (lower case) that are to be provided by
-text replacement, and flags that must either be present on the collection to test
-(`FLAG`) or must be absent (`!FLAG`).
+#### Available variables and types
 
-For example, this line:
+Within the code of the law you have access to sixteen variables whose values will
+be varied if use is detected, and three or five types:
 
-```
-y !S ... x.`++`(y).`size` == x.size + y.size
-```
+| Type Name | Meaning |
+|-----------|---------|
+| `A`       | The type of element stored in the collection under test |
+| `B`       | The type that `A` is mapped to via the function `g` |
+| `CC`      | The type of the collection (not parametric!) |
+| `K`       | Maps only: the type of the keys |
+| `V`       | Maps only: the type of the values |
 
-has a requirements section that says a variable `y` must be provided (which, by
-convention and as specified in `replacements.tests`, is a collection of the same
-type as being tested), and that the collection must not contain flag `S`, which
-is used on set-like collections.
+_Note that `CC` is the fully applied type, e.g. `Iterator[Int]`; this is
+necessary in case `CC` has no type parameters or has multiple parameters,
+e.g. `BitSet` or `Map[String, Long]`._
 
-The code section specifies that the `size` and `++` methods must be present, and
-defines a law that says non-set-like collections when joined must have exactly
-as many elements as in the two original collections.
+_Note that `A` is identically `(K, V)` for maps._
 
-Note that whitespace in `single-line.tests` is irrelevant to the generated code
-save for which line numbers are produced.  Comments are stripped off before code
-is generated.
+| Variable Name | Expected Values   | Meaning |
+|---------------|-------------------|---------|
+| `a`           | an element        | Some single instance of the collection's element type |
+| `x`           | a collection      | May be empty or have one or more elements |
+| `xsize`       | `x.size`          | Contains the pre-computed size of `x` |
+| `y`           | another collection| In general is not the same as `x` (but can be) |
+| `ysize`       | `y.size`          | Precomputed size of `y` |
+| `n`           | 0 until `x.length`| An index into the `x` collection |
+| `f`           | `A => A`          | Transformation that does not alter element type |
+| `g`           | `A => B`          | Transformation that does alter element type |
+| `op`          | `(A, A) => A`     | An operator that collapses elements |
+| `p`           | `A => Boolean`    | A predicate that tests the elements |
+| `pf`          | partial function  | A transformation defined on only some elements; does not alter element type |
+| `n`           | in `0 until xsize`| An integer value that could be used as a valid index into `x` |
+| `nn`          | non-negative      | An integer value that is a valid index, but maybe not for `x` |
+| `m`           | in `0 until ysize`| An integer value that could be used as a valid index into `y` |
+| `mm`          | non-negative      | An integer value that is a valid index, but maybe not for `y`; in general is different than `nn` |
+| `r`           | integer           | An integer value that could be anything |
 
-#### Altering an existing law
+You can find the range of variation for these variables in `Numbers.scala` for
+`n`, `nn`, `m`, `mm`, and `r`; in `Ops.scala` for `f`, `g`, `op`, `p`, and `pf`;
+and in `Instantiator.scala` for `a`, `x`, and `y` (`xsize` and `ysize` are determined
+by `x` and `y`).  In the last case, look for `possible_a`, `possible_x`, and `possible_y`.
 
-Altering an existing law is typically easier than writing a new one.  Let's suppose
-we see this line:
+#### Compilation errors
 
-```
-M ... x.`keys`.toSet theSameAs x.`keySet`
-```
-
-and decide that we should use equality rather than `theSameAs` to compare the
-two different ways of coming up with a set of keys for a map.  We try
-the following:
-
-```
-M ... x.`keys`.toSet = x.`keySet`
-```
-
-And generate a whole mess of compilation errors that look like
-
-```
-[error] /wherever/scala-collections-laws/tests/target/scala-2.11/src_managed/main/Test_collection_Map_Long_String_.scala:1022: value toSet_= is not a member of Iterable[Long]
-[error]       if (!{x.keys.toSet = x.keySet}) { throw new AssertionError("Test line 364 with "+message) }
-[error]                    ^
-```
-
-because, of course, we meant `==` instead of `=`.  (As a general rule, it's a good
-idea to try out the test in the REPL first--define any variables you might need,
-then paste the line in.)
-
-Note that the error messages refer to the lines in generated code, which you can
-inspect (in `tests/target/scala-2.11/src_managed/main`) if you need to see the
-context.
-
-In any case, once we fix the law to be
+If you write a law that doesn't compile, e.g.
 
 ```
-M ... x.`keys`.toSet == x.`keySet`
+"x.`tail` = x.`head`".law
 ```
 
-the tests pass.
-
-#### Adding a new law
-
-To add a new law, you need to decide on the requirements--which sorts of input
-are required? are any flags needed?--in addition to writing the law and
-decorating the appropriate method names with backquotes.
-
-Let's suppose we want to add a new law to test that foldLeft really operates
-from left to right.  If this is true, then the last element inspected should
-be the last element in the collection.  We thus conceive of the law like so:
+You will get compile errors after the code generation phase:
 
 ```
-x.foldLeft(?)((a,b) => b) == x.last
+[info] Compiling 87 Scala sources to /.../laws/tests/target/scala-2.12/classes...
+[error] /.../laws/tests/Test_ImmInt_BitSet_Int.scala:619: value tail_= is not a member of scala.collection.immutable.BitSet
+[error]     x.tail = x.head
+[error]       ^
+[error] /.../laws/tests/Test_ImmKV_HashMap_Long_String.scala:571: value tail_= is not a member of scala.collection.immutable.HashMap[Long,String]
+[error]     x.tail = x.head
+[error]       ^
+...
 ```
 
-What goes in place of `?`?  We decide that any old element of the type that belongs
-in the collection is okay--we don't really need to test variants--so we pick
-`zero`.  It also seems like this isn't appropriate for sets and maps, so we use
-the `!S` flag.  Our first try at a test looks like this:
+Usually this is enough to see the problem, but as the source line is also given,
+one can inspect the full generated code if the error message is inadequate on its
+own.
+
+#### Restricting the collections to which the law applies
+
+The primary way to restrict the applicability of laws is to use the flags
+in `Flag.scala`.  `SEQ`, `SET`, and `MAP` are particularly useful flags, as
+these collections have rather different behavior from each other.
+
+Collections are marked with a subset of flags; in order to run only collections
+that are marked, name the flag in the parameters of the `law` method:
 
 ```
-zero !S ... x.`foldLeft`(zero)((a,b) => b) == x.last
+"x.`reverseIterator` sameAs x.`reverse`".law(SEQ)
 ```
 
-which we put at the end of `single-line.tests`.  (In general it's good to group
-tests by topic when possible.)
-
-We try compiling this but
+In contrast, if you want to only consider collections that do *not* have the flag,
+append `.!` to the flag name:
 
 ```
-[error] /wherever/scala-collections-laws/tests/target/scala-2.11/src_managed/main/Test_collection_Iterator_Int_.scala:1943: value last is not a member of Iterator[Int]
-[error]       if (!{x.foldLeft(zero)((a,b) => b) == x.last}) { throw new AssertionError("Test line 422 with "+message) }
-[error]                                               ^
+"x.`+`(a).`contains`(a)".law(MAP.!)
 ```
 
-Oops!  We need to annotate _all_ the methods that are required, and we forgot `last`.  We backquote `last`, and get
+Only those collections that have all the positive flags and are missing all the
+negative flags will have a test generated for that law.  Note that if the conditions
+are so restrictive that no collections are tested, the law will be listed as
+untested in the output.
+
+Additional testing is available at runtime.  The best way to achieve this is to
+use the `Filt` helper object which allows you to query the values of the parameters
+before the test is actually run.  For instance,
 
 ```
-67 collections crashed during tests with an unanticipated exception:
-  collection_immutable_IndexedSeq_Int_
-    (lots more here)
-  collection_immutable_List__String_Long__
-Details follow.
-####################
-# /=========
-# | empty.last
-# |   scala.collection.immutable.Vector.last(Vector.scala:197)
-# |   tests.generated.collection.Test_collection_immutable_IndexedSeq_Int_$.test_x_zero(Test_collection_immutable_IndexedSeq_Int_.scala:2677)
-# |      (lots more here)
-# \=========
-#
-# (lots more like the above)
-####################
+"x.`permutations`.size == x.`permutations`.toSet.size".law(Filt.xsize(_ <= 8))
 ```
 
-because empty collections are tested also.  So we try
-
-```
-zero !S ... x.`foldLeft`(zero)((a,b) => b) == x.`lastOption`.getOrElse(zero)
-```
-
-and the tests pass.
-
-(This law is not in the collections tests because it's not really comprehensive
-enough; it's better to check that all elements are visited in order.)
-
-
-#### Removing a law
-
-Delete it.  When tests are run, it will report one fewer test.  That's it!
-
+demands that all permutations are distinct, but would take impractically long
+for large collections, so it only runs when `xsize` is no more than 8.
 
 ### Adding or altering collections
 
-Collections are specified in `replacements.tests` in `laws/src/main/resources`.
-The file essentially consists of mappings that drive text-based replacements that
-generate the test files (hence the name).
+#### Step one: specify how to build the collection
 
-Each collection must be separated from the others by at least two lines of complete
-whitespace (no comments).  Read the comments at the top of the file for an outline
-of the different features and customs of the replacements.
+Collections are specified in `Instantiators.scala`.  There are objects for
+each concrete element type, and within that objects for each namespace that
+contain builders for the collections.  These specify how to build the relevant
+collection from an array of the appropriate elements.
 
-For our purposes it is sufficient to know that there is a _generic mapping_ that
-applies to all collections that contain a particular type, e.g.
+There is a fair bit of code duplication, as the type signatures get very hairy
+if generalized; this is not clearly the right strategy, however.
 
-```
-// The generic data supplied for collections that contain Ints
-Int *
-X --> $NEW((0 to 3)) $NEW((0 until 0)) $NEW((0 to 20 by 3)) $NEW((0 to 64)) $NEW(List[Int](0,1,2,0,1,1,1,2)) $NEW((0 to 0))
-F --> ((_i: Int) => _i + 1)
-  (more lines here)
-```
+In any case, if you're using an existing namespace, you can simply add the
+collection to the appropriate place.  For instance, if there were a new `Rope`
+collection in `collection.immutable`, one would add to `InstantiatorsOf[A]`, inside
+the `Imm` object, the following line:
 
-This says that these mappings are the generic ones for elements of type `Int` (`*`
-means any collection).  The line starting with `X` defines the different collection contents
-tested--six variants produced from ranges via the `$NEW` macro (to be defined later).
-The next line, starting with `F`, will produce an `Int => Int` function when expanded.
-
-Further down, these expansions are mapped into variables by lower case mappings:
-
-```
-f --> $PRE(val f = @F)
+```scala
+val rope        = C(_.to[collection.immutable.Rope], SEQ)
 ```
 
-which says to provide variable `f` by generating a val in the preamble of the test
-(i.e. before the loops over different conditions).
+If it is a map, add to `InstantiatorsOfKV[K, V]` instead.  If the element type
+must be restricted, add to the element-specific objects, e.g. `InstantiatorsOfInt`.
 
-All the specific collections appear below the generic definition.  Each individual
-collection variant looks something like
+If the namespace is different, e.g. `collection.concurrent`, a new inner object
+should be created much like `Imm`.  Cutting and pasting should be sufficient; use
+`Mut` as a template if the collection has state that can alter (in which case, code
+that references `x` and `y` will get freshly generated copies each time they are
+named), or `Imm` if not (in which case the collection is created once and cached).
 
-```
-Int collection.immutable.TreeSet[Int]
-flags --> S SORTED SI6462
-LET --> val
-$NEW --> collection.immutable.TreeSet[Int]( $ : _* )
-```
+For instance, for `collection.concurrent` we would have
 
-The first line says the collection holds `Int`s and that the type of the collection
-is `collection.immutable.TreeSet[Int]`.  This also specifies the filename
-(all non-alphanumeric characters will change into underscores) unless the `NAME`
-mapping is given.  `flags` select which laws to run.  `LET` is either `val` or `def`,
-depending on whether the collection might be side-effecting; `immutable.TreeSet` is
-immutable, so it's safe to store it in a val.  (Otherwise it will be regenerated
-each time it is used.)  Finally the `$NEW` line specifies how to generate a
-`TreeSet` from the `X` variants given in the generic mappings.  Here, the companion
-object apply method will do the trick (with varargs forwarding).
+```scala
+object Conc extends Instance.PackagePath {
+  def nickname = Conc"
+  def fullyQualified = "scala.collection.concurrent"
+  def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Deployed[A, CC] = {
+    val gen = inst.makeWith(ccf, flags: _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+    val ans = new Deployed[A, CC]{
+      val secretly = gen
+      var accesses: Int = 0
+      val name = nm.value.toString
+      def group = typeTagA.tpe.toString + " in " + nickname
+      def apply(): Instance.FromArray[A, CC] = { accesses += 1; secretly }
+    }
+    registry += ans
+    ans
+  }
 
-#### Creating a new collection
-
-Let us suppose we want to try adding `Option` to the collections tests since it
-shares a number of methods with collections.  Somewhere below the `Int *`
-generic section, and above the next generic section, we add the following:
-
-```
-Int Option[Int]
-LET --> val
-$NEW --> ( $ .headOption )
+  val imaginarySkipList = C(_.to[collection.concurrent.ImaginarySkipList], SEQ)
+}
 ```
 
-Unfortunately, too many tests really require a collection, and we get many
-compilation errors looking like:
+Note that the `val` name _must_ be the collection name with the first letter lower-cased.
+The generator uses this val name to generate the type signature of the class.
+
+Finally, you must find the `val force` lines for each fully specified instantiator object
+and add `:: Conc` to them (to actually add `imaginarySkipList` to the list of collections
+for which to generate tests).
+
+#### Step two: create the test code generator for the collection
+
+Once the collection has been created, a parallel structure needs to be created in
+`Generators.scala` to actually generate code for the class.  In the future, perhaps it would
+be better to combine these two so one cannot specify an instantiator without a
+corresponding generator.
+
+In any case, simply add the collection to the element-type-specific generator objects,
+in the appropriate place that mirrors the path to the instantiator (this is mostly just
+convention, but it makes it easier to avoid mistakes).  For instance, ropes would be
+added to both `AllIntGenerators` and `AllStrGenerators` inside `Imm` as
 
 ```
-[error] /wherever/scala-collections-laws/tests/target/scala-2.11/src_managed/main/Test_Option_Int_.scala:359: Cannot prove that List[Int] <:< Option[B].
-[error]         if (!{x.flatMap(xi => y.toList.take(( xi ))) theSameAs x.map(xi => y.toList.take(( xi ))).flatten}) { throw new AssertionError("Test line 90 with "+message) }
-[error]                                                                                                   ^
+val rope = register(io.Imm)(_.rope())
 ```
 
-At this point, the sensible strategy is to not try, rather than retrofit all the offending tests.
-
-We delete the lines **and run `sbt clean` to remove the generated source files**.  Removing
-a test without running clean will leave the stale source file lying around to cause problems.
-(You could also delete the file manually.)
-
-Instead we try to test a map with a given default value.  In the
-`(Long,String) *` section we add
+while for `Conc` one would create a new `object Conc` inside `AllIntGenerators`
+and `AllStrGenerators` that looked like
 
 ```
-(Long,String) collection.immutable.Map[Long,String]
-flags --> S M
-LET --> val
-$NEW --> collection.immutable.Map[Long,String]( $ ).withDefaultValue("")
+object Conc {
+  val imagnarySkipList = register(io.Conc)(_.imaginarySkipList())  
+}
 ```
 
-But this doesn't work:
+and then `:: Conc` would be added to `val force` in both `All___Generators` objects.
 
-```
-[error] /wherever/scala-collections-laws/inst/target/scala-2.11/src_managed/main/Instances.scala:94: inst_collection_immutable_Map_Long_String_ is already defined as value inst_collection_immutable_Map_Long_String_
-[error]   val inst_collection_immutable_Map_Long_String_ = (classOf[collection.immutable.Map[Long,String]], collection.immutable.Map[Long,String]( 0L->"" ).withDefaultValue(""))
-```
+#### Creating a new element type
 
-because we already have a `collection.immutable.Map[Long,String]` without a default value.
+Follow the examples of `BitSet` and/or `LongMap`; between them they illustrate
+most or all of the issues one must address to get a specific collection type working.
 
-To solve this, we set the `NAME` mapping:
+You will also need to add the new element-type-generator to the `write` method
+in `GenerateAll`.
 
-```
-NAME --> collection.immutable.Map[Long,String]WithDefaultValue
-```
+## Conclusion
 
-Note that spaces aren't allowed.  Now that it has a distinct name it gets distinct
-variables and file names and the compilation proceeds.  However, a test fails:
-
-```
-1 collections failed assertions:
-  collection_immutable_Map_Long_String_WithDefaultValue on lines 380
-Details follow.
-/=========
-| Test line 380 with x = Map(0 -> wishes, 1 -> fishes, 2 -> dishes); zero = (0,) in group 1
-|   tests.generated.collection.Test_collection_immutable_Map_Long_String_WithDefaultValue$.test_x_zero(Test_collection_immutable_Map_Long_String_WithDefaultValue.scala:1365)
-|   tests.generated.collection.Test_collection_immutable_Map_Long_String_WithDefaultValue$$anonfun$25.apply$mcV$sp(Test_collection_immutable_Map_Long_String_WithDefaultValue.scala:1415)
-| ...
-\=========
-```
-
-Line 380 is
-
-```
-zero M ... tryO(x.`default`(zero._1)).isEmpty
-```
-
-which, in retrospect, is exactly what we expect: our new collection does not
-throw an exception (and thus give `None` in `tryO`) for its default.
-
-If we wanted to make this test succeed, we could write a second test to check
-defaults that are there and add a flag to pick the correct test.  More general,
-though, would be to add a mapping in the generic `(Long,String) *` section
-
-```
-DVAL --> None
-```
-
-and override it in our new collection variant with
-
-```
-DVAL --> Some("")
-```
-
-and then change the test to
-
-```
-zero M ... tryO(x.`default`(zero._1)) == @DVAL
-```
-
-The default-value collection is of limited use, however, since there is a specific
-`withDefaultValue` law, and the implementations of default values tend to be very
-straightforward.
-
-So it is best to leave out this collection and leave the tests as they are.
-
-#### Altering collections in a way that causes many tests to fail
-
-Sometimes one finds a whole new class of bugs that one wants to test--corner
-cases in inputs, for example--but it causes many test/collection pairs to fail.
-These tests ideally would only be run in versions after the released version.
-So we would like to gate the change by flags, but flags only disable or enable
-a test at a time.
-
-To solve this problem there are _flag-gated macros_.  Rules for these are placed
-in the appropriate position in `replacements.tests`:
-
-```
-MACRONAME? --> FlagTrueOption FlagFalseOption
-```
-
-which can be used like so in `single-line.laws` (or in other macros in `replacements.tests`).
-
-```
-foo(x) == @MACRONAME?FLAGNAME
-```
-
-For example, if we wanted to change the particular values for `CR` (which is the source
-of values for the `r` variable) in the generic `Int *` section, but this caused crashes
-before 2.11.4, we might do the following.
-
-First, we modify
-
-```
-CR --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
-```
-
-to
-
-```
-CR --> @CRPICK?OLDCR
-CRPICK? --> @CROLD @CRNEW
-CROLD --> List[Int](0, 1, 2, 5, 15, 28, 33, 104)
-CRNEW --> List[Int](0, 1, 2, 5, 15, 28, 33, 104, 999)
-```
-
-(We could also put the two options on the `CRPICK?` line, but it's easier to go
-back to a single version if we do it this way.)
-
-We also add the default flag
-
-```
-flags --> OLDCR
-```
-
-to the `Int *` section, which will add that flag to every collection, and
-finally append `OLDCR` to every version of Scala that should pass the tests
-in `deflag-versions.map`.
-
-**Note: this is awkward, so it will change**
-
-
-#### Creating a new contained type (generic + specific)
-
-This is a little trickier.  Use the existing patterns as a guide, and be aware
-that each collection you want included must be copied each time.  (If it becomes
-necessary to test many different data types, this restriction could be lifted.)
-
-Mostly--good luck!  You're on your own!
+Thanks for reading!  Good luck!
