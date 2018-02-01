@@ -219,7 +219,7 @@ set - only holds for collections that remove duplicates
 
 "x.`mkString` == { val sb = new StringBuilder; x.`addString`(sb); sb.result }".law
 
-"""x.`mkString` == x.mkString("", "", "")""".law
+"""x.`mkString` == x.mkString("", "", "")""".law(CAMELMAP.!)
 
 """x.`mkString`("!") == x.mkString("", "!", "")""".law
 
@@ -252,7 +252,7 @@ x sameAs xx.result
 val arr = new Array[A](nn)
 x.`copyToArray`(arr, n, nn)
 (arr.drop(n).take(m) zip x.toList).forall{ case (x,y) => x==y }
-""".law(SET.!, MAP.!, STRAW.!, Filt.xsize(_ > 0))
+""".law(SET.!, MAP.!, CAMEL.!, Filt.xsize(_ > 0))
 
 
 """
@@ -261,14 +261,14 @@ x.`copyToArray`(arr, n, nn)
 val c = arr.drop(n).take(m min x.`size`)
 val cs = c.toSet
 c.size == cs.size && (cs subsetOf x.toSet)
-""".law(SET, STRAW.!, Filt.xsize(_ > 0))
+""".law(SET, CAMEL.!, Filt.xsize(_ > 0))
 
 """
 val arr = new Array[A](nn)
 val x0 = x
 x0.`copyToArray`(arr, n, nn)
 (n until ((n+m) min x.`size`)).forall(i => x0.get(arr(i)._1).exists(_ == arr(i)._2))
-""".law(MAP, STRAW.!, Filt.xsize(_ > 0))
+""".law(MAP, CAMEL.!, Filt.xsize(_ > 0))
 
 
 "x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)".law
@@ -391,7 +391,7 @@ c sameAs x.filter(p)""".law(SET)
 
 """
 val List(q, qq, qqq) = List(x, y, x.`--`(y)).map(_.groupBy(identity).mapValues(_.size));
-qqq.forall{ case (k,v) => v == math.max(0, q.getOrElse(k,0) - qq.getOrElse(k,0)) }""".law(MAP.!)
+qqq.forall{ case (k,v) => v == math.max(0, q.getOrElse(k,0) - qq.getOrElse(k,0)) }""".law(MAP.!, CAMEL.!)
 
 """
 val yy = y.map(_._1).toSet
@@ -539,19 +539,19 @@ val (x1, x2) = x.`span`(p)
 
 "x.`zip`(y).map(_._2) sameAs y.take(x.size min y.size)".law
 
-"x sameType x.`zip`(y).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!)
+"x sameType x.`zip`(y).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!, CAMELMAP.!)
 
 "x.`zipAll`(y, a, b).map(_._1) sameAs x.`padTo`(x.`size` max y.size, a)".law
 
 "x.`zipAll`(y, a, b).map(_._2) sameAs y.`padTo`(x.`size` max y.size, b)".law
 
-"x sameType x.`zipAll`(y, a, b).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!)
+"x sameType x.`zipAll`(y, a, b).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!, CAMELMAP.!)
 
 "x.`zipWithIndex`.map(_._1) sameAs x".law
 
 "x.`zipWithIndex`.map(_._2) sameAs (0 until x.`size`)".law
 
-"x sameType x.`zipWithIndex`.map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!)
+"x sameType x.`zipWithIndex`.map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!, CAMELMAP.!)
 
 /* 
 // The :++ method does not actually exist
@@ -839,8 +839,8 @@ val temp = x.`scanRight`(Set[A]())((xi,s) => s + xi).toList.sortBy(_.size)
 """
 r <= 0 || 
 x.`size` <= 0 || 
-(r >= x.`size` && { x.`sliding`(r).map(_.toVector).toVector == Vector(x.toVector) }) || 
-{ val vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) == Vector.range(0, 1+vx.size-r).map(i => vx.slice(i,i+r)) }
+(r >= x.`size` && { x.`sliding`(r).map(_.toVector).toVector sameAs Vector(x.toVector) }) || 
+{ val vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) sameAs Vector.range(0, 1+vx.size-r).map(i => vx.slice(i,i+r)) }
 """.law(SEQ)
 
 "x.`sortBy`(f) sameAs x.`sortWith`((a,b) => f(a) < f(b))".law
@@ -952,7 +952,16 @@ val z = x.`zip`(y).toArray
   (z.map(_._2).toSet subsetOf y) &&
   z.forall{ case (a,b) => (x contains a) && (y contains b) }
 )
-""".law(SET)
+""".law(SET, STRAW.!)
+
+"""
+val z = x.`zip`(y).toArray
+(
+  (strawman.collection.Set.from(z.map(_._1)) subsetOf x) &&
+  (strawman.collection.Set.from(z.map(_._2)) subsetOf y) &&
+  z.forall{ case (a,b) => (x contains a) && (y contains b) }
+)
+""".law(SET, STRAW)
 
 """
 val xSet = x.toSet

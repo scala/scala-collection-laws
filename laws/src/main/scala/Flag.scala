@@ -26,9 +26,13 @@ object Flag {
   val STR = F     // Uses strings as the element type
 
   // Unusual "collections" that are not expected to behave exactly like others
-  val ARRAY =  F   // Is an Array
+  val ARRAY  = F   // Is an Array
   val STRING = F   // Is a String
-  val STRAW =  F   // strawman collections (when used together with regular collections)
+  val STRAW  = F   // strawman collections (when used together with regular collections)
+
+  // Buggy behavior for which a fix is immanent
+  val CAMEL    = F   // strawman collection is BUGGY on this law!  Straw will break the camel's back :)
+  val CAMELMAP = F   // strawmay collectino is BUGGY (specifically for maps).
 
   // Everything below here is non-ideal but may reflect the best behavior we can get.
   val SUPER_IHASHM  = F  // Some immutable.HashMap operations revert to the supertype
