@@ -45,6 +45,7 @@ trait Generator[A, B, CC] {
         f"",
         f"class $className(numb: Numbers, oper: Ops[$opsTypes], inst: Instance[$instTypes], lln: Int)",
         f"extends $heritage[$colType, $className](numb, oper, inst, lln) {",
+        f"  import Test.Once.Conversions._",
         if (instance.flags contains Flag.SEQ) {
          "  import Test.EqualInOrder"
         }
@@ -203,6 +204,21 @@ object AllIntGenerators {
     val treeSet = register(io.Imm)(_.treeSet())
     val vector = register(io.Imm)(_.vector())
   }
+  object StrawImm {
+    //val hashSet = register(io.Imm)(_.hashSet())
+    //val indexedSeq = register(io.Imm)(_.indexedSeq())
+    //val iterable = register(io.Imm)(_.iterable())
+    //val linearSeq = register(io.Imm)(_.linearSeq())
+    val list = register(io.StrawImm)(_.list())
+    //val queue = register(io.Imm)(_.queue())
+    //val seq = register(io.Imm)(_.seq())
+    //val set = register(io.Imm)(_.set())
+    //val sortedSet = register(io.Imm)(_.sortedSet())
+    //val stream = register(io.Imm)(_.stream())
+    //val traversable = register(io.Imm)(_.traversable())
+    //val treeSet = register(io.Imm)(_.treeSet())
+    //val vector = register(io.Imm)(_.vector())
+  }
 
   /** Generators for all mutable collections.
     *
@@ -247,7 +263,7 @@ object AllIntGenerators {
   }
 
   /** This line is needed to actually perform the registration of all generators! */
-  val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: Nil
+  val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: StrawImm :: Nil
 
   /** All registered generators */
   lazy val all = everyoneBuffer.result
@@ -308,6 +324,21 @@ object AllStrGenerators {
     val treeSet = register(io.Imm)(_.treeSet())
     val vector = register(io.Imm)(_.vector())
   }
+  object StrawImm {
+    //val hashSet = register(io.Imm)(_.hashSet())
+    //val indexedSeq = register(io.Imm)(_.indexedSeq())
+    //val iterable = register(io.Imm)(_.iterable())
+    //val linearSeq = register(io.Imm)(_.linearSeq())
+    val list = register(io.StrawImm)(_.list())
+    //val queue = register(io.Imm)(_.queue())
+    //val seq = register(io.Imm)(_.seq())
+    //val set = register(io.Imm)(_.set())
+    //val sortedSet = register(io.Imm)(_.sortedSet())
+    //val stream = register(io.Imm)(_.stream())
+    //val traversable = register(io.Imm)(_.traversable())
+    //val treeSet = register(io.Imm)(_.treeSet())
+    //val vector = register(io.Imm)(_.vector())
+  }
 
   /** Generators for all mutable collections.
     *
@@ -341,7 +372,7 @@ object AllStrGenerators {
   }
 
   /** This line is needed to actually perform the registration of all generators! */
-  val force = Imm :: Mut :: Root :: Nil
+  val force = Imm :: Mut :: Root :: StrawImm :: Nil
 
   /** All registered generators */
   lazy val all = everyoneBuffer.result

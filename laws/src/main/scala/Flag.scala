@@ -28,6 +28,7 @@ object Flag {
   // Unusual "collections" that are not expected to behave exactly like others
   val ARRAY =  F   // Is an Array
   val STRING = F   // Is a String
+  val STRAW =  F   // strawman collections (when used together with regular collections)
 
   // Everything below here is non-ideal but may reflect the best behavior we can get.
   val SUPER_IHASHM  = F  // Some immutable.HashMap operations revert to the supertype

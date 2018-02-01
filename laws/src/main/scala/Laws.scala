@@ -186,14 +186,14 @@ set - only holds for collections that remove duplicates
 """{
   val flat = x.`flatMap`(xi => y.toList.take(intFrom(xi)))
   val ref = collection.mutable.ArrayBuffer.empty[A]
-  x.foreach(xi => ref ++= y.toList.take(intFrom(xi)))
+  x.foreach(xi => ref ++= y.toArray.take(intFrom(xi)))
   flat sameAs ref
 }""".law(SEQ)
 
 """{
   val flat = x.`flatMap`(xi => y.toList.take(intFrom(xi)))
   val ref = collection.mutable.HashSet.empty[A]
-  x.foreach(xi => ref ++= y.toList.take(intFrom(xi)))
+  x.foreach(xi => ref ++= y.toArray.take(intFrom(xi)))
   flat sameAs ref
 }""".law(SET)
 
@@ -252,7 +252,7 @@ x sameAs xx.result
 val arr = new Array[A](nn)
 x.`copyToArray`(arr, n, nn)
 (arr.drop(n).take(m) zip x.toList).forall{ case (x,y) => x==y }
-""".law(SET.!, MAP.!, Filt.xsize(_ > 0))
+""".law(SET.!, MAP.!, STRAW.!, Filt.xsize(_ > 0))
 
 
 """
@@ -261,14 +261,14 @@ x.`copyToArray`(arr, n, nn)
 val c = arr.drop(n).take(m min x.`size`)
 val cs = c.toSet
 c.size == cs.size && (cs subsetOf x.toSet)
-""".law(SET, Filt.xsize(_ > 0))
+""".law(SET, STRAW.!, Filt.xsize(_ > 0))
 
 """
 val arr = new Array[A](nn)
 val x0 = x
 x0.`copyToArray`(arr, n, nn)
 (n until ((n+m) min x.`size`)).forall(i => x0.get(arr(i)._1).exists(_ == arr(i)._2))
-""".law(MAP, Filt.xsize(_ > 0))
+""".law(MAP, STRAW.!, Filt.xsize(_ > 0))
 
 
 "x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)".law
@@ -332,7 +332,9 @@ Set(
 
 "x.`size` == x.`count`(_ => true)".law
 
-"x sameAs x.`to`[List]".law
+"x sameAs x.`to`[List]".law(STRAW.!)
+
+"x sameAs x.`to`(strawman.collection.immutable.List)".law(STRAW)
 
 "x.`toArray` sameAs x".law
 
@@ -344,7 +346,7 @@ Set(
 
 "x.`toList` sameAs x".law
 
-"x.map(xi => (xi,xi)).`toMap` == { val hm = new collection.mutable.HashMap[A,A]; x.foreach(xi => hm += xi -> xi); hm }".law
+"x.map(xi => (xi,xi)).`toMap` samePieces { val hm = new collection.mutable.HashMap[A,A]; x.foreach(xi => hm += xi -> xi); hm }".law
 
 "x.`toSeq` sameAs x".law
 
@@ -429,7 +431,15 @@ c.`take`(1).toList match {
   case Nil => true
   case List(xi) => !p(xi)
   case _ => false
-}""".law(SEQ)
+}""".law(SEQ, STRAW.!)
+
+"""
+val c = x.`dropWhile`(p);
+c.`take`(1).toList match { 
+  case strawman.collection.immutable.Nil => true
+  case strawman.collection.immutable.List(xi) => !p(xi)
+  case _ => false
+}""".law(SEQ, STRAW)
 
 """
 val y = x.`dropWhile`(p)
@@ -673,7 +683,9 @@ x.`indexWhere`(p) match {
 }
 """.law
 
-"x.`indices` == (0 until x.`size`)".law
+"x.`indices` == (0 until x.`size`)".law(STRAW.!)
+
+"x.`indices` == strawman.collection.immutable.Range(0, x.`size`)".law(STRAW)
 
 "x.`size` > 0 implies (x.`init` sameAs x.`dropRight`(1))".law
 
@@ -863,7 +875,17 @@ x.`tails`.toList.map(_.toList) match {
     case (a, b) => b.isEmpty && (a.isEmpty || a.size == 1)
   }
 }
-""".law(SEQ, Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
+""".law(SEQ, STRAW.!, Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
+
+"""
+import strawman.collection.immutable.::
+x.`tails`.toList.map(_.toList) match {
+  case z => (z zip z.drop(1)).forall{
+    case (a :: b :: _, c :: _) => b == c
+    case (a, b) => b.isEmpty && (a.isEmpty || a.size == 1)
+  }
+}
+""".law(SEQ, STRAW, Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
 
 """
 val xtl = x.`tails`.toList
@@ -879,7 +901,9 @@ val xtl = x.`tails`.toList
 
 "x sameType x.`takeRight`(n)".law
 
-"x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARRAY.!, Filt.xsize(_ > 1), Filt.n(_ > 0))
+"x.map(a => List.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARRAY.!, STRAW.!, Filt.xsize(_ > 1), Filt.n(_ > 0))
+
+"x.map(a => strawman.collection.immutable.List.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARRAY.!, STRAW, Filt.xsize(_ > 1), Filt.n(_ > 0))
 
 "x.map(a => Array.fill(n)(a)).`transpose`.`forall`(_ sameAs x)".law(ARRAY, Filt.xsize(_ > 1), Filt.n(_ > 0))
 

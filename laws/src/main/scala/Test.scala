@@ -1,5 +1,8 @@
 package laws
 
+import scala.language.implicitConversions
+import scala.language.higherKinds
+
 import scala.util._
 
 /** The collection to be tested: this provides all elements and collections
@@ -198,24 +201,78 @@ object Test {
     }
   }
 
+  /** Abstracts over traversing over a collection so that we can
+  use different collections libraries and be less sensitive to
+  which one we're comparing to which (all should convert to this) */
+  abstract class Once[A] {
+    def step[U](f: A => U): Boolean
+
+    final def foreach[U](f: A => U): Unit =
+      while(step(f)) {}
+
+    final def forallWith[B](that: Once[B])(p: (A, B) => Boolean): Boolean = {
+      var aok, bok, ok = true
+      while (ok) {
+        var a: A = null.asInstanceOf[A]
+        var b: B = null.asInstanceOf[B]
+        aok = this.step(a = _)
+        bok = that.step(b = _)
+        ok = aok && bok && p(a, b)
+      }
+      !aok && !bok && !ok
+    }
+  }
+  object Once {
+    def from(string: String): Once[Char] = new Once[Char] {
+      private[this] var i = 0
+      def step[U](f: Char => U) = (i < string.length) && { f(string(i)); i += 1; true }
+    }
+
+    def from[A](array: Array[A]): Once[A] = new Once[A] {
+      private[this] var i = 0
+      def step[U](f: A => U): Boolean = (i < array.length) && { f(array(i)); i += 1; true }
+    }
+
+    def from[A](iterator: Iterator[A]): Once[A] = new Once[A] {
+      def step[U](f: A => U): Boolean = iterator.hasNext && { f(iterator.next); true }
+    }
+    def from[A](iterable: Iterable[A]): Once[A] = from(iterable.iterator)
+
+    def from[A](iterator: strawman.collection.Iterator[A]): Once[A] = new Once[A] {
+      def step[U](f: A => U): Boolean = iterator.hasNext && { f(iterator.next); true }
+    }
+    def from[A](iterable: strawman.collection.Iterable[A]): Once[A] = from(iterable.iterator())
+
+    object Conversions {
+      implicit def onceViaString(string: String): Once[Char] = Once from string
+      implicit def onceViaArray[A](array: Array[A]): Once[A] = Once from array
+      implicit def onceViaTraversableOnce[A, CC[A] <: collection.TraversableOnce[A]](me: CC[A]): Once[A] =
+        me match {
+          case iterator: Iterator[_] => Once from iterator.asInstanceOf[Iterator[A]]
+          case iterable: Iterable[_] => Once from iterable.asInstanceOf[Iterable[A]]
+          case _                     => Once from me.toList
+        }
+      implicit def onceViaIterableTuple[K, V, CC[K, V] <: collection.Iterable[(K, V)]](me: CC[K, V]): Once[(K, V)] = Once from me
+      implicit def onceViaStrawIterable[A, CC[A] <: strawman.collection.Iterable[A]](me: CC[A]): Once[A] = Once from me
+      implicit def onceViaStrawIterator[A, CC[A] <: strawman.collection.Iterator[A]](me: CC[A]): Once[A] = Once from me
+    }
+  }
+
+
   /** Tests whether the compiler believes the left-hand and right-hand types are the same */
   implicit class SameCompilerType[A](me: A) {
     def sameType[B](you: B)(implicit ev: A =:= B) = true
   }
 
   /** Tests whether two collections have the same elements in the same order */
-  implicit class EqualInOrder[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
-    def sameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
-      val meB, youB = collection.mutable.ArrayBuffer.empty[A]
-      onceCC(me).foreach(meB += _)
-      onceDD(you).foreach(youB += _)
-      meB == youB
-    }
+  implicit class EqualInOrder[A, CC](me: CC)(implicit onceCC: CC => Once[A]) {
+    def sameAs[DD](you: DD)(implicit onceDD: DD => Once[A]) = 
+      onceCC(me).forallWith(onceDD(you))(_ == _)
   }
 
   /** Tests whether two collections have the same number of each element. */
-  implicit class EqualInCount[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
-    def sameAs[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
+  implicit class EqualInCount[A, CC](me: CC)(implicit onceCC: CC => Once[A]) {
+    def sameAs[DD](you: DD)(implicit onceDD: DD => Once[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
       onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
       onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
@@ -225,8 +282,15 @@ object Test {
   }
 
   /** Tests whether the right-hand collection has every element the left-hand collection does (it may have more). */
-  implicit class SubsetInCount[A, CC](me: CC)(implicit onceCC: CC => collection.TraversableOnce[A]) {
-    def partOf[DD](you: DD)(implicit onceDD: DD => collection.TraversableOnce[A]) = {
+  implicit class SubsetInCount[A, CC](me: CC)(implicit onceCC: CC => Once[A]) {
+    def samePieces[DD](you: DD)(implicit onceDD: DD => Once[A]) = {
+      val meM, youM = collection.mutable.HashMap.empty[A, N]
+      onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
+      onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
+      meM.forall{ case (a, n) => youM.get(a).exists(_.count == n.count) } &&
+      youM.forall{ case (a, n) => meM contains a }
+    }
+    def partOf[DD](you: DD)(implicit onceDD: DD => Once[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
       onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
       onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)

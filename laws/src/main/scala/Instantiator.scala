@@ -37,6 +37,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
 
   // Ways to get sizes of different kinds of collections
   protected implicit def sizeOfSeq[A, S[A] <: collection.Seq[A]] = new Sizable[S[A]] { def sizeof(s: S[A]) = s.length }
+  protected implicit def sizeOfStrawSeq[A, S[A] <: strawman.collection.Seq[A]] = new Sizable[S[A]] { def sizeof(s: S[A]) = s.size }
   protected implicit def sizeOfOnce[A, O[A] <: collection.Traversable[A]] = new Sizable[O[A]] { def sizeof(o: O[A]) = o.size }
   protected implicit def sizeOfArray[A] = new Sizable[Array[A]] { def sizeof(a: Array[A]) = a.length }
   protected implicit val sizeOfString = new Sizable[String] { def sizeof(s: String) = s.length }
@@ -92,6 +93,37 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val traversable = C(_.to[collection.immutable.Traversable])
     val treeSet     = C(_.to[collection.immutable.TreeSet], SET, SUPER_ITREES, SUPER_ON_ZIP)
     val vector      = C(_.toVector, SEQ)
+  }
+  object StrawImm extends Instance.PackagePath {
+    def nickname = "StrawImm"
+    def fullyQualified = "strawman.collection.immutable"
+    def C[CC: TypeTag: Sizable](ccf: Array[A] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Deployed[A, CC] = {
+      val gen = inst.cacheWith(ccf, (STRAW +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val ans = new Deployed[A, CC]{
+        val secretly = gen
+        var accesses: Int = 0
+        val name = nm.value.toString
+        def group = typeTagA.tpe.toString + " in " + nickname
+        def apply(): Instance.FromArray[A, CC] = { accesses += 1; secretly }
+      }
+      registry += ans
+      ans
+    }
+
+    // MUST use lower-camel-cased collection class name for code generator to work properly!
+    //val hashSet     = C(_.to[collection.immutable.HashSet], SET)
+    //val indexedSeq  = C(_.to[collection.immutable.IndexedSeq], SEQ)
+    //val iterable    = C(_.to[collection.immutable.Iterable])
+    //val linearSeq   = C(_.to[collection.immutable.LinearSeq], SEQ)
+    val list        = C((a: Array[A]) => strawman.collection.immutable.List.from(a), SEQ)
+    //val queue       = C(_.to[collection.immutable.Queue], SEQ)
+    //val seq         = C(_.to[collection.immutable.Seq], SEQ)
+    //val set         = C(_.toSet, SET)
+    //val sortedSet   = C(_.to[collection.immutable.SortedSet], SET, SUPER_ON_ZIP)
+    //val stream      = C(_.to[Stream], SEQ)
+    //val traversable = C(_.to[collection.immutable.Traversable])
+    //val treeSet     = C(_.to[collection.immutable.TreeSet], SET, SUPER_ITREES, SUPER_ON_ZIP)
+    //val vector      = C(_.toVector, SEQ)
   }
 
   object Mut extends Instance.PackagePath {
@@ -356,7 +388,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   lazy val possible_y = possible_x
 
   /** This is important!  This registers the collections that you actually want to have available! */
-  val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: Nil
+  val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: StrawImm :: Nil
 }
 
 /** Instantiates collections with a `String` element type.*/
@@ -386,7 +418,7 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
   lazy val possible_y = possible_x
 
   /** This is important!  This registers the collections that you actually want to have available! */
-  val force = Imm :: Mut :: Root :: Nil
+  val force = Imm :: Mut :: Root :: StrawImm :: Nil
 }
 
 /** Instantiates `(Long, String)` pairs for use with maps.
