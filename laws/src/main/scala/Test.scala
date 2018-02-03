@@ -85,6 +85,9 @@ with TestInfo {
   /** Converts a value to a characteristic integer.  (Default is just hashcode.) */
   def intFrom(a: A): Int = a.##
 
+  /** Builds a fresh instance of the collection type being tested using an array as a source */
+  def collectionFrom(aa: Array[A]): CC = instance.newInstanceFrom(aa)
+
   def flags: Set[Flag] = instance.flags
 
   def oper: Ops[_, _] = ops
@@ -243,7 +246,11 @@ object Test {
     }
     def from[A](iterable: strawman.collection.Iterable[A]): Once[A] = from(iterable.iterator())
 
-    object Conversions {
+    trait OrdinaryConversions {
+      implicit def onceViaStrawIterable[A, CC[A] <: strawman.collection.Iterable[A]](me: CC[A]): Once[A] = Once from me
+      implicit def onceViaStrawIterator[A, CC[A] <: strawman.collection.Iterator[A]](me: CC[A]): Once[A] = Once from me
+    }
+    object Conversions extends OrdinaryConversions {
       implicit def onceViaString(string: String): Once[Char] = Once from string
       implicit def onceViaArray[A](array: Array[A]): Once[A] = Once from array
       implicit def onceViaTraversableOnce[A, CC[A] <: collection.TraversableOnce[A]](me: CC[A]): Once[A] =
@@ -253,8 +260,7 @@ object Test {
           case _                     => Once from me.toList
         }
       implicit def onceViaIterableTuple[K, V, CC[K, V] <: collection.Iterable[(K, V)]](me: CC[K, V]): Once[(K, V)] = Once from me
-      implicit def onceViaStrawIterable[A, CC[A] <: strawman.collection.Iterable[A]](me: CC[A]): Once[A] = Once from me
-      implicit def onceViaStrawIterator[A, CC[A] <: strawman.collection.Iterator[A]](me: CC[A]): Once[A] = Once from me
+      implicit def onceViaStrawIterableTuple[K, V, CC[K, V] <: strawman.collection.Iterable[(K, V)]](me: CC[K, V]): Once[(K, V)] = Once from me
     }
   }
 

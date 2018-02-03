@@ -71,13 +71,15 @@ object Tags {
     *
     * First, `import laws.Tags.Implicits._`.  Then use `"seq".y, "set".n, select(_.hasZero)` to set,
     * in this example, a tag that must be present, mustn't be present, and a test that must pass, respectively.
+    *
+    * Note: this is the best place to alter the code to ignore CAMEL tags (used to suppress errors with strawman collections)
     */
   def apply(key: Taggish, keys: Taggish*) = {
     val all = key :: keys.toList
     val positive = all.collect{ case PosTag(s)    => s }.toSet
     new Tags(
       positive,
-      all.collect{ case NegTag(s)    => s }.toSet &~ positive,
+      all.collect{ case NegTag(s) /* if !s.isCamel */ => s }.toSet &~ positive,  // Comment in/out !s.isCamel to suppress known strawman errors
       all.collect{ case SelectTag(p) => p }.toVector
     )
   }

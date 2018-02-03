@@ -14,6 +14,9 @@ extends Ordered[Flag] {
     case _       => false
   }
   override val hashCode = toString.hashCode
+
+  // Is this going to break strawman collections?  THESE FLAGS MAY BE FILTERED OUT--SEE Tags.scala!
+  def isCamel: Boolean = toString startsWith "CAMEL"
 }
 object Flag {
   def F(implicit nm: sourcecode.Name) = new Flag()(nm)
@@ -30,9 +33,18 @@ object Flag {
   val STRING = F   // Is a String
   val STRAW  = F   // strawman collections (when used together with regular collections)
 
-  // Buggy behavior for which a fix is immanent
-  val CAMEL    = F   // strawman collection is BUGGY on this law!  Straw will break the camel's back :)
-  val CAMELMAP = F   // strawmay collectino is BUGGY (specifically for maps).
+  // Test failures for strawman (straw will break the camel's back...)
+  val CAMEL    = F   // Generic problem (not described)
+  val CAMELMAP = F   // Generic problem with maps (not described)
+  val CAMEL_MAP_NEEDS_ORDER = F  // Ordered collections can't map something unordered
+  val CAMEL_SYM_PREPEND     = F  // Prepending with ++: doesn't work
+  val CAMEL_BUFFER_VS_SEQ   = F  // Buffer gives a Seq in a lot of operations
+  val CAMEL_LBUF_X_REMOVE   = F  // ListBuffer will throw exceptions on `remove`
+  val CAMEL_SYM_PREMUT      = F  // Prepending in place with +=: doesn't work on ArrayBuffer and Buffer
+  val CAMEL_ITER_STRING     = F  // Strawman Iterator doesn't have addString without extra args.
+  val CAMEL_SPECMAP_SUPER   = F  // AnyRefMap and LongMap give superclass on map, flatMap, ++, collect
+  val CAMEL_WEAKMAP_SUPER   = F  // WeakHashMap never seems to return a WeakHashMap
+  val CAMEL_BITSET_AMBIG    = F  // Bitsets have an ambiguous zip and map-to-non-int
 
   // Everything below here is non-ideal but may reflect the best behavior we can get.
   val SUPER_IHASHM  = F  // Some immutable.HashMap operations revert to the supertype

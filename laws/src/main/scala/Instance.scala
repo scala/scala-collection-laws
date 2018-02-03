@@ -13,6 +13,7 @@ import scala.reflect.runtime.universe.TypeTag
   */
 class Instance[A, CC: TypeTag] protected (
   a0: A, x0: () => CC, xsize0: Int, y0: () => CC, ysize0: Int,
+  arrayConverter: Array[A] => CC,
   val flags: Set[Flag], implicitMethods: MethodChecker = MethodChecker.empty
 ) {
   val values = Instance.Values(a0, x0, xsize0, y0, ysize0)
@@ -38,11 +39,13 @@ class Instance[A, CC: TypeTag] protected (
   lazy val methods = MethodChecker.from[CC] | implicitMethods
 
   /** Allows you to introduce more methods, e.g. those enriched via an implicit class */
-  def moreMethods(mc: MethodChecker): Instance[A, CC] = new Instance[A, CC](a0, x0, xsize, y0, ysize, flags, methods | mc)
+  def moreMethods(mc: MethodChecker): Instance[A, CC] = new Instance[A, CC](a0, x0, xsize, y0, ysize, arrayConverter, flags, methods | mc)
 
   def setUnused(): this.type = { java.util.Arrays.fill(used, false); this }
 
   def touched = used(0) || used(1) || used(2)
+
+  def newInstanceFrom(aa: Array[A]): CC = arrayConverter(aa)
 
   /** Override this method to provide a more useful description in case of error
     * if the default `toString` is not helpful.
@@ -80,12 +83,12 @@ object Instance { outer =>
   }
 
   /** Generates an instance from collection generators and flags. */
-  def apply[A, CC: TypeTag](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int)(flags: Set[Flag] = Set.empty): Instance[A, CC] =
+  def apply[A, CC: TypeTag](a: A)(x: => CC, xsize: Int)(y: => CC, ysize: Int)(gen: Array[A] => CC, flags: Set[Flag] = Set.empty): Instance[A, CC] =
     new Instance(
       a,
       () => x, xsize,
       () => y, ysize,
-      flags
+      gen, flags
     )
 
   /** Generates an instance from arrays and a transformation function, regenerating the collection each time. */
@@ -94,7 +97,7 @@ object Instance { outer =>
       a,
       () => ccf(x), implicitly[Sizable[CC]].sizeof(ccf(x)),
       () => ccf(y), implicitly[Sizable[CC]].sizeof(ccf(y)),
-      flags
+      ccf, flags
     )
 
   /** Generates an instance from arrays and a transformation function, caching the generated collection. */
@@ -103,7 +106,7 @@ object Instance { outer =>
       a,
       new CachedFn0(() => ccf(x)), implicitly[Sizable[CC]].sizeof(ccf(x)),
       new CachedFn0(() => ccf(y)), implicitly[Sizable[CC]].sizeof(ccf(y)), 
-      flags
+      ccf, flags
     )
 
   /** Encapsulates the capability of converting elements and arrays of elements into an `Instance` for a collection/element type */
