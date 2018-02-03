@@ -759,7 +759,7 @@ y.`size` > 0 implies {
   !x.`drop`(math.max(0,i+1)).`containsSlice`(y) && 
   ((i >= 0) implies (x.`drop`(i).`take`(y.size) sameAs y))
 }
-""".law(CAMEL.!)
+""".law
 
 """
 y.`size` > 0 implies { 
@@ -767,7 +767,7 @@ y.`size` > 0 implies {
   !x.`take`(r).`drop`(math.max(0,i+1)).`containsSlice`(y) && 
   ((i >= 0) implies (i <= r && (x.`drop`(i).`take`(y.size) sameAs y)))
 }
-""".law(CAMEL.!)
+""".law
 
 """
 x.`lastIndexWhere`(p,n) match { 
