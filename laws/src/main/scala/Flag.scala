@@ -45,6 +45,7 @@ object Flag {
   val CAMEL_SPECMAP_SUPER   = F  // AnyRefMap and LongMap give superclass on map, flatMap, ++, collect
   val CAMEL_WEAKMAP_SUPER   = F  // WeakHashMap never seems to return a WeakHashMap
   val CAMEL_BITSET_AMBIG    = F  // Bitsets have an ambiguous zip and map-to-non-int
+  val CAMEL_LZY_X_DROP      = F  // LazyList can throw an exception on `drop` by trying to take `tail`
 
   // Everything below here is non-ideal but may reflect the best behavior we can get.
   val SUPER_IHASHM  = F  // Some immutable.HashMap operations revert to the supertype

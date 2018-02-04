@@ -767,7 +767,7 @@ y.`size` > 0 implies {
   !x.`take`(r).`drop`(math.max(0,i+1)).`containsSlice`(y) && 
   ((i >= 0) implies (i <= r && (x.`drop`(i).`take`(y.size) sameAs y)))
 }
-""".law
+""".law(CAMEL_LZY_X_DROP.!)
 
 """
 x.`lastIndexWhere`(p,n) match { 
@@ -1109,6 +1109,82 @@ x0 sameAs x.map{ case (a,b) => a -> f((a,b))._2 }
 "x.`forall`(xi => y.`contains`(xi) != x.`&~`(y).contains(xi))".law
 
 "x sameType x.`&~`(y)".law
+
+
+///////////////////////////////////////
+// New laws for strawman collections //
+///////////////////////////////////////
+
+"x.`:++`(y) sameAs x.`++`(y)".law
+
+"val x0 = x; val x1 = x; x0.`addOne`(a); x1.`+=`(a); x0 sameAs x1".law
+
+"val x0 = x; val x1 = x; x0.`addAll`(y); x1.`++=`(y); x0 sameAs x1".law
+
+"x.`appended`(a) sameAs x.`:+`(a)".law
+
+"x.`appendedAll`(y) sameAs x.`:++`(y)".law
+
+"val x0 = x; x0.`clear`; x0.`size` == 0".law
+
+"x.`concat`(y) sameAs x.`++`(y)".law
+
+"x.`distinctBy`(f) samePieces x.toArray.map(xi => (f(xi), xi)).toMap.map(_._2)".law
+
+"val x0 = x; x0.`dropInPlace`(n); x0 sameAs x.`drop`(n)".law
+
+"val x0 = x; x0.`dropRightInPlace`(n); x0 sameAs x.`dropRight`(n)".law
+
+"val x0 = x; x0.`dropWhileInPlace`(p); x0 sameAs x.`dropWhile`(p)".law
+
+"val x0 = x; x0.`filterInPlace`(p); x0 sameAs x.`filter`(p)".law
+
+"val x0 = x; x0.`flatMapInPlace`(xi => y.toList.take(intFrom(xi))); x0 sameAs x.`flatMap`(xi => y.toList.take(intFrom(xi)))".law
+
+"x.`groupMap`(f)(g).map(_._2.size).sum == x.`size`".law
+
+"""
+val m = collection.mutable.HashMap.empty[A, List[B]]
+x.foreach{ xi => val key = f(xi); m(xi) = g(xi) :: m.getOrElse(xi, Nil) }
+val gm = x.`groupMap`(f)(g)
+m.size == gm.size &&
+m.forall{ case (k, vs) => gm(k) sameAs vs.reverse } &&
+gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
+""".law
+
+"x.`groupMap`(g)(f).map{ case (k, vs) => k -> vs.`reduceLeft`(op) } samePieces x.`groupMapReduce`(g)(f)(op)".law(Filt.sym)
+
+"val x0 = x; x0.`insert`(n max 0, a); x0 sameAs collectionFrom(x.toArray.patch(n, Array(a), 0))".law(MAP.!, SET.!)
+
+"val x0 = x; val x1 = x; x0.`insertAll`(n max 0, y); y.`reverse`.foreach(yi => x1.`insert`(n max 0, yi)); x0 sameAs x1".law(MAP.!)
+
+"val x0 = x; x0.`mapInPlace`(f); x0 sameAs x.`map`(f)".law(CAMEL.!)
+
+"val x0 = x; x0.`padToInPlace`(n, a); x0 sameAs x.`padTo`(n, a)".law
+
+"val x0 = x; x0.`patchInPlace`(n, y, m); x0 sameAs x.`patch`(n, y, m)".law(CAMEL.!)
+
+"x.`prepended`(a) sameAs x.`+:`(a)".law
+
+"x.`prependedAll`(y) sameAs x.`++:`(y)".law
+
+"m > x.`size` || n < 0 || m <0 || { val x0 = x; x0.`sliceInPlace`(n, m); x0 sameAs x.`slice`(n, m) }".law
+
+"val x0 = x; x0.`subtractOne`(a); x0.`size` == xsize - (if (x.`contains`(a)) 1 else 0)".law(MAP.!)
+
+"val x0 = x; x0.`subtractOne`(a); x0 sameAs (x.`takeWhile`(_ != a) ++ x.`dropWhile`(_ != a).drop(1))".law(MAP.!)
+
+"val x0 = x; val x1 = x; x0.`subtractAll`(y); y.foreach(yi => x1.`subtractOne`(yi)); x0 sameAs x1".law(MAP.!)
+
+"val x0 = x; x0.`takeInPlace`(n); x0 sameAs x.`take`(n)".law(CAMEL.!)
+
+"val x0 = x; x0.`takeRightInPlace`(n); x0 sameAs x.`takeRight`(n)".law(CAMEL.!)
+
+"val x0 = x; x0.`takeWhileInPlace`(p); x0 sameAs x.`takeWhile`(p)".law(CAMEL.!)
+
+"val x0 = x; val x1 = x; if (n >= 0) { x0.`trimStart`(n); x1.`dropInPlace`(n) |; x0 sameAs x1".law
+
+"val x0 = x; val x1 = x; if (n >= 0) { x0.`trimEnd`(n); x1.`dropRightInPlace`(n) }; x0 sameAs x1".law
 
 
 /////////////////////////////

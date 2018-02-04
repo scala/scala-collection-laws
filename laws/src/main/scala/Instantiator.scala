@@ -119,7 +119,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val hashSet       = C((a: Array[A]) => strawman.collection.immutable.HashSet.from(a), SET)
     val indexedSeq    = C((a: Array[A]) => strawman.collection.immutable.IndexedSeq.from(a), SEQ, CAMEL_SYM_PREPEND)
     val iterable      = C((a: Array[A]) => strawman.collection.immutable.Iterable.from(a))
-    val lazyList      = C((a: Array[A]) => strawman.collection.immutable.LazyList.from(a), SEQ)
+    val lazyList      = C((a: Array[A]) => strawman.collection.immutable.LazyList.from(a), SEQ, CAMEL_LZY_X_DROP)
     val linearSeq     = C((a: Array[A]) => strawman.collection.immutable.List.from(a): strawman.collection.immutable.LinearSeq[A], SEQ)  // No companion for `LinearSeq`
     val list          = C((a: Array[A]) => strawman.collection.immutable.List.from(a), SEQ)
     //val queue         = C((a: Array[A]) => strawman.collection.immutable.Queue.from(a), SEQ) // Doesn't exist!
