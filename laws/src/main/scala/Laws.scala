@@ -183,7 +183,7 @@ set - only holds for collections that remove duplicates
 
 "x sameType x.`map`(f)".law(
   SUPER_ITREES.!, SUPER_MOPENHM.!, BITSET_MAP_BREAKS_BOUNDS.!,
-  CAMEL_BUFFER_VS_SEQ.!, CAMEL_SPECMAP_SUPER.!, CAMEL_WEAKMAP_SUPER.!
+  CAMEL_SPECMAP_SUPER.!, CAMEL_WEAKMAP_SUPER.!
 )
 
 """{
@@ -202,7 +202,7 @@ set - only holds for collections that remove duplicates
 
 "x sameType x.`flatMap`(xi => y.toList.take(intFrom(xi)%3))".law(
   SUPER_ITREES.!, SUPER_MOPENHM.!,
-  CAMEL_BUFFER_VS_SEQ.!, CAMEL_SPECMAP_SUPER.!, CAMEL_WEAKMAP_SUPER.!
+  CAMEL_SPECMAP_SUPER.!, CAMEL_WEAKMAP_SUPER.!
 )
 
 "x.`exists`(p) == x.`find`(p).isDefined".law
@@ -306,7 +306,7 @@ b.result sameAs x
 
 "x.filter(p).`forall`(p) == true".law
 
-"x sameType x.`filter`(p)".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+"x sameType x.`filter`(p)".law(CAMEL_WEAKMAP_SUPER.!)
 
 """
 val oneStep = x.flatMap(xi => y.toList.take(intFrom(xi) % 3 max 0))
@@ -429,13 +429,13 @@ x.forall{ case (k, v) =>
 }
 """.law(MAP)
 
-"x sameType x.`++`(y)".law(SUPER_IHASHM.!, SUPER_MXMAP.!, CAMEL_BUFFER_VS_SEQ.!, CAMEL_SPECMAP_SUPER.!)
+"x sameType x.`++`(y)".law(SUPER_IHASHM.!, SUPER_MXMAP.!, CAMEL_SPECMAP_SUPER.!)
 
 "x.`buffered` sameAs x".law
 
 "x.`collect`(pf) sameAs x.`filter`(pf.isDefinedAt).`map`(pf)".law(CAMEL_BITSET_AMBIG.!)
 
-"x sameType x.`collect`(pf)".law(SUPER_ITREES.!, SUPER_MXMAP.!, CAMEL_BUFFER_VS_SEQ.!, CAMEL_SPECMAP_SUPER.!, CAMEL_BITSET_AMBIG.!)
+"x sameType x.`collect`(pf)".law(SUPER_ITREES.!, SUPER_MXMAP.!, CAMEL_SPECMAP_SUPER.!, CAMEL_BITSET_AMBIG.!)
 
 "x.`contains`(a) == x.`exists`(_ == a)".law(MAP.!)
 
@@ -451,7 +451,7 @@ x.forall{ case (k, v) =>
 
 "x.`drop`(n) partOf x".law
 
-"x sameType x.`drop`(n)".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+"x sameType x.`drop`(n)".law(CAMEL_WEAKMAP_SUPER.!)
 
 """
 val c = x.`dropWhile`(p);
@@ -476,7 +476,7 @@ y.nonEmpty implies y.exists(yi => !p(yi))
 
 """x.`dropWhile`(p) partOf x""".law
 
-"x sameType x.`dropWhile`(p)".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+"x sameType x.`dropWhile`(p)".law(CAMEL_WEAKMAP_SUPER.!)
 
 """
 val (x1,x2) = x.`duplicate`
@@ -490,7 +490,7 @@ val (x1,x2) = x.`duplicate`
 
 "x.`filterNot`(p) sameAs x.`filter`(xi => !p(xi))".law
 
-"x sameType x.`filterNot`(p)".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+"x sameType x.`filterNot`(p)".law(CAMEL_WEAKMAP_SUPER.!)
 
 "n <= 0 || x.`grouped`(n).map(_.size).`sum` == x.`size`".law
 
@@ -510,7 +510,7 @@ val (x1,x2) = x.`duplicate`
 
 "(n <= x.`size`) implies (x.`padTo`(n, a) sameAs x)".law
 
-"x sameType x.`padTo`(n,a)".law(CAMEL_BUFFER_VS_SEQ.!)
+"x sameType x.`padTo`(n,a)".law
 
 """
 val (t,f) = x.`partition`(p)
@@ -520,7 +520,7 @@ val (t,f) = x.`partition`(p)
 """
 val (t,f) = x.`partition`(p)
 (t sameType f) && (t sameType x)
-""".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+""".law(CAMEL_WEAKMAP_SUPER.!)
 
 "(n <= x.`size`) implies (x.`patch`(n, y, m).`take`(n) sameAs x.take(n))".law(CAMEL.!)
 
@@ -534,7 +534,7 @@ val (t,f) = x.`partition`(p)
 
 "n < 0 || m >= x.size || { x.`slice`(n, m) sameAs x.`drop`(n).`take`((0 max m)-n) }".law(SET.!)
 
-"n < 0 || m >= x.size || (x sameType x.`slice`(n, m))".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+"n < 0 || m >= x.size || (x sameType x.`slice`(n, m))".law(CAMEL_WEAKMAP_SUPER.!)
 
 "x.`span`(p)._1.`forall`(p)".law
 
@@ -547,13 +547,13 @@ val (t,f) = x.`partition`(p)
 """
 val (x1, x2) = x.`span`(p)
 (x1 sameType x2) && (x sameType x1)
-""".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+""".law(CAMEL_WEAKMAP_SUPER.!)
 
 "x.`take`(n).`size` == ((0 max n) min x.size)".law
 
 "x.`take`(n) partOf x".law
 
-"x sameType x.`take`(n)".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+"x sameType x.`take`(n)".law(CAMEL_WEAKMAP_SUPER.!)
 
 "x.`takeWhile`(p).`forall`(p)".law
 
@@ -561,32 +561,32 @@ val (x1, x2) = x.`span`(p)
 
 "x.`takeWhile`(p).`size` + x.`dropWhile`(p).size == x.size".law
 
-"x sameType x.`takeWhile`(p)".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+"x sameType x.`takeWhile`(p)".law(CAMEL_WEAKMAP_SUPER.!)
 
 "x.`zip`(y).map(_._1) sameAs x.take(x.size min y.size)".law(CAMEL_BITSET_AMBIG.!)
 
 "x.`zip`(y).map(_._2) sameAs y.take(x.size min y.size)".law(CAMEL_BITSET_AMBIG.!)
 
-"x sameType x.`zip`(y).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!, CAMELMAP.!, CAMEL_BUFFER_VS_SEQ.!)
+"x sameType x.`zip`(y).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!, CAMELMAP.!)
 
 "x.`zipAll`(y, a, b).map(_._1) sameAs x.`padTo`(x.`size` max y.size, a)".law
 
 "x.`zipAll`(y, a, b).map(_._2) sameAs y.`padTo`(x.`size` max y.size, b)".law
 
-"x sameType x.`zipAll`(y, a, b).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!, CAMELMAP.!, CAMEL_BUFFER_VS_SEQ.!)
+"x sameType x.`zipAll`(y, a, b).map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!, CAMELMAP.!)
 
 "x.`zipWithIndex`.map(_._1) sameAs x".law
 
 "x.`zipWithIndex`.map(_._2) sameAs (0 until x.`size`)".law
 
-"x sameType x.`zipWithIndex`.map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!, CAMELMAP.!, CAMEL_BUFFER_VS_SEQ.!)
+"x sameType x.`zipWithIndex`.map(_._1)".law(SUPER_ON_ZIP.!, SUPER_MOPENHM.!, CAMELMAP.!)
 
 /* 
 // The :++ method does not actually exist
 "x.`:++`(y) sameAs x.`++`(y)".law
 */
 
-"x.`++:`(y) sameAs y.`++`(x)".law(CAMEL_SYM_PREPEND.!)
+"x.`++:`(y) sameAs y.`++`(x)".law
 
 "x.`::`(a).`size` == x.size+1".law
 
@@ -598,13 +598,13 @@ val (x1, x2) = x.`span`(p)
 
 "x.`+:`(a).`head` == a".law
 
-"x sameType x.`+:`(a)".law(CAMEL_BUFFER_VS_SEQ.!)
+"x sameType x.`+:`(a)".law
 
 "x.`:+`(a).`size` == x.size+1".law
 
 "x.`:+`(a).`last` == a".law
 
-"x sameType x.`:+`(a)".law(CAMEL_BUFFER_VS_SEQ.!)
+"x sameType x.`:+`(a)".law
 
 "val s = x.`+`(a).`size` - x.size; 0 <= s && s <= 1".law
 
@@ -658,7 +658,7 @@ x.`distinct`.`size` == s.size && x.forall(s)
 
 "x.`dropRight`(nn) sameAs x.`take`(x.`size` - math.max(0, nn))".law(SET.!)
 
-"x sameType x.`reverse`".law(CAMEL_BUFFER_VS_SEQ.!)
+"x sameType x.`reverse`".law
 
 "x.`endsWith`(y) == (x.`drop`(math.max(0, x.`size`-y.size)) sameAs y)".law
 
@@ -737,7 +737,7 @@ val xx = x.`inits`.toVector.map(_.toVector)
 
 "x.`intersect`(y).`toSet` == (x.toSet & y.toSet)".law
 
-"x sameType x.`intersect`(y)".law(CAMEL_BUFFER_VS_SEQ.!)
+"x sameType x.`intersect`(y)".law
 
 "x.`iterator` sameAs x".law
 
@@ -767,7 +767,7 @@ y.`size` > 0 implies {
   !x.`take`(r).`drop`(math.max(0,i+1)).`containsSlice`(y) && 
   ((i >= 0) implies (i <= r && (x.`drop`(i).`take`(y.size) sameAs y)))
 }
-""".law(CAMEL_LZY_X_DROP.!)
+""".law
 
 """
 x.`lastIndexWhere`(p,n) match { 
@@ -819,7 +819,7 @@ x.`reverse`.`forall`{ xi => ki += 1; xi == ix(k - ki) }
 
 "x.`reverseMap`(f) sameAs x.map(f).`reverse`".law(SEQ)
 
-"x sameType x.`reverseMap`(f)".law(CAMEL_BUFFER_VS_SEQ.!)
+"x sameType x.`reverseMap`(f)".law
 
 "x.`reverse_:::`(y) sameAs x.`:::`(y.`reverse`)".law(SEQ)
 
@@ -888,7 +888,7 @@ val (x1,x2) = x.`splitAt`(n)
 """
 val (x1,x2) = x.`splitAt`(n)
 (x1 sameType x2) && (x sameType x1)
-""".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+""".law(CAMEL_WEAKMAP_SUPER.!)
 
 "x.`startsWith`(y,n) implies (x.`drop`(n).`take`(y.`size`) sameAs y)".law(Filt.xsize(_ > 0))
 
@@ -927,7 +927,7 @@ val xtl = x.`tails`.toList
 
 "x.`takeRight`(n) sameAs { val m = x.`size` - math.max(0, n); x.`drop`(m) }".law
 
-"x sameType x.`takeRight`(n)".law(CAMEL_BUFFER_VS_SEQ.!, CAMEL_WEAKMAP_SUPER.!)
+"x sameType x.`takeRight`(n)".law(CAMEL_WEAKMAP_SUPER.!)
 
 """
 x.map(a => collectionFrom(Array.fill(n)(a))).`transpose`.`forall`(_ sameAs x)
@@ -1010,7 +1010,7 @@ z.forall{ case (xi, yi) => xSet(xi) && ySet(yi) }
 
 "val x0 = x; x0.`+=`(a); x0 sameAs (x.`+`(a))".law
 
-"val x0 = x; x0.`+=:`(a); x0 sameAs (x.`+:`(a))".law(CAMEL_SYM_PREMUT.!)
+"val x0 = x; x0.`+=:`(a); x0 sameAs (x.`+:`(a))".law
 
 "(x.`-`(a)).`count`(_ == a) == (0 max x.count(_ == a) - 1)".law(MAP.!)
 
@@ -1061,14 +1061,14 @@ tryE{ val x0 = x;  x0.`remove`(n, nn); x0 } match {
 val x0 = x
 val a0 = x0.`remove`(n)
 x0.`size` == x.`size`-1 && x.`apply`(n) == a0
-""".law(SET.!, MAP.!, CAMEL_LBUF_X_REMOVE.!, Filt.xsize(_ > 0))
+""".law(SET.!, MAP.!, Filt.xsize(_ > 0))
 
 """
 val x0, x1 = x
 x0.`remove`(n)
 x1.`remove`(n,1)
 x0 sameAs x1
-""".law(SET.!, MAP.!, CAMEL_LBUF_X_REMOVE.!, Filt.xsize(_ > 0))
+""".law(SET.!, MAP.!, Filt.xsize(_ > 0))
 
 "x.`result` sameAs x".law(ARRAYSTACK_ADDS_ON_FRONT.!)
 
@@ -1190,11 +1190,11 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 
 "val x0 = x; val x1 = x; x0.`subtractAll`(y); y.foreach(yi => x1.`subtractOne`(yi)); x0 sameAs x1".law(MAP.!)
 
-"val x0 = x; x0.`takeInPlace`(n max 0); x0 sameAs x.`take`(n)".law(CAMEL.!)
+"val x0 = x; x0.`takeInPlace`(n max 0); x0 sameAs x.`take`(n)".law
 
-"val x0 = x; x0.`takeRightInPlace`(n max 0); x0 sameAs x.`takeRight`(n)".law(CAMEL.!)
+"val x0 = x; x0.`takeRightInPlace`(n max 0); x0 sameAs x.`takeRight`(n)".law
 
-"val x0 = x; x0.`takeWhileInPlace`(p); x0 sameAs x.`takeWhile`(p)".law(CAMEL.!)
+"val x0 = x; x0.`takeWhileInPlace`(p); x0 sameAs x.`takeWhile`(p)".law
 
 "val x0 = x; val x1 = x; if (n >= 0) { x0.`trimStart`(n); x1.`dropInPlace`(n) }; x0 sameAs x1".law
 

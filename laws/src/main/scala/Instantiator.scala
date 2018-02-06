@@ -2,6 +2,7 @@ package laws
 
 import scala.language.higherKinds
 
+import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
 
@@ -31,6 +32,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
 
   protected implicit def orderingOfA: Ordering[A]   // Require some kind of ordering (even a dumb one) for all element types
   protected implicit def typeTagA: TypeTag[A]       // TypeTag that gives us information about the element
+  protected implicit def classTagA: ClassTag[A]     // ClassTag that allows us to do things with arrays
 
   protected def allFlags: Array[Flag]
   protected val inst = Instance.flagged[A](allFlags: _*)   // Add all the flags specified in `allFlags`
@@ -414,12 +416,21 @@ object TypeTagSource {
   val typeTagStringLong = implicitly[TypeTag[(String, Long)]]
 }
 
+/** Default explicit class tags for the element types we have */
+object ClassTagSource {
+  val classTagInt = implicitly[ClassTag[Int]]
+  val classTagString = implicitly[ClassTag[String]]
+  val classTagLongString = implicitly[ClassTag[(Long, String)]]
+  val classTagStringLong = implicitly[ClassTag[(String, Long)]]
+}
+
 /** Instantiates collections with an `Int` element type.*/
 object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   import Flag._
 
   protected implicit def orderingOfA = OrderingSource.orderingOfInt
   protected implicit def typeTagA = TypeTagSource.typeTagInt
+  protected implicit def classTagA = ClassTagSource.classTagInt
   protected def allFlags = Array(INT)
 
   protected implicit val sizeOfRange = new Sizable[collection.immutable.Range] { def sizeof(r: collection.immutable.Range) = r.size }
@@ -565,6 +576,7 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
 
   protected implicit def orderingOfA = OrderingSource.orderingOfString
   protected implicit def typeTagA = TypeTagSource.typeTagString
+  protected implicit def classTagA = ClassTagSource.classTagString
   protected def allFlags = Array(STR)
 
   /** Singleton `String` values to test */
@@ -601,6 +613,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
   protected implicit def typeTagA = TypeTagSource.typeTagLongString
   protected implicit def typeTagK = TypeTagSource.typeTagLong
   protected implicit def typeTagV = TypeTagSource.typeTagString
+  protected implicit def classTagA = ClassTagSource.classTagLongString
   protected def allFlags = Array[Flag]()
 
   protected implicit val sizeOfLongMap_Long_String = 
@@ -683,6 +696,7 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
   protected implicit def typeTagA = TypeTagSource.typeTagStringLong
   protected implicit def typeTagK = TypeTagSource.typeTagString
   protected implicit def typeTagV = TypeTagSource.typeTagLong
+  protected implicit def classTagA = ClassTagSource.classTagStringLong
   protected def allFlags = Array[Flag]()
 
   protected implicit val sizeOfAnyRefMap_String_Long = 
