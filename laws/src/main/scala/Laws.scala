@@ -261,24 +261,24 @@ x sameAs xx.result
 """
 val arr = new Array[A](nn)
 x.`copyToArray`(arr, n, nn)
-(arr.drop(n).take(m) zip x.toList).forall{ case (x,y) => x==y }
-""".law(SET.!, MAP.!, CAMEL.!, Filt.xsize(_ > 0))
+(x.toList zip arr.drop(n).take(m)).forall{ case (x,y) => x==y }
+""".law(SET.!, MAP.!, Filt.xsize(_ > 0))
 
 
 """
 val arr = new Array[A](nn)
 x.`copyToArray`(arr, n, nn)
 val c = arr.drop(n).take(m min x.`size`)
-val cs = c.toSet
+val cs = collectionFrom(c)
 c.size == cs.size && (cs subsetOf x.toSet)
-""".law(SET, CAMEL.!, Filt.xsize(_ > 0))
+""".law(SET, Filt.xsize(_ > 0))
 
 """
 val arr = new Array[A](nn)
 val x0 = x
 x0.`copyToArray`(arr, n, nn)
 (n until ((n+m) min x.`size`)).forall(i => x0.get(arr(i)._1).exists(_ == arr(i)._2))
-""".law(MAP, CAMEL.!, Filt.xsize(_ > 0))
+""".law(MAP, Filt.xsize(_ > 0))
 
 
 "x.`collectFirst`(pf).isDefined == x.`exists`(pf.isDefinedAt)".law
@@ -612,7 +612,7 @@ val (x1, x2) = x.`span`(p)
 
 "x.`+`(a).`contains`(a._1)".law(MAP)
 
-"x sameType x.`+`(a)".law(SUPER_MXMAP.!)
+"x sameType x.`+`(a)".law(SUPER_MXMAP.!, CAMEL_SETS_NONPLUSSED.!, CAMELMAP.!)
 
 "x.`:::`(y) sameAs y.`++`(x)".law
 
@@ -1074,13 +1074,13 @@ x0 sameAs x1
 
 "x.`result` sameAs x.`reverse`".law(ARRAYSTACK_ADDS_ON_FRONT)
 
-"val x0 = x; x0.`transform`(f); x0 sameAs x.map(f)".law(MAP.!)
+"val x0 = x; x0.`transform`(f); x0 sameAs x.map{ case (k,v) => k -> f((k,v)) }".law(OLDMAP.!, TRANSFORM_INCONSISTENT)
 
 """
 val x0 = x
-x0.`transform`((a,b) => f((a,b))._2)
-x0 sameAs x.map{ case (a,b) => a -> f((a,b))._2 }
-""".law(MAP)
+x0.`transform`((a, b) => f((a, b))._2)
+x0 sameAs x.map(f)
+""".law(OLDMAP, TRANSFORM_INCONSISTENT)
 
 "{ val x0 = x; x0.`trimEnd`(n); x0 sameAs x.`dropRight`(n) }".law(Filt.n(_ >= 0))
 
@@ -1151,7 +1151,7 @@ direct samePieces built.result
 
 "val x0 = x; x0.`dropWhileInPlace`(p); x0 sameAs x.`dropWhile`(p)".law
 
-"val x0 = x; x0.`filterInPlace`(p); x0 sameAs x.`filter`(p)".law
+"val x0 = x; x0.`filterInPlace`(p); x0 sameAs x.`filter`(p)".law(CAMEL.!)
 
 "val x0 = x; x0.`flatMapInPlace`(xi => y.toList.take(intFrom(xi))); x0 sameAs x.`flatMap`(xi => y.toList.take(intFrom(xi)))".law(CAMEL.!)
 
@@ -1176,7 +1176,7 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 
 "val x0 = x; x0.`padToInPlace`(n, a); x0 sameAs x.`padTo`(n, a)".law
 
-"val x0 = x; x0.`patchInPlace`(n max 0, y, m); x0 sameAs x.`patch`(n max 0, y, m)".law(CAMEL.!)
+"val x0 = x; x0.`patchInPlace`(n max 0, y, m); x0 sameAs x.`patch`(n max 0, y, m)".law
 
 "x.`prepended`(a) sameAs x.`+:`(a)".law
 

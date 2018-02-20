@@ -124,7 +124,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val lazyList      = C((a: Array[A]) => strawman.collection.immutable.LazyList.from(a), SEQ, CAMEL_LZY_X_DROP)
     val linearSeq     = C((a: Array[A]) => strawman.collection.immutable.List.from(a): strawman.collection.immutable.LinearSeq[A], SEQ)  // No companion for `LinearSeq`
     val list          = C((a: Array[A]) => strawman.collection.immutable.List.from(a), SEQ)
-    //val queue         = C((a: Array[A]) => strawman.collection.immutable.Queue.from(a), SEQ) // Doesn't exist!
+    val queue         = C((a: Array[A]) => strawman.collection.immutable.Queue.from(a), SEQ, CAMEL_MQUEUE_HANG)
     val seq           = C((a: Array[A]) => strawman.collection.immutable.Seq.from(a), SEQ)
     val set           = C((a: Array[A]) => strawman.collection.immutable.Set.from(a), SET)
     val sortedSet     = C((a: Array[A]) => strawman.collection.immutable.SortedSet.from(a), SET, SUPER_ON_ZIP, CAMEL_MAP_NEEDS_ORDER)
@@ -196,9 +196,9 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val linkedHashSet= C((a: Array[A]) => strawman.collection.mutable.LinkedHashSet.from(a), SET)
     val listBuffer   = C((a: Array[A]) => strawman.collection.mutable.ListBuffer.from(a), SEQ, CAMEL_LBUF_X_REMOVE)
     // val priorityQueue= C((a: Array[A]) => strawman.collection.mutable.PriorityQueue.from(a), SUPER_ON_ZIP, PRIORITYQUEUE_IS_SPECIAL)
-    // val queue        = C((a: Array[A]) => strawman.collection.mutable.Queue.from(a), SEQ)
+    val queue        = C((a: Array[A]) => strawman.collection.mutable.Queue.from(a), SEQ)
     val seq          = C((a: Array[A]) => strawman.collection.mutable.Seq.from(a), SEQ)
-    val treeSet      = C((a: Array[A]) => strawman.collection.mutable.TreeSet.from(a), SET, SUPER_ON_ZIP, CAMEL_MAP_NEEDS_ORDER)
+    val treeSet      = C((a: Array[A]) => strawman.collection.mutable.TreeSet.from(a), SET, SUPER_ON_ZIP, CAMEL_MAP_NEEDS_ORDER, CAMEL_SETS_NONPLUSSED)
     // val unrolledBuffer = C(_.to[collection.mutable.UnrolledBuffer], SEQ)  // Unrolled buffer is weird!
     val wrappedArray = C((a: Array[A]) => strawman.collection.mutable.WrappedArray.from(a.clone), SEQ)
   }
@@ -256,7 +256,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
       private[this] var i = 0
       def hasNext = i < a.length
       def next =
-        if (!hasNext) strawman.collection.Iterator.empty.next
+        if (!hasNext) strawman.collection.Iterator.empty[A].next
         else {
           val ans = a(i);
           i += 1
@@ -265,7 +265,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val iterator = C(a => (new StrawIteratorKnowsSize[A](a)): strawman.collection.Iterator[A], CAMEL_ITER_STRING)
+    val iterator = C(a => (new StrawIteratorKnowsSize[A](a)): strawman.collection.Iterator[A], CAMEL, CAMEL_ITER_STRING)
   }
 
   def possible_a: Array[A]
@@ -533,7 +533,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // MUST use lower-camel-cased collection class name for code generator to work properly!
     val bitSet = C(
       { a => val b = new strawman.collection.mutable.BitSet; a.foreach{ x => if (x >= 0) b += x }; b },
-      SET, SUPER_ON_ZIP, BITSET_MAP_BREAKS_BOUNDS, CAMEL_BITSET_AMBIG
+      SET, SUPER_ON_ZIP, BITSET_MAP_BREAKS_BOUNDS, CAMEL_BITSET_AMBIG, CAMEL_SETS_NONPLUSSED
     )
   }
 
@@ -631,7 +631,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
     def nickname = "MutLongV"
     def fullyQualified = "scala.collection.mutable"
     def C[CC: TypeTag: Sizable](ccf: Array[(Long, String)] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Deployed[(Long, String), CC] = {
-      val gen = kvInst.makeWith(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val gen = kvInst.makeWith(ccf, (MAP +: OLDMAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Deployed[(Long, String), CC]{
         val secretly = gen
         var accesses: Int = 0
@@ -713,7 +713,7 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
     def nickname = "MutKrefV"
     def fullyQualified = "scala.collection.mutable"
     def C[CC: TypeTag: Sizable](ccf: Array[(String, Long)] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Deployed[(String, Long), CC] = {
-      val gen = kvInst.makeWith(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
+      val gen = kvInst.makeWith(ccf, (MAP +: OLDMAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
       val ans = new Deployed[(String, Long), CC]{
         val secretly = gen
         var accesses: Int = 0

@@ -32,6 +32,7 @@ object Flag {
   val ARRAY  = F   // Is an Array
   val STRING = F   // Is a String
   val STRAW  = F   // strawman collections (when used together with regular collections)
+  val OLDMAP = F   // Old maps can behave somewhat differently than new maps
 
   // Test failures for strawman (straw will break the camel's back...)
   val CAMEL    = F   // Generic problem (not described)
@@ -46,6 +47,8 @@ object Flag {
   val CAMEL_WEAKMAP_SUPER   = F  // WeakHashMap never seems to return a WeakHashMap
   val CAMEL_BITSET_AMBIG    = F  // Bitsets have an ambiguous zip and map-to-non-int
   val CAMEL_LZY_X_DROP      = F  // LazyList can throw an exception on `drop` by trying to take `tail`
+  val CAMEL_SETS_NONPLUSSED = F  // Some sets can't be added to without losing their type
+  val CAMEL_MQUEUE_HANG     = F  // Mutable queues hang on filterInPlace
 
   // Everything below here is non-ideal but may reflect the best behavior we can get.
   val SUPER_IHASHM  = F  // Some immutable.HashMap operations revert to the supertype
@@ -58,6 +61,7 @@ object Flag {
   val ARRAYSTACK_ADDS_ON_FRONT = F  // Bizarre behavior of ArrayStack--it reverses _itself_ when calling result??!
   val PRIORITYQUEUE_IS_SPECIAL = F  // Inconsistent behavior regarding what is dequeued (ordered) vs. not
   val BITSET_MAP_BREAKS_BOUNDS = F  // Because BitSet doesn't allow negative numbers, maps are problematic
+  val TRANSFORM_INCONSISTENT   = F  // API for method `transform` is inconsistent.  Just ignore it for now.
 
   // Workarounds for identified bugs go here.
 }
