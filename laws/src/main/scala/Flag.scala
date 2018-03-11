@@ -29,26 +29,29 @@ object Flag {
   val STR = F     // Uses strings as the element type
 
   // Unusual "collections" that are not expected to behave exactly like others
-  val ARRAY  = F   // Is an Array
-  val STRING = F   // Is a String
-  val STRAW  = F   // strawman collections (when used together with regular collections)
-  val OLDMAP = F   // Old maps can behave somewhat differently than new maps
+  val ARRAY   = F   // Is an Array
+  val STRING  = F   // Is a String
+  val STRAW   = F   // strawman collections (when used together with regular collections)
+  val OLDMAP  = F   // Old maps can behave somewhat differently than new maps
+  val ORDERLY = F   // Ordered strawman collections can't map to unordered without .unordered
 
   // Test failures for strawman (straw will break the camel's back...)
   val CAMEL    = F   // Generic problem (not described)
   val CAMELMAP = F   // Generic problem with maps (not described)
-  val CAMEL_MAP_NEEDS_ORDER = F  // Ordered collections can't map something unordered
-  val CAMEL_SYM_PREPEND     = F  // Prepending with ++: doesn't work
-  val CAMEL_BUFFER_VS_SEQ   = F  // Buffer gives a Seq in a lot of operations
-  val CAMEL_LBUF_X_REMOVE   = F  // ListBuffer will throw exceptions on `remove`
-  val CAMEL_SYM_PREMUT      = F  // Prepending in place with +=: doesn't work on ArrayBuffer and Buffer
-  val CAMEL_ITER_STRING     = F  // Strawman Iterator doesn't have addString without extra args.
-  val CAMEL_SPECMAP_SUPER   = F  // AnyRefMap and LongMap give superclass on map, flatMap, ++, collect
-  val CAMEL_WEAKMAP_SUPER   = F  // WeakHashMap never seems to return a WeakHashMap
+  val CAMELSET = F   // Generic problem with sets (not described)
+  //val CAMEL_MAP_NEEDS_ORDER = F  // Ordered collections can't map something unordered
+  //val CAMEL_SYM_PREPEND     = F  // Prepending with ++: doesn't work
+  //val CAMEL_BUFFER_VS_SEQ   = F  // Buffer gives a Seq in a lot of operations
+  //val CAMEL_LBUF_X_REMOVE   = F  // ListBuffer will throw exceptions on `remove`
+  //val CAMEL_SYM_PREMUT      = F  // Prepending in place with +=: doesn't work on ArrayBuffer and Buffer
+  //val CAMEL_ITER_STRING     = F  // Strawman Iterator doesn't have addString without extra args.
+  //val CAMEL_SPECMAP_SUPER   = F  // AnyRefMap and LongMap give superclass on map, flatMap, ++, collect
+  //val CAMEL_WEAKMAP_SUPER   = F  // WeakHashMap never seems to return a WeakHashMap
   val CAMEL_BITSET_AMBIG    = F  // Bitsets have an ambiguous zip and map-to-non-int
-  val CAMEL_LZY_X_DROP      = F  // LazyList can throw an exception on `drop` by trying to take `tail`
-  val CAMEL_SETS_NONPLUSSED = F  // Some sets can't be added to without losing their type
-  val CAMEL_MQUEUE_HANG     = F  // Mutable queues hang on filterInPlace
+  //val CAMEL_LZY_X_DROP      = F  // LazyList can throw an exception on `drop` by trying to take `tail`
+  //val CAMEL_SETS_NONPLUSSED = F  // Some sets can't be added to without losing their type
+  //val CAMEL_MQUEUE_HANG     = F  // Mutable queues hang on filterInPlace
+  val CAMEL_QUEUE_REVERSE   = F  // Queue reverses into an ArrayDeque
 
   // Everything below here is non-ideal but may reflect the best behavior we can get.
   val SUPER_IHASHM  = F  // Some immutable.HashMap operations revert to the supertype

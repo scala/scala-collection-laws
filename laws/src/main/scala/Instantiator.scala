@@ -118,18 +118,18 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val hashSet       = C((a: Array[A]) => strawman.collection.immutable.HashSet.from(a), SET)
-    val indexedSeq    = C((a: Array[A]) => strawman.collection.immutable.IndexedSeq.from(a), SEQ, CAMEL_SYM_PREPEND)
+    val hashSet       = C((a: Array[A]) => strawman.collection.immutable.HashSet.from(a), SET, CAMELSET)
+    val indexedSeq    = C((a: Array[A]) => strawman.collection.immutable.IndexedSeq.from(a), SEQ/*, CAMEL_SYM_PREPEND*/)
     val iterable      = C((a: Array[A]) => strawman.collection.immutable.Iterable.from(a))
-    val lazyList      = C((a: Array[A]) => strawman.collection.immutable.LazyList.from(a), SEQ, CAMEL_LZY_X_DROP)
+    val lazyList      = C((a: Array[A]) => strawman.collection.immutable.LazyList.from(a), SEQ/*, CAMEL_LZY_X_DROP*/)
     val linearSeq     = C((a: Array[A]) => strawman.collection.immutable.List.from(a): strawman.collection.immutable.LinearSeq[A], SEQ)  // No companion for `LinearSeq`
     val list          = C((a: Array[A]) => strawman.collection.immutable.List.from(a), SEQ)
-    val queue         = C((a: Array[A]) => strawman.collection.immutable.Queue.from(a), SEQ, CAMEL_MQUEUE_HANG)
+    val queue         = C((a: Array[A]) => strawman.collection.immutable.Queue.from(a), SEQ/*, CAMEL_MQUEUE_HANG*/)
     val seq           = C((a: Array[A]) => strawman.collection.immutable.Seq.from(a), SEQ)
-    val set           = C((a: Array[A]) => strawman.collection.immutable.Set.from(a), SET)
-    val sortedSet     = C((a: Array[A]) => strawman.collection.immutable.SortedSet.from(a), SET, SUPER_ON_ZIP, CAMEL_MAP_NEEDS_ORDER)
-    val treeSet       = C((a: Array[A]) => strawman.collection.immutable.TreeSet.from(a), SET, SUPER_ITREES, SUPER_ON_ZIP, CAMEL_MAP_NEEDS_ORDER)
-    val vector        = C((a: Array[A]) => strawman.collection.immutable.Vector.from(a), SEQ, CAMEL_SYM_PREPEND)
+    val set           = C((a: Array[A]) => strawman.collection.immutable.Set.from(a), SET, CAMELSET)
+    val sortedSet     = C((a: Array[A]) => strawman.collection.immutable.SortedSet.from(a), SET, SUPER_ON_ZIP, CAMELSET, ORDERLY)
+    val treeSet       = C((a: Array[A]) => strawman.collection.immutable.TreeSet.from(a), SET, SUPER_ITREES, SUPER_ON_ZIP, CAMELSET, ORDERLY)
+    val vector        = C((a: Array[A]) => strawman.collection.immutable.Vector.from(a), SEQ/*, CAMEL_SYM_PREPEND*/)
   }
 
   object Mut extends Instance.PackagePath {
@@ -185,20 +185,20 @@ extends Exploratory[(A, Array[A], Array[A])] {
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
     // val array        = C(_.clone, SEQ, ARRAY).moreMethods(MethodChecker.from[collection.mutable.ArrayOps[A]])
-    val arrayBuffer  = C((a: Array[A]) => strawman.collection.mutable.ArrayBuffer.from(a), SEQ, CAMEL_SYM_PREMUT)
+    val arrayBuffer  = C((a: Array[A]) => strawman.collection.mutable.ArrayBuffer.from(a), SEQ/*, CAMEL_SYM_PREMUT*/)
     val arraySeq     = C((a: Array[A]) => strawman.collection.mutable.ArraySeq.from(a), SEQ)
     //val arrayStack   = C((a: Array[A]) => strawman.collection.mutable.ArrayStack.from(a), SEQ, ARRAYSTACK_ADDS_ON_FRONT)
-    val buffer       = C((a: Array[A]) => strawman.collection.mutable.Buffer.from(a), SEQ, CAMEL_BUFFER_VS_SEQ, CAMEL_SYM_PREMUT)
-    val hashSet      = C((a: Array[A]) => strawman.collection.mutable.HashSet.from(a), SET)
+    val buffer       = C((a: Array[A]) => strawman.collection.mutable.Buffer.from(a), SEQ/*, CAMEL_BUFFER_VS_SEQ, CAMEL_SYM_PREMUT*/)
+    val hashSet      = C((a: Array[A]) => strawman.collection.mutable.HashSet.from(a), SET, CAMELSET)
     val indexedSeq   = C((a: Array[A]) => strawman.collection.mutable.IndexedSeq.from(a), SEQ)
     val iterable     = C((a: Array[A]) => strawman.collection.mutable.Iterable.from(a))
     //val linearSeq    = C((a: Array[A]) => strawman.collection.mutable.LinearSeq.from(a), SEQ)
-    val linkedHashSet= C((a: Array[A]) => strawman.collection.mutable.LinkedHashSet.from(a), SET)
-    val listBuffer   = C((a: Array[A]) => strawman.collection.mutable.ListBuffer.from(a), SEQ, CAMEL_LBUF_X_REMOVE)
+    val linkedHashSet= C((a: Array[A]) => strawman.collection.mutable.LinkedHashSet.from(a), SET, CAMELSET)
+    val listBuffer   = C((a: Array[A]) => strawman.collection.mutable.ListBuffer.from(a), SEQ/*, CAMEL_LBUF_X_REMOVE*/)
     // val priorityQueue= C((a: Array[A]) => strawman.collection.mutable.PriorityQueue.from(a), SUPER_ON_ZIP, PRIORITYQUEUE_IS_SPECIAL)
-    val queue        = C((a: Array[A]) => strawman.collection.mutable.Queue.from(a), SEQ)
+    // val queue        = C((a: Array[A]) => strawman.collection.mutable.Queue.from(a), SEQ, CAMEL_QUEUE_REVERSE)
     val seq          = C((a: Array[A]) => strawman.collection.mutable.Seq.from(a), SEQ)
-    val treeSet      = C((a: Array[A]) => strawman.collection.mutable.TreeSet.from(a), SET, SUPER_ON_ZIP, CAMEL_MAP_NEEDS_ORDER, CAMEL_SETS_NONPLUSSED)
+    val treeSet      = C((a: Array[A]) => strawman.collection.mutable.TreeSet.from(a), SET, SUPER_ON_ZIP, ORDERLY, CAMELSET/*, CAMEL_SETS_NONPLUSSED*/)
     // val unrolledBuffer = C(_.to[collection.mutable.UnrolledBuffer], SEQ)  // Unrolled buffer is weird!
     val wrappedArray = C((a: Array[A]) => strawman.collection.mutable.WrappedArray.from(a.clone), SEQ)
   }
@@ -220,8 +220,8 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     class IteratorKnowsSize[A](a: Array[A]) extends scala.collection.AbstractIterator[A] {
-      val knownSize = a.length
       private[this] var i = 0
+      def knownSize = a.length - i
       def hasNext = i < a.length
       def next =
         if (!hasNext) Iterator.empty.next
@@ -252,8 +252,8 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     class StrawIteratorKnowsSize[A](a: Array[A]) extends strawman.collection.Iterator[A] {
-      override val knownSize = a.length
       private[this] var i = 0
+      override def knownSize = a.length - i
       def hasNext = i < a.length
       def next =
         if (!hasNext) strawman.collection.Iterator.empty[A].next
@@ -265,7 +265,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val iterator = C(a => (new StrawIteratorKnowsSize[A](a)): strawman.collection.Iterator[A], CAMEL, CAMEL_ITER_STRING)
+    val iterator = C(a => (new StrawIteratorKnowsSize[A](a)): strawman.collection.Iterator[A], CAMEL/*, CAMEL_ITER_STRING*/)
   }
 
   def possible_a: Array[A]
@@ -394,7 +394,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
     //val openHashMap =   C((a: Array[(K, V)]) => strawman.collection.mutable.OpenHashMap.from(a), SUPER_MXMAP, SUPER_MOPENHM)
     val sortedMap =     C((a: Array[(K, V)]) => strawman.collection.mutable.SortedMap.from(a))
     val treeMap =       C((a: Array[(K, V)]) => strawman.collection.mutable.TreeMap.from(a), SUPER_MXMAP)
-    val weakHashMap =   C((a: Array[(K, V)]) => strawman.collection.mutable.WeakHashMap.from(a), SUPER_MXMAP, CAMEL_WEAKMAP_SUPER)
+    val weakHashMap =   C((a: Array[(K, V)]) => strawman.collection.mutable.WeakHashMap.from(a), SUPER_MXMAP/*, CAMEL_WEAKMAP_SUPER*/)
   }
 }
 
@@ -484,7 +484,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // MUST use lower-camel-cased collection class name for code generator to work properly!
     val bitSet = C(
       { a => val b = strawman.collection.immutable.BitSet.newBuilder; a.foreach{ x => if (x >= 0) b += x }; b.result },
-      SET, SUPER_ON_ZIP, BITSET_MAP_BREAKS_BOUNDS, CAMEL_BITSET_AMBIG
+      SET, SUPER_ON_ZIP, BITSET_MAP_BREAKS_BOUNDS, CAMEL_BITSET_AMBIG, CAMELSET
     )
     //val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
   }
@@ -533,7 +533,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // MUST use lower-camel-cased collection class name for code generator to work properly!
     val bitSet = C(
       { a => val b = new strawman.collection.mutable.BitSet; a.foreach{ x => if (x >= 0) b += x }; b },
-      SET, SUPER_ON_ZIP, BITSET_MAP_BREAKS_BOUNDS, CAMEL_BITSET_AMBIG, CAMEL_SETS_NONPLUSSED
+      SET, SUPER_ON_ZIP, BITSET_MAP_BREAKS_BOUNDS, CAMEL_BITSET_AMBIG, CAMELSET/*, CAMEL_SETS_NONPLUSSED*/
     )
   }
 
@@ -660,7 +660,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
       registry += ans
       ans
     }
-    val longMap = C({ a => val m = new strawman.collection.mutable.LongMap[String];     for (kv <- a) m += kv; m }, SUPER_ON_ZIP, CAMEL_SPECMAP_SUPER)
+    val longMap = C({ a => val m = new strawman.collection.mutable.LongMap[String];     for (kv <- a) m += kv; m }, SUPER_ON_ZIP/*, CAMEL_SPECMAP_SUPER*/)
   }
 
   /** Very limited set of possible singletons */
@@ -742,7 +742,7 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
       registry += ans
       ans
     }
-    val anyRefMap = C({ a => val m = new strawman.collection.mutable.AnyRefMap[String, Long]; for (kv <- a) m += kv; m }, CAMEL_SPECMAP_SUPER)
+    val anyRefMap = C({ a => val m = new strawman.collection.mutable.AnyRefMap[String, Long]; for (kv <- a) m += kv; m }/*, CAMEL_SPECMAP_SUPER*/)
   }
 
   lazy val possible_a = Array("wish" -> 3L)
