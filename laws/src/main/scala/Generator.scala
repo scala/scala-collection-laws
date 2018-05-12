@@ -14,7 +14,7 @@ trait Generator[A, B, CC] {
   def safeElt: String = eltType.collect{
     case ',' => '_'
     case c if c.isLetterOrDigit => c
-  }
+  }.mkString // TODO--remove `mkString` when String has `collect` again!
   def altType: String
   def heritage: String
   def generatorName: String
@@ -204,21 +204,6 @@ object AllIntGenerators {
     val treeSet = register(io.Imm)(_.treeSet())
     val vector = register(io.Imm)(_.vector())
   }
-  object StrawImm {
-    val hashSet = register(io.StrawImm)(_.hashSet())
-    val indexedSeq = register(io.StrawImm)(_.indexedSeq())
-    val iterable = register(io.StrawImm)(_.iterable())
-    val lazyList = register(io.StrawImm)(_.lazyList())
-    val linearSeq = register(io.StrawImm)(_.linearSeq())
-    val list = register(io.StrawImm)(_.list())
-    val queue = register(io.StrawImm)(_.queue())
-    val seq = register(io.StrawImm)(_.seq())
-    val set = register(io.StrawImm)(_.set())
-    val sortedSet = register(io.StrawImm)(_.sortedSet())
-    // val traversable = register(io.StrawImm)(_.traversable())
-    val treeSet = register(io.StrawImm)(_.treeSet())
-    val vector = register(io.StrawImm)(_.vector())
-  }
 
   /** Generators for all mutable collections.
     *
@@ -236,7 +221,6 @@ object AllIntGenerators {
     val hashSet = register(io.Mut)(_.hashSet())
     val indexedSeq = register(io.Mut)(_.indexedSeq())
     val iterable = register(io.Mut)(_.iterable())
-    val linearSeq = register(io.Mut)(_.linearSeq())
     val linkedHashSet = register(io.Mut)(_.linkedHashSet())
     val listBuffer = register(io.Mut)(_.listBuffer())
     val priorityQueue = register(io.Mut)(_.priorityQueue())
@@ -245,31 +229,10 @@ object AllIntGenerators {
     val treeSet = register(io.Mut)(_.treeSet())
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
-  object StrawMut {
-    // val array = register(io.Mut)(_.array(), "Array[Int]")
-    val arrayBuffer = register(io.StrawMut)(_.arrayBuffer())
-    val arraySeq = register(io.StrawMut)(_.arraySeq())
-    //val arrayStack = register(io.StrawMut)(_.arrayStack())
-    val buffer = register(io.StrawMut)(_.buffer())
-    val hashSet = register(io.StrawMut)(_.hashSet())
-    val indexedSeq = register(io.StrawMut)(_.indexedSeq())
-    val iterable = register(io.StrawMut)(_.iterable())
-    //val linearSeq = register(io.StrawMut)(_.linearSeq())
-    val linkedHashSet = register(io.StrawMut)(_.linkedHashSet())
-    val listBuffer = register(io.StrawMut)(_.listBuffer())
-    //val priorityQueue = register(io.StrawMut)(_.priorityQueue())
-    //val queue = register(io.StrawMut)(_.queue())
-    val seq = register(io.StrawMut)(_.seq())
-    val treeSet = register(io.StrawMut)(_.treeSet())
-    val wrappedArray = register(io.StrawMut)(_.wrappedArray())
-  }
 
   /** Generator for iterators. */
   object Root {
     val iterator = register(io.Root)(_.iterator())
-  }
-  object StrawRoot {
-    val iterator = register(io.StrawRoot)(_.iterator())
   }
 
   /** Generator for immutable collections that take only ints (which belong here, since we're dealing with ints). */
@@ -277,21 +240,14 @@ object AllIntGenerators {
     val bitSet = register(io.ImmInt)(_.bitSet(), "collection.immutable.BitSet")
     //val range = register(io.ImmInt)(_.range(), "collection.immutable.Range")
   }
-  object StrawImmInt {
-    val bitSet = register(io.StrawImmInt)(_.bitSet(), "strawman.collection.immutable.BitSet")
-    //val range = register(io.ImmInt)(_.range(), "collection.immutable.Range")
-  }
 
   /** Generator for mutable collections that take only ints (which belong here, since we're dealing with ints). */
   object MutInt {
     val bitSet = register(io.MutInt)(_.bitSet(), "collection.mutable.BitSet")
   }
-  object StrawMutInt {
-    val bitSet = register(io.StrawMutInt)(_.bitSet(), "strawman.collection.mutable.BitSet")
-  }
 
   /** This line is needed to actually perform the registration of all generators! */
-  val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: StrawImm :: StrawMut :: StrawRoot :: StrawImmInt :: StrawMutInt :: Nil
+  val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: Nil
 
   /** All registered generators */
   lazy val all = everyoneBuffer.result
@@ -352,21 +308,6 @@ object AllStrGenerators {
     val treeSet = register(io.Imm)(_.treeSet())
     val vector = register(io.Imm)(_.vector())
   }
-  object StrawImm {
-    val hashSet = register(io.StrawImm)(_.hashSet())
-    val indexedSeq = register(io.StrawImm)(_.indexedSeq())
-    val iterable = register(io.StrawImm)(_.iterable())
-    val lazyList = register(io.StrawImm)(_.lazyList())
-    val linearSeq = register(io.StrawImm)(_.linearSeq())
-    val list = register(io.StrawImm)(_.list())
-    val queue = register(io.StrawImm)(_.queue())
-    val seq = register(io.StrawImm)(_.seq())
-    val set = register(io.StrawImm)(_.set())
-    val sortedSet = register(io.StrawImm)(_.sortedSet())
-    // val traversable = register(io.StrawImm)(_.traversable())
-    val treeSet = register(io.StrawImm)(_.treeSet())
-    val vector = register(io.StrawImm)(_.vector())
-  }
 
   /** Generators for all mutable collections.
     *
@@ -384,7 +325,6 @@ object AllStrGenerators {
     val hashSet = register(io.Mut)(_.hashSet())
     val indexedSeq = register(io.Mut)(_.indexedSeq())
     val iterable = register(io.Mut)(_.iterable())
-    val linearSeq = register(io.Mut)(_.linearSeq())
     val linkedHashSet = register(io.Mut)(_.linkedHashSet())
     val listBuffer = register(io.Mut)(_.listBuffer())
     val priorityQueue = register(io.Mut)(_.priorityQueue())
@@ -393,35 +333,14 @@ object AllStrGenerators {
     val treeSet = register(io.Mut)(_.treeSet())
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
-  object StrawMut {
-    // val array = register(io.Mut)(_.array(), "Array[String]")
-    val arrayBuffer = register(io.StrawMut)(_.arrayBuffer())
-    val arraySeq = register(io.StrawMut)(_.arraySeq())
-    //val arrayStack = register(io.StrawMut)(_.arrayStack())
-    val buffer = register(io.StrawMut)(_.buffer())
-    val hashSet = register(io.StrawMut)(_.hashSet())
-    val indexedSeq = register(io.StrawMut)(_.indexedSeq())
-    val iterable = register(io.StrawMut)(_.iterable())
-    //val linearSeq = register(io.StrawMut)(_.linearSeq())
-    val linkedHashSet = register(io.StrawMut)(_.linkedHashSet())
-    val listBuffer = register(io.StrawMut)(_.listBuffer())
-    //val priorityQueue = register(io.StrawMut)(_.priorityQueue())
-    //val queue = register(io.StrawMut)(_.queue())
-    val seq = register(io.StrawMut)(_.seq())
-    val treeSet = register(io.StrawMut)(_.treeSet())
-    val wrappedArray = register(io.StrawMut)(_.wrappedArray())
-  }
 
   /** Generator for iterators. */
   object Root {
     val iterator = register(io.Root)(_.iterator())
   }
-  object StrawRoot {
-    val iterator = register(io.StrawRoot)(_.iterator())
-  }
 
   /** This line is needed to actually perform the registration of all generators! */
-  val force = Imm :: Mut :: Root :: StrawImm :: StrawMut :: StrawRoot :: Nil
+  val force = Imm :: Mut :: Root :: Nil
 
   /** All registered generators */
   lazy val all = everyoneBuffer.result
@@ -465,12 +384,6 @@ object AllLongStrGenerators {
     val sortedMap = register(io.ImmKV)(_.sortedMap())
     val treeMap =   register(io.ImmKV)(_.treeMap())
   }
-  object StrawImmKV {
-    val hashMap =   register(io.StrawImmKV)(_.hashMap())
-    val listMap =   register(io.StrawImmKV)(_.listMap())
-    val sortedMap = register(io.StrawImmKV)(_.sortedMap())
-    val treeMap =   register(io.StrawImmKV)(_.treeMap())
-  }
 
   object MutKV {
     val hashMap       = register(io.MutKV)(_.hashMap())
@@ -481,25 +394,13 @@ object AllLongStrGenerators {
     val treeMap       = register(io.MutKV)(_.treeMap())
     val weakHashMap   = register(io.MutKV)(_.weakHashMap())
   }
-  object StrawMutKV {
-    val hashMap       = register(io.StrawMutKV)(_.hashMap())
-    //val listMap       = register(io.StrawMutKV)(_.listMap())
-    val linkedHashMap = register(io.StrawMutKV)(_.linkedHashMap())
-    //val openHashMap   = register(io.StrawMutKV)(_.openHashMap())
-    val sortedMap     = register(io.StrawMutKV)(_.sortedMap())
-    val treeMap       = register(io.StrawMutKV)(_.treeMap())
-    val weakHashMap   = register(io.StrawMutKV)(_.weakHashMap())
-  }
 
   object MutLongV {
     val longMap       = register(io.MutLongV)(_.longMap(), "collection.mutable.LongMap[String]")
   }
-  object StrawMutLongV {
-    val longMap       = register(io.StrawMutLongV)(_.longMap(), "strawman.collection.mutable.LongMap[String]")
-  }
 
   /** This line is needed to actually perform the registration of all generators! */
-  val force = ImmKV :: MutKV :: MutLongV :: StrawImmKV :: StrawMutKV :: StrawMutLongV :: Nil
+  val force = ImmKV :: MutKV :: MutLongV :: Nil
 
   lazy val all = everyoneBuffer.result
 
@@ -538,12 +439,6 @@ object AllStrLongGenerators {
     val sortedMap = register(io.ImmKV)(_.sortedMap())
     val treeMap =   register(io.ImmKV)(_.treeMap())
   }
-  object StrawImmKV {
-    val hashMap =   register(io.StrawImmKV)(_.hashMap())
-    val listMap =   register(io.StrawImmKV)(_.listMap())
-    val sortedMap = register(io.StrawImmKV)(_.sortedMap())
-    val treeMap =   register(io.StrawImmKV)(_.treeMap())
-  }
 
   object MutKV {
     val hashMap       = register(io.MutKV)(_.hashMap())
@@ -554,25 +449,13 @@ object AllStrLongGenerators {
     val treeMap       = register(io.MutKV)(_.treeMap())
     val weakHashMap   = register(io.MutKV)(_.weakHashMap())
   }
-  object StrawMutKV {
-    val hashMap       = register(io.StrawMutKV)(_.hashMap())
-    //val listMap       = register(io.StrawMutKV)(_.listMap())
-    val linkedHashMap = register(io.StrawMutKV)(_.linkedHashMap())
-    //val openHashMap   = register(io.StrawMutKV)(_.openHashMap())
-    val sortedMap     = register(io.StrawMutKV)(_.sortedMap())
-    val treeMap       = register(io.StrawMutKV)(_.treeMap())
-    val weakHashMap   = register(io.StrawMutKV)(_.weakHashMap())
-  }
 
   object MutKrefV {
     val anyRefMap     = register(io.MutKrefV)(_.anyRefMap())
   }
-  object StrawMutKrefV {
-    val anyRefMap     = register(io.StrawMutKrefV)(_.anyRefMap())
-  }
 
   /** This line is needed to actually perform the registration of all generators! */
-  val force = ImmKV :: MutKV :: MutKrefV :: StrawImmKV :: StrawMutKV :: StrawMutKrefV :: Nil
+  val force = ImmKV :: MutKV :: MutKrefV :: Nil
 
   lazy val all = everyoneBuffer.result
 
@@ -697,7 +580,7 @@ object GenerateAll {
   }
 
   /** Writes all the tests into the default directory (which is `../tests`). */
-  def default() { 
+  def default(): Unit = { 
     run(Array.empty)
   }
 
@@ -706,7 +589,7 @@ object GenerateAll {
     *
     * Exits with an error code if any collections are completely untested.
     */
-  def main(args: Array[String]) {
+  def main(args: Array[String]): Unit = {
     if (!run(args)) sys.exit(1)
   }
 }

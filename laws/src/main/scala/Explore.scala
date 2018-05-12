@@ -65,8 +65,8 @@ class Explore(possibilities: Array[Int]) {
           i += 1
         }
         if (j > 0) {
-          if (j == explore.length) itinerary.enqueue(explore: _*)
-          else itinerary.enqueue(java.util.Arrays.copyOf(explore, j): _*)
+          if (j == explore.length) itinerary.enqueueAll(explore)
+          else itinerary.enqueueAll(java.util.Arrays.copyOf(explore, j))
         }
       }
       itinerary.nonEmpty

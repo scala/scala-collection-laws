@@ -1,14 +1,13 @@
 name := "collections-laws-tests"
 
-version := "0.5.0"
+version := "0.6.0"
 
-scalaVersion := "2.13.0-M2"
+scalaVersion := "2.13.0-pre-SNAPSHOT"
 libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
-// libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.1.3"
+libraryDependencies += "com.lihaoyi" %% "sourcecode" % "0.1.5-local-SNAPSHOT"
 libraryDependencies += "com.novocode" % "junit-interface" % "0.9"
 
-unmanagedJars in Compile += file("../laws/target/scala-2.13.0-M2/collections-laws_2.13.0-M2-0.5.0.jar")
-unmanagedJars in Test    += file("../laws/target/scala-2.13.0-M2/collections-laws_2.13.0-M2-0.5.0.jar")
+scalacOptions ++= Seq("-unchecked", "-feature", "-deprecation")
 
 /*
 // Old version.  Needs to be tweaked to work.

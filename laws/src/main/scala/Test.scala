@@ -241,16 +241,7 @@ object Test {
     }
     def from[A](iterable: Iterable[A]): Once[A] = from(iterable.iterator)
 
-    def from[A](iterator: strawman.collection.Iterator[A]): Once[A] = new Once[A] {
-      def step[U](f: A => U): Boolean = iterator.hasNext && { f(iterator.next); true }
-    }
-    def from[A](iterable: strawman.collection.Iterable[A]): Once[A] = from(iterable.iterator())
-
-    trait OrdinaryConversions {
-      implicit def onceViaStrawIterable[A, CC[A] <: strawman.collection.Iterable[A]](me: CC[A]): Once[A] = Once from me
-      implicit def onceViaStrawIterator[A, CC[A] <: strawman.collection.Iterator[A]](me: CC[A]): Once[A] = Once from me
-    }
-    object Conversions extends OrdinaryConversions {
+    object Conversions {
       implicit def onceViaString(string: String): Once[Char] = Once from string
       implicit def onceViaArray[A](array: Array[A]): Once[A] = Once from array
       implicit def onceViaTraversableOnce[A, CC[A] <: collection.TraversableOnce[A]](me: CC[A]): Once[A] =
@@ -260,7 +251,6 @@ object Test {
           case _                     => Once from me.toList
         }
       implicit def onceViaIterableTuple[K, V, CC[K, V] <: collection.Iterable[(K, V)]](me: CC[K, V]): Once[(K, V)] = Once from me
-      implicit def onceViaStrawIterableTuple[K, V, CC[K, V] <: strawman.collection.Iterable[(K, V)]](me: CC[K, V]): Once[(K, V)] = Once from me
     }
   }
 

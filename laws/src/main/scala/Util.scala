@@ -149,7 +149,7 @@ trait Variants[A] {
   */
 object FileIO {
   /** Removes all the test files in a particular directory; throws an exception if anything goes wrong. */
-  def desource(dir: java.io.File) {
+  def desource(dir: java.io.File): Unit = {
     val oops =
       dir.listFiles.
         filter(f => f.getName.startsWith("Test") && f.getName.endsWith(".scala")).

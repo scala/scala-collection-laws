@@ -123,7 +123,7 @@ object Report {
   /** If we ran the tests with jUnit, the results are in a `ConcurrentHashMap`.
     * Print out the results, throwing an error afterwards if any laws failed.
     */
-  def junitReport(ran: java.util.concurrent.ConcurrentHashMap[String, Test.Tested]) {
+  def junitReport(ran: java.util.concurrent.ConcurrentHashMap[String, Test.Tested]): Unit = {
     import scala.collection.JavaConverters._
     val m = ran.asScala.toMap
     reportUnusedMethods(m).foreach(println)
