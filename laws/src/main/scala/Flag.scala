@@ -60,14 +60,18 @@ object Flag {
   val SUPER_ON_ZIP  = F  // Some collections lose their type when zipped (due to ordering or structure)
   
   // Everything down here is _highly_ dubious behavior but is included to get tests to pass
-  val ARRAYSTACK_ADDS_ON_FRONT = F  // Bizarre behavior of ArrayStack--it reverses _itself_ when calling result??!
   val PRIORITYQUEUE_IS_SPECIAL = F  // Inconsistent behavior regarding what is dequeued (ordered) vs. not
   val BITSET_MAP_BREAKS_BOUNDS = F  // Because BitSet doesn't allow negative numbers, maps are problematic
-  val TRANSFORM_INCONSISTENT   = F  // API for method `transform` is inconsistent.  Just ignore it for now.
+  //val TRANSFORM_INCONSISTENT   = F  // API for method `transform` is inconsistent.  Just ignore it for now.
 
   // Workarounds for identified bugs go here.
   val MAP_CANT_MKSTRING = F    // Maps have ambiguous `mkString` with no args
   val BITSET_MAP_AMBIG  = F    // Bit maps don't know whether to use StrictOptimized or SortedSet ops for map.
   val BITSET_ZIP_AMBIG  = F    // Same problem with zipping
   val SPEC_MAP_CANT_ADD = F    // AnyRefMap and LongMap lose their identity with `+`
+
+  // Pure bugs that aren't fixed yet
+  val QUEUE_PATCH_INDEX = F    // Queue and ArrayStack have an off-by-one error in `patchInPlace`
+  val QUEUE_SLIDING     = F    // Queue and ArrayStack will not give you an underfull sliding window (everything else does)
+  val UNSAFE_COPY_ARRAY = F    // Array and some friends have an unsafe copyToArray method
 }

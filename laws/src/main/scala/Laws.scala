@@ -37,7 +37,7 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
   val checker = findMyMethods.fold(_ => MethodChecker.empty, s => new MethodChecker(s))
 
   val cleanCode = findMyMethods.
-    map(ms => (code /: ms)((c, m) => c.replace(f"`$m`": CharSequence, m: CharSequence))).
+    map(ms => ms.foldLeft(code)((c, m) => c.replace(f"`$m`": CharSequence, m: CharSequence))).
     getOrElse(code)
 
   /** The line on which this law was defined; we assume for now that they're all from the same file */
@@ -209,8 +209,6 @@ set - only holds for collections that remove duplicates
 
 "{ var y = false; x.`foreach`(xi => y |= p(xi)); y == x.`exists`(p) }".law
 
-"x.`repr` sameAs x".law
-
 "x.`toIterator` sameAs x".law
 
 "x.`toStream` sameAs x".law
@@ -238,13 +236,6 @@ set - only holds for collections that remove duplicates
   )
 }""".law(SEQ)
 
-"""
-val xx = x.`genericBuilder`[A]
-x.foreach{ xx += _ }
-x sameAs xx.result
-""".law
-
-// !RANGE !SORTED !ARRAY !USESARRAY !N ... { val xx = x.`genericBuilder`[@A]; sameType(x, xx.result) }
 
 /******** Everything else (roughly alphabetical) ********/
 
@@ -254,14 +245,22 @@ x sameAs xx.result
 
 """
 val arr = new Array[A](nn)
-x.`copyToArray`(arr, n, nn)
-(x.toList zip arr.drop(n).take(m)).forall{ case (x,y) => x==y }
-""".law(SET.!, MAP.!, Filt.xsize(_ > 0))
+x.`copyToArray`(arr, n, m)
+(x.toList zip arr.drop(n).take(m)).forall{ case (x, y) => x == y }
+""".law(SET.!, MAP.!, UNSAFE_COPY_ARRAY.!, Filt.xsize(_ > 0))
+
+"""
+(!(n >= 0 && nn >= 0 && m >= 0 && x.`size` >= m && nn >= n+m)) || {
+  val arr = new Array[A](nn)
+  x.`copyToArray`(arr, n, m)
+  (x.toList zip arr.drop(n).take(m)).forall{ case (x, y) => x == y }
+}
+""".law(UNSAFE_COPY_ARRAY, Filt.xsize(_ > 0))
 
 
 """
 val arr = new Array[A](nn)
-x.`copyToArray`(arr, n, nn)
+x.`copyToArray`(arr, n, m)
 val c = arr.drop(n).take(m min x.`size`)
 val cs = collectionFrom(c)
 c.size == cs.size && (cs subsetOf x.toSet)
@@ -270,7 +269,7 @@ c.size == cs.size && (cs subsetOf x.toSet)
 """
 val arr = new Array[A](nn)
 val x0 = x
-x0.`copyToArray`(arr, n, nn)
+x0.`copyToArray`(arr, n, m)
 (n until ((n+m) min x.`size`)).forall(i => x0.get(arr(i)._1).exists(_ == arr(i)._2))
 """.law(MAP, Filt.xsize(_ > 0))
 
@@ -458,15 +457,7 @@ c.`take`(1).toList match {
   case Nil => true
   case List(xi) => !p(xi)
   case _ => false
-}""".law(SEQ, STRAW.!)
-
-"""
-val c = x.`dropWhile`(p);
-c.`take`(1).toList match { 
-  case strawman.collection.immutable.Nil => true
-  case strawman.collection.immutable.List(xi) => !p(xi)
-  case _ => false
-}""".law(SEQ, STRAW)
+}""".law(SEQ)
 
 """
 val y = x.`dropWhile`(p)
@@ -717,9 +708,7 @@ x.`indexWhere`(p) match {
 }
 """.law
 
-"x.`indices` == (0 until x.`size`)".law(STRAW.!)
-
-"x.`indices` == strawman.collection.immutable.Range(0, x.`size`)".law(STRAW)
+"x.`indices` == (0 until x.`size`)".law
 
 "x.`size` > 0 implies (x.`init` sameAs x.`dropRight`(1))".law
 
@@ -868,7 +857,7 @@ val temp = x.`scanRight`(Set[A]())((xi,s) => s + xi).toList.sortBy(_.size)
 
 "n <= 0 || x.`segmentLength`(p,n) == x.`drop`(n).`takeWhile`(p).`size`".law
 
-"r <= 0 || x.`sliding`(r).`size` == (if (x.nonEmpty) math.max(0,x.`size`-r)+1 else 0)".law
+"r <= 0 || x.`sliding`(r).`size` == (if (x.nonEmpty) math.max(0,x.`size`-r)+1 else 0)".law(QUEUE_SLIDING.!)
 
 """
 r <= 0 || 
@@ -909,17 +898,7 @@ x.`tails`.toList.map(_.toList) match {
     case (a, b) => b.isEmpty && (a.isEmpty || a.size == 1)
   }
 }
-""".law(SEQ, STRAW.!, Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
-
-"""
-import strawman.collection.immutable.::
-x.`tails`.toList.map(_.toList) match {
-  case z => (z zip z.drop(1)).forall{
-    case (a :: b :: _, c :: _) => b == c
-    case (a, b) => b.isEmpty && (a.isEmpty || a.size == 1)
-  }
-}
-""".law(SEQ, STRAW, Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
+""".law(SEQ, Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
 
 """
 val xtl = x.`tails`.toList
@@ -999,15 +978,11 @@ z.forall{ case (xi, yi) => xSet(xi) && ySet(yi) }
 
 "x sameAs x.`view`".law
 
-"val x0 = x; x0.`++=`(y); x0 sameAs (x.`++`(y))".law(ARRAYSTACK_ADDS_ON_FRONT.!)
-
-"val x0 = x; x0.`++=`(y); x0 sameAs (y.`reverse`.`++`(x))".law(ARRAYSTACK_ADDS_ON_FRONT)
+"val x0 = x; x0.`++=`(y); x0 sameAs (x.`++`(y))".law
 
 "val x0 = x; x0.`++=:`(y); x0 sameAs (y.`++`(x))".law
 
-"val x0 = x; x0.`+=`(a); x0 sameAs (x.`:+`(a))".law(ARRAYSTACK_ADDS_ON_FRONT.!)
-
-"val x0 = x; x0.`+=`(a); x0 sameAs (x.`+:`(a))".law(ARRAYSTACK_ADDS_ON_FRONT)
+"val x0 = x; x0.`+=`(a); x0 sameAs (x.`:+`(a))".law
 
 "val x0 = x; x0.`+=`(a); x0 sameAs (x.`+`(a))".law
 
@@ -1045,10 +1020,6 @@ z.forall{ case (xi, yi) => xSet(xi) && ySet(yi) }
 
 "{ val z = x; z.`prependAll`(y); z } == x.`++=:`(y)".law
 
-"val x0 = x; x0.`reduceToSize`(n); x0.`size` == n".law(Filt.n(_ >= 0))
-
-"val x0 = x; x0.`reduceToSize`(n); x0 sameAs x.`take`(n)".law(SET.!, MAP.!, Filt.xsize(_ > 0))
-
 """
 tryE{ val x0 = x;  x0.`remove`(n, nn); x0 } match { 
   case Left(_: IllegalArgumentException) => nn < 0
@@ -1071,21 +1042,15 @@ x1.`remove`(n,1)
 x0 sameAs x1
 """.law(SET.!, MAP.!, Filt.xsize(_ > 0))
 
-"x.`result` sameAs x".law(ARRAYSTACK_ADDS_ON_FRONT.!)
+"x.`result` sameAs x".law
 
-"x.`result` sameAs x.`reverse`".law(ARRAYSTACK_ADDS_ON_FRONT)
-
-"val x0 = x; x0.`transform`(f); x0 sameAs x.map{ case (k,v) => k -> f((k,v)) }".law(MAP.!, TRANSFORM_INCONSISTENT)
+"val x0 = x; x0.`transform`(f); x0 sameAs x.map(f)".law(MAP.!)
 
 """
 val x0 = x
 x0.`transform`((a, b) => f((a, b))._2)
-x0 sameAs x.map(f)
-""".law(MAP, TRANSFORM_INCONSISTENT)
-
-"{ val x0 = x; x0.`trimEnd`(n); x0 sameAs x.`dropRight`(n) }".law(Filt.n(_ >= 0))
-
-"{ val x0 = x; x0.`trimStart`(n); x0 sameAs x.`drop`(n) }".law(Filt.n(_ >= 0))
+x0 sameAs x.map{ case (a, b) => a -> f((a, b))._2 }
+""".law(MAP)
 
 "x.`updated`(n,a) sameAs (x.`take`(n).`:+`(a).`++`(x.`drop`(n+1)))".law(SEQ, Filt.xsize(_ > 0))
 
@@ -1152,7 +1117,9 @@ direct samePieces built.result
 
 "val x0 = x; x0.`dropWhileInPlace`(p); x0 sameAs x.`dropWhile`(p)".law
 
-"val x0 = x; x0.`filterInPlace`(p); x0 sameAs x.`filter`(p)".law
+"val x0 = x; x0.`filterInPlace`(p); x0 sameAs x.`filter`(p)".law(MAP.!)
+
+"val x0 = x; x0.`filterInPlace`((k, v) => p((k, v))); x0 sameAs x.`filter`(p)".law(MAP)
 
 "val x0 = x; x0.`flatMapInPlace`(xi => y.toList.take(intFrom(xi))); x0 sameAs x.`flatMap`(xi => y.toList.take(intFrom(xi)))".law
 
@@ -1171,13 +1138,13 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 
 "val x0 = x; x0.`insert`(n max 0, a); x0 sameAs collectionFrom(x.toArray.patch(n max 0, Array(a), 0))".law(MAP.!, SET.!)
 
-"val x0 = x; val x1 = x; x0.`insertAll`(n max 0, y); y.`reverse`.foreach(yi => x1.`insert`(n max 0, yi)); x0 sameAs x1".law(MAP.!)
+"val x0 = x; val x1 = x; x0.`insertAll`(n max 0, y); y.`reverse`.foreach(yi => x1.`insert`(n max 0, yi)); x0 sameAs x1".law(MAP.!, QUEUE_PATCH_INDEX.!)
 
 "val x0 = x; x0.`mapInPlace`(f); x0 sameAs x.`map`(f)".law
 
 "val x0 = x; x0.`padToInPlace`(n, a); x0 sameAs x.`padTo`(n, a)".law
 
-"val x0 = x; x0.`patchInPlace`(n max 0, y, m); x0 sameAs x.`patch`(n max 0, y, m)".law
+"val x0 = x; x0.`patchInPlace`(n max 0, y, m); x0 sameAs x.`patch`(n max 0, y, m)".law(QUEUE_PATCH_INDEX.!)
 
 "x.`prepended`(a) sameAs x.`+:`(a)".law
 

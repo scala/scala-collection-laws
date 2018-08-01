@@ -113,10 +113,11 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val array        = C(_.clone, SEQ, ARRAY).moreMethods(MethodChecker.from[collection.ArrayOps[A]])
+    val array        = C(_.clone, SEQ, ARRAY, UNSAFE_COPY_ARRAY).moreMethods(MethodChecker.from[collection.ArrayOps[A]])
     val arrayBuffer  = C(_.to(collection.mutable.ArrayBuffer), SEQ)
+    val arrayDeque   = C(_.to(collection.mutable.ArrayDeque), SEQ, QUEUE_PATCH_INDEX, QUEUE_SLIDING, UNSAFE_COPY_ARRAY)
     val arraySeq     = C(_.to(collection.mutable.ArraySeq), SEQ)
-    val arrayStack   = C(_.to(collection.mutable.ArrayStack), SEQ, ARRAYSTACK_ADDS_ON_FRONT)
+    val arrayStack   = C(_.to(collection.mutable.ArrayStack), SEQ, QUEUE_PATCH_INDEX, QUEUE_SLIDING, UNSAFE_COPY_ARRAY)
     val buffer       = C(_.to(collection.mutable.Buffer), SEQ)
     val hashSet      = C(_.to(collection.mutable.HashSet), SET)
     val indexedSeq   = C(_.to(collection.mutable.IndexedSeq), SEQ)
@@ -124,7 +125,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val linkedHashSet= C(_.to(collection.mutable.LinkedHashSet), SET)
     val listBuffer   = C(_.to(collection.mutable.ListBuffer), SEQ)
     val priorityQueue= C(_.to(collection.mutable.PriorityQueue), ORDERLY, PRIORITYQUEUE_IS_SPECIAL)
-    val queue        = C(_.to(collection.mutable.Queue), SEQ)
+    val queue        = C(_.to(collection.mutable.Queue), SEQ, QUEUE_PATCH_INDEX, QUEUE_SLIDING, UNSAFE_COPY_ARRAY)
     val seq          = C(_.to(collection.mutable.Seq), SEQ)
     val treeSet      = C(_.to(collection.mutable.TreeSet), SET, ORDERLY)
     // val unrolledBuffer = C(_.to(collection.mutable.UnrolledBuffer), SEQ)  // Unrolled buffer is weird!
@@ -306,7 +307,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // MUST use lower-camel-cased collection clasTs name for code generator to work properly!
     val bitSet = C(
       { a => val b = collection.immutable.BitSet.newBuilder; a.foreach{ x => if (x >= 0) b += x }; b.result },
-      SET, ORDERLY, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG
+      SET, ORDERLY, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG, BITSET_MAP_BREAKS_BOUNDS
     )
     //val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
   }
@@ -332,7 +333,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // MUST use lower-camel-cased collection class name for code generator to work properly!
     val bitSet = C(
       { a => val b = new collection.mutable.BitSet; a.foreach{ x => if (x >= 0) b += x }; b },
-      SET, ORDERLY, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG
+      SET, ORDERLY, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG, BITSET_MAP_BREAKS_BOUNDS
     )
   }
 
