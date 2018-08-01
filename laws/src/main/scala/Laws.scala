@@ -333,9 +333,18 @@ oneStep sameAs twoStep
 
 "tryO{x.`maxBy`(f)} == tryO{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }".law(BITSET_MAP_BREAKS_BOUNDS.!)
 
+"tryO{ x.`max` } == x.`maxOption`".law
+
+"tryO{ x.`maxBy`(f) } == x.`maxByOption`(f)".law(BITSET_MAP_BREAKS_BOUNDS.!)
+
 "tryO{x.`min`} == tryO{ x.`reduce`(minOf) }".law
 
 "tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law(BITSET_MAP_BREAKS_BOUNDS.!)
+
+"tryO{ x.`min` } == x.`minOption`".law
+
+"tryO{ x.`minBy`(f) } == x.`minByOption`(f)".law(BITSET_MAP_BREAKS_BOUNDS.!)
+
 
 "x.`nonEmpty` == x.`exists`(_ => true)".law
 
@@ -350,7 +359,23 @@ Set(
 ).size == 1
 """.law(Filt.assoc)
 
+
 "x.`size` == x.`count`(_ => true)".law
+
+"math.signum(x.`sizeCompare`(y)) == math.signum(x.`size`.compare(y.`size`))".law
+
+"x.`sizeIs` < m == x.`size` < m".law
+
+"x.`sizeIs` > m == x.`size` > m".law
+
+"(x.`sizeIs` == m) == (x.`size` == m)".law
+
+"x.`sizeIs` < m == x.`lengthIs` < m".law
+
+"x.`sizeIs` > m == x.`lengthIs` > m".law
+
+"(x.`sizeIs` == m) == (x.`lengthIs` == m)".law
+
 
 "x sameAs x.`to`(List)".law
 
@@ -773,7 +798,7 @@ x.`lastIndexWhere`(p,n) match {
 
 "x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)".law
 
-"x.`lastOption` == tryO{ x.`last` }".law
+"x.`lastOption` == tryO{ x.`last` }".law(PQ_RETURNS_NULL.!)
 
 "x.`lengthCompare`(n).signum == (x.`size` compare n).signum".law
 
@@ -1042,6 +1067,7 @@ x1.`remove`(n,1)
 x0 sameAs x1
 """.law(SET.!, MAP.!, Filt.xsize(_ > 0))
 
+
 "x.`result` sameAs x".law
 
 "val x0 = x; x0.`transform`(f); x0 sameAs x.map(f)".law(MAP.!)
@@ -1136,11 +1162,11 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 
 "x.`groupMap`(g)(f).map{ case (k, vs) => k -> vs.`reduceLeft`(op) } samePieces x.`groupMapReduce`(g)(f)(op)".law(Filt.sym)
 
-"val x0 = x; x0.`insert`(n max 0, a); x0 sameAs collectionFrom(x.toArray.patch(n max 0, Array(a), 0))".law(MAP.!, SET.!)
+"val x0 = x; x0.`insert`(n max 0, a); x0 sameAs collectionFrom(x.toArray.patch(n max 0, Array(a), 0))".law(MAP.!, SET.!, QUEUE_NORESIZE.!)
 
-"val x0 = x; val x1 = x; x0.`insertAll`(n max 0, y); y.`reverse`.foreach(yi => x1.`insert`(n max 0, yi)); x0 sameAs x1".law(MAP.!, QUEUE_PATCH_INDEX.!)
+"val x0 = x; val x1 = x; x0.`insertAll`(n max 0, y); y.`reverse`.foreach(yi => x1.`insert`(n max 0, yi)); x0 sameAs x1".law(MAP.!, QUEUE_NORESIZE.!)
 
-"val x0 = x; x0.`mapInPlace`(f); x0 sameAs x.`map`(f)".law
+"val x0 = x; x0.`mapInPlace`(f); x0 sameAs x.`map`(f)".law(PQ_RETURNS_NULL.!)
 
 "val x0 = x; x0.`padToInPlace`(n, a); x0 sameAs x.`padTo`(n, a)".law
 

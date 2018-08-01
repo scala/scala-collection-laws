@@ -74,4 +74,6 @@ object Flag {
   val QUEUE_PATCH_INDEX = F    // Queue and ArrayStack have an off-by-one error in `patchInPlace`
   val QUEUE_SLIDING     = F    // Queue and ArrayStack will not give you an underfull sliding window (everything else does)
   val UNSAFE_COPY_ARRAY = F    // Array and some friends have an unsafe copyToArray method
+  val PQ_RETURNS_NULL   = F    // Priority Queue can just give null when empty!
+  val QUEUE_NORESIZE    = F    // Queue and ArrayStack and ArrayDeque don't resize properly on `insert`
 }
