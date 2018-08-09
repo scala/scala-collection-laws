@@ -33,6 +33,9 @@ object Flag {
   val STRING  = F   // Is a String
   val STRAW   = F   // strawman collections (when used together with regular collections)
   val ORDERLY = F   // Collection is sorted, but can't maintain itself with all operations as it might lose its ordering
+  val ONCE    = F   // Collection is consumed on traversal
+  val INDEF   = F   // Collection's size is not yet fixed (lazy collections)
+  val SPECTYPE= F   // Collection has constraints on element type, which makes some operations not work
 
   // Test failures for strawman (straw will break the camel's back...)
   //val CAMEL    = F   // Generic problem (not described)

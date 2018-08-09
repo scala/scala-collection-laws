@@ -345,10 +345,12 @@ abstract class LongStrTest[CC, T <: LongStrTest[CC, T]](
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
 extends Test[(Long, String), (String, Long), CC, T](numb, oper, inst, lln)(file, line, name) {
-  type A = (Long, String)
-  type B = (String, Long)
-  type Inst = Instance[(Long, String), CC]
-  type Oper = Ops[(Long, String), (String, Long)]
+  type K = Long
+  type V = String
+  type A = (K, V)
+  type B = (V, K)
+  type Inst = Instance[(K, V), CC]
+  type Oper = Ops[(K, V), (V, K)]
 
   def maxOf(a: (Long, String), aa: (Long, String)) = { val o = implicitly[Ordering[(Long, String)]]; o.max(a, aa) }
   def minOf(a: (Long, String), aa: (Long, String)) = { val o = implicitly[Ordering[(Long, String)]]; o.min(a, aa) }
@@ -362,10 +364,12 @@ abstract class StrLongTest[CC, T <: StrLongTest[CC, T]](
   implicit file: sourcecode.File, line: sourcecode.Line, name: sourcecode.Name
 )
 extends Test[(String, Long), (Long, String), CC, T](numb, oper, inst, lln)(file, line, name) {
-  type A = (String, Long)
-  type B = (Long, String)
-  type Inst = Instance[(String, Long), CC]
-  type Oper = Ops[(String, Long), (Long, String)]
+  type K = String
+  type V = Long
+  type A = (K, V)
+  type B = (V, K)
+  type Inst = Instance[(K, V), CC]
+  type Oper = Ops[(K, V), (V, K)]
 
   def maxOf(a: (String, Long), aa: (String, Long)) = { val o = implicitly[Ordering[(String, Long)]]; o.max(a, aa) }
   def minOf(a: (String, Long), aa: (String, Long)) = { val o = implicitly[Ordering[(String, Long)]]; o.min(a, aa) }

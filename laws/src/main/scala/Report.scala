@@ -60,31 +60,50 @@ object Report {
     }
   }
 
-  /** Produces a report on which methods were never tested (for each collection) */
-  def reportUnusedMethods(ran: Map[String, Test.Tested]): Vector[String] = ran.
-    groupBy(_._1.split('_').drop(1).take(2).mkString("_")).
-    toVector.sortBy(_._1).
-    flatMap{ case (title, tests) => 
-      val missing =
-        tests.
-          map(_._2.findMethodUsage.map{ case (k, (ls, lf)) => (k, ls.size + lf.size) }).
-          reduceLeft{ (l, r) =>
-            val keys = l.keys ++ r.keys
-            keys.toArray.
-              map{ k => k -> (l.getOrElse(k, 0) + r.getOrElse(k, 0)) }.
-              toMap
-          }.
-          collect{ case (k, n) if n == 0 => k }.
-          toVector.sorted
-      if (missing.isEmpty) Vector.empty[String]
+  /** Produces a report on which methods were never tested (for each collection and overall) */
+  def reportUnusedMethods(ran: Map[String, Test.Tested]): (Vector[String], Vector[String]) = {
+    val misses = ran.
+      groupBy(_._1.split('_').drop(1).take(2).mkString("_")).
+      toVector.sortBy(_._1).
+      flatMap{ case (title, tests) => 
+        val missing =
+          tests.
+            map(_._2.findMethodUsage.map{ case (k, (ls, lf)) => (k, ls.size + lf.size) }).
+            reduceLeft{ (l, r) =>
+              val keys = l.keys ++ r.keys
+              keys.toArray.
+                map{ k => k -> (l.getOrElse(k, 0) + r.getOrElse(k, 0)) }.
+                toMap
+            }.
+            collect{ case (k, n) if n == 0 => k }.
+            toVector.sorted
+        if (missing.isEmpty) None
+        else Some(title -> missing)
+      }
+
+    val counts = misses.flatMap(_._2).
+      groupBy(identity).map{ case (k, vs) => k -> vs.length }.
+      toVector.sortBy{ case (meth, n) => (-n, meth) }
+
+    val summary =
+      if (counts.length > 0) 
+        Vector(f"${counts.length} different methods untested in at least one class") ++
+        counts.map{ case (method, count) => f"  $method missing in $count classes" }
+      else Vector.empty[String]
+
+    val byClass = misses.flatMap{ case (title, methods) =>
+      if (methods.isEmpty) Vector.empty
       else {
-        val longest = missing.map(_.length).foldLeft(1)(_ max _)
+        val longest = methods.map(_.length).foldLeft(1)(_ max _)
         f"Untested methods in ${title}:" +:
-        missing.grouped(77/(longest+1) max 1).toVector.map{ ms =>
+        methods.grouped(77/(longest+1) max 1).toVector.map{ ms =>
           "  " + ms.map(_.padTo(longest+1, ' ')).mkString
         }
       }
     }
+
+    (summary, byClass)
+  }
 
   /** Produces a report on what laws failed.
     *
@@ -126,7 +145,16 @@ object Report {
   def junitReport(ran: java.util.concurrent.ConcurrentHashMap[String, Test.Tested]): Unit = {
     import scala.collection.JavaConverters._
     val m = ran.asScala.toMap
-    reportUnusedMethods(m).foreach(println)
+    reportUnusedMethods(m) match { case (summary, details) =>
+      if (summary.nonEmpty) {
+        summary.foreach(println)
+        println
+      }
+      if (details.nonEmpty) {
+        details.foreach(println)
+        println
+      }
+    }
     reportUnusedLaws(m).foreach(println)
     val fails = reportFailedLaws(m)
     fails.foreach(println)

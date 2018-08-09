@@ -397,6 +397,7 @@ _Note that `A` is identically `(K, V)` for maps._
 | Variable Name | Expected Values   | Meaning |
 |---------------|-------------------|---------|
 | `a`           | an element        | Some single instance of the collection's element type |
+| `b`           | an element        | Some single instance of the type that `A` is mapped to via `g`
 | `x`           | a collection      | May be empty or have one or more elements |
 | `xsize`       | `x.size`          | Contains the pre-computed size of `x` |
 | `y`           | another collection| In general is not the same as `x` (but can be) |

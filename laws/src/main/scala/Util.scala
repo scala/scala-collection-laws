@@ -93,7 +93,15 @@ object MethodChecker {
     "canEqual",
     "clone",
     "par",
-    "seq"
+    "seq",
+    // General methods from functions (usually the default implementations are used)
+    "andThen",
+    "compose",
+    // General methods from partial functions (usually the default implementations are used)
+    "applyOrElse",
+    "lift",
+    "orElse",
+    "runWith"
   )
 
   private val assumedMethods = Set(
@@ -106,7 +114,7 @@ object MethodChecker {
     val tp = implicitly[TypeTag[C]].tpe
     val meths = tp.members.collect{ case x if x.isMethod => x.asMethod }.filter(_.isPublic)
     new MethodChecker(
-      meths.map(_.name.decodedName.toString).toSet 
+      meths.map(_.name.decodedName.toString).filterNot(_.contains("$default")).toSet 
       -- anyRefMethods
       -- ignoredMethods
       ++ assumedMethods

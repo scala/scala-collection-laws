@@ -236,12 +236,18 @@ set - only holds for collections that remove duplicates
   )
 }""".law(SEQ)
 
+"""x.`mkString`("*") == { val sb = new StringBuilder; x.`addString`(sb, "*"); sb.result }""".law(SEQ)
+
+"""x.`mkString`("[", "|", "]") == { val sb = new StringBuilder; x.`addString`(sb, "[", "|", "]"); sb.result }""".law(SEQ)
+
 
 /******** Everything else (roughly alphabetical) ********/
 
 "x.`aggregate`(zero)((b,a) => b, (b1,b2) => b1) == zero".law(Filt.zero)
 
 "x.`aggregate`(zero)((b,a) => b, (b1,b2) => b2) == zero".law(Filt.zero)
+
+"x.`array`.take(x.`size`).toVector == x.toVector".law
 
 """
 val arr = new Array[A](nn)
@@ -286,20 +292,21 @@ b sameAs x
 
 "x sameAs x.`companion`(x.toList: _*)".law
 
-// I don't think the companion should be the same type?
-// "x sameType x.`companion`(x.toList: _*)".law
-
 "x.`count`(p) > 0 == x.`exists`(p)".law
 
 "(x.`count`(p) == x.`size`) == x.`forall`(p)".law
 
 "x.`count`(p) == { var k=0; x.`foreach`(xi => if (p(xi)) k += 1); k }".law
 
+"x.`empty`.`isEmpty`".law
+
+"x sameType x.`empty`".law
+
 "x.filter(p).`size` == x.`count`(p)".law
 
 "x.filter(p).`forall`(p) == true".law
 
-"x sameType x.`filter`(p)".law/*(CAMEL_WEAKMAP_SUPER.!)*/
+"x sameType x.`filter`(p)".law
 
 """
 val oneStep = x.flatMap(xi => y.toList.take(intFrom(xi) % 3 max 0))
@@ -326,8 +333,13 @@ oneStep sameAs twoStep
 
 """x.`foldRight`(a)(op) == x.`:\`(a)(op)""".law
 
-// !ADEFINITE ... x.`nonEmpty` implies (x.`hasDefiniteSize` == @DEFINITE)
-// x.`isTraversableAgain` == @AGAIN
+"x.`isDefinedAt`(r) == (0 <= r && r < x.`size`)".law(SEQ)
+
+"x.`isDefinedAt`(a._1) == x.`get`(a._1).isDefined".law(MAP)
+
+"x.`isTraversableAgain`".law(ONCE.!)
+
+"!x.`isTraversableAgain`".law(ONCE)
 
 "tryO{x.`max`} == tryO{ x.`reduce`(maxOf) }".law
 
@@ -344,6 +356,7 @@ oneStep sameAs twoStep
 "tryO{ x.`min` } == x.`minOption`".law
 
 "tryO{ x.`minBy`(f) } == x.`minByOption`(f)".law(BITSET_MAP_BREAKS_BOUNDS.!)
+
 
 
 "x.`nonEmpty` == x.`exists`(_ => true)".law
@@ -418,6 +431,8 @@ c sameAs x.filter(p)""".law(SET)
 "x.`hasNext` == x.`nonEmpty`".law
 
 "x.`hasNext` implies tryO{ x.`next` }.isDefined".law
+
+"x.`nextOption` == tryO{ x.`next` }".law
 
 "x.`++`(y).`size` == x.size + y.size".law(SEQ)
 
@@ -507,6 +522,8 @@ val (x1,x2) = x.`duplicate`
 
 "x sameType x.`filterNot`(p)".law/*(CAMEL_WEAKMAP_SUPER.!)*/
 
+"x.`getOrElse`(a._1, a._2) == x.`get`(a._1).getOrElse(a._2)".law(MAP)
+
 "n <= 0 || x.`grouped`(n).map(_.size).`sum` == x.`size`".law
 
 """n <= 0 || m < 0 || {
@@ -515,9 +532,19 @@ val (x1,x2) = x.`duplicate`
 
 "x.`grouped`((1 max n)).flatMap(xi => xi) sameAs x".law
 
+"x.`hasDefiniteSize`".law(INDEF.!, Filt.xsize(_ > 0))
+
+"!x.`hasDefiniteSize`".law(INDEF, Filt.xsize(_ > 0))
+
 "x.`isEmpty` == !x.`nonEmpty`".law
 
+"x sameType x.`iterableFactory`.apply(a)".law(SPECTYPE.!, MAP.!, ORDERLY.!)
+
+"x.`iterableFactory`.apply(a).`iterator`.toList == List(a)".law
+
 "x.`length` == x.`size`".law
+
+"x.`mapResult`(_.`map`(f)).`addOne`(a).`result` sameAs x.`addOne`(a).`result`.`map`(f)".law
 
 "x.`padTo`(n, a).`size` == (n max x.size)".law
 
@@ -536,6 +563,18 @@ val (t,f) = x.`partition`(p)
 val (t,f) = x.`partition`(p)
 (t sameType f) && (t sameType x)
 """.law
+
+"""
+val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
+val ll = x.`filter`(p).`map`(f)
+val rr = x.`filterNot`(p)
+(l sameAs ll) && (r sameAs rr)
+""".law
+
+"""
+val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
+(x sameType l) && (x sameType r)
+""".law(MAP.!, SPECTYPE.!, ORDERLY.!)
 
 "(n <= x.`size`) implies (x.`patch`(n, y, m).`take`(n) sameAs x.take(n))".law
 
@@ -584,11 +623,30 @@ val (x1, x2) = x.`span`(p)
 
 "x sameType x.`zip`(y).map(_._1)".law(MAP.!, ORDERLY.!)
 
-"x.`zipAll`(y, a, b).map(_._1) sameAs x.`padTo`(x.`size` max y.size, a)".law
+"x.`zipAll`(y, a, f(a)).map(_._1) sameAs x.`padTo`(x.`size` max y.size, a)".law
 
-"x.`zipAll`(y, a, b).map(_._2) sameAs y.`padTo`(x.`size` max y.size, b)".law
+"x.`zipAll`(y, a, f(a)).map(_._2) sameAs y.`padTo`(x.`size` max y.size, f(a))".law
 
-"x sameType x.`zipAll`(y, a, b).map(_._1)".law(MAP.!, ORDERLY.!)
+"""
+var nxy = 0
+var nxf = 0
+var nay = 0
+var naf = 0
+x.`zipAll`(y, a, f(a)).foreach{ case (xi, yi) =>
+  val inx = x.`exists`(_ == xi)
+  val iny = y.`exists`(_ == yi)
+  if (inx && iny) nxy += 1
+  else if (inx) nxf += 1
+  else if (iny) nay += 1
+  else naf += 1
+}
+naf == 0 && nay <= y.size - x.`size` && nxf <= x.size - y.size && nxy >= (x.size min y.size)
+""".law(
+  Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)),
+  Tags.SelectTag(ti => if (ti.inst.values.ysize <= 10) None else Some(Outcome.Skip.y))
+)
+
+"x sameType x.`zipAll`(y, a, f(a)).map(_._1)".law(MAP.!, ORDERLY.!)
 
 "x.`zipWithIndex`.map(_._1) sameAs x".law
 
@@ -634,6 +692,10 @@ val (x1, x2) = x.`span`(p)
 "x sameType x.`:::`(y)".law
 
 "x.`apply`(n) == x.`drop`(n).`head`".law(SEQ, Filt.xsize(_ > 0))
+
+"x.`apply`(a) == x.`contains`(a)".law(SET)
+
+"tryO{ x.`apply`(a._1) } == x.`get`(a._1)".law(MAP)
 
 """
 val n = x.`combinations`(r).size;
@@ -682,6 +744,8 @@ x.`distinct`.`size` == s.size && x.forall(s)
 "x.`groupBy`(g).toMap.forall{ case (k,vs) => x.filter(xi => g(xi)==k) sameAs vs }".law
 
 "x.`nonEmpty` implies x.`take`(1).nonEmpty".law
+
+"x.`nonEmpty` implies { val h = x.`head`; x.`exists`(_ == h) }".law
 
 "x.`nonEmpty` implies x.`take`(1).`forall`(_ == x.`head`)".law(SEQ)
 
@@ -754,6 +818,20 @@ x.`size` > 0 implies {
 val xx = x.`inits`.toVector.map(_.toVector)
 (xx zip xx.`drop`(1)).`forall`{ case (a,b) => a.`init` sameAs b }
 """.law(SEQ, Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
+
+"x.`inits`.`size` == 1 + x.size".law(Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
+
+"""
+val xx = x.`inits`.toVector
+(xx zip xx.drop(1)).forall{ case (a, b) => a.`size` == b.`size` + 1 }
+""".law(Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
+
+"""
+val xx = x.`inits`.toVector
+(xx zip xx.drop(1)).forall{ case (a, b) =>
+  (b partOf a) && !(a partOf b)
+}
+""".law(Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)))
 
 "x.`intersect`(y).`toSet` == (x.toSet & y.toSet)".law
 
@@ -891,7 +969,25 @@ x.`size` <= 0 ||
 { val vx = x.toVector; x.`sliding`(r).toVector.map(_.toVector) sameAs Vector.range(0, 1+vx.size-r).map(i => vx.slice(i,i+r)) }
 """.law(SEQ)
 
+"""
+var last: Option[A] = None
+val i = x.`sorted`.`iterator`
+var ordered = true
+while (ordered && i.hasNext) {
+  val a = i.next
+  ordered = last.forall(_ <= a)
+  last = Some(a)
+}
+ordered
+""".law
+
+"val x0 = x; x0.`sortInPlace`; x0 sameAs x.`sorted`".law
+
 "x.`sortBy`(f) sameAs x.`sortWith`((a,b) => f(a) < f(b))".law
+
+"val x0 = x; x0.`sortInPlaceBy`(f); x0 sameAs x.`sortBy`(f)".law
+
+"val x0 = x; x0.`sortInPlaceWith`((a, b) => f(a) < f(b)); x0 sameAs x.`sortWith`((a, b) => f(a) < f(b))".law
 
 """
 val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList
@@ -899,6 +995,11 @@ val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList
 """.law
 
 "x.`sorted` sameAs x.`toArray`.sorted".law // Need to add a custom ordering here
+
+"""
+val x0 = x.`sorted`
+x0.`search`(a) == x0.`takeWhile`(_ < a).`size`  // TODO--test three-arg version
+""".law
 
 """
 val (x1,x2) = x.`splitAt`(n)
@@ -1102,6 +1203,12 @@ x0 sameAs x.map{ case (a, b) => a -> f((a, b))._2 }
 
 "x sameType x.`&~`(y)".law
 
+"x.`^`(y) == x.`xor`(y)".law
+
+"val z = x.`|`(y); x.`forall`(z contains _) && y.`forall`(z contains _)".law
+
+"val z = x.`|`(y); z.`forall`(i => x(i) || y(i))".law
+
 
 ///////////////////////////////////////
 // New laws for strawman collections //
@@ -1167,6 +1274,10 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 "val x0 = x; val x1 = x; x0.`insertAll`(n max 0, y); y.`reverse`.foreach(yi => x1.`insert`(n max 0, yi)); x0 sameAs x1".law(MAP.!, QUEUE_NORESIZE.!)
 
 "val x0 = x; x0.`mapInPlace`(f); x0 sameAs x.`map`(f)".law(PQ_RETURNS_NULL.!)
+
+"val x0 = x; x0.`mapValuesInPlace`((k: K, v: V) => f((k, v))._2); x0 sameAs x.`map`{ case (k, v) => k -> f((a._1, v))._2 }".law(MAP)
+
+"x.`mapValues`(v => f((a._1, v))._2).toMap sameAs x.`map`{ case (k, v) => k -> f((a._1, v))._2 }".law(MAP)
 
 "val x0 = x; x0.`padToInPlace`(n, a); x0 sameAs x.`padTo`(n, a)".law
 
