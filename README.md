@@ -13,6 +13,8 @@ a simple of textual replacement macro language.
 
 ## Latest nontrivial changes
 
+ * Updated tests to Scala 2.12.2
+
  * Branching macros (choose which replacement based on a flag).
 See section "Altering collections in a way that causes many tests to fail".
 
@@ -21,8 +23,10 @@ See section "Altering collections in a way that causes many tests to fail".
 Clone the repository and run
 
 ```bash
-sbt -mem 6144 "tests/runMain tests.generated.collection.Test_All"
+sbt -J-XX:MaxMetaspaceSize=1G -J-Xmx6G "tests/runMain tests.generated.collection.Test_All"
 ```
+
+(with older sbt: use `-mem 6144` in place of `-J-Xmx6G`).
 
 If all goes well, the build process will do some compilation and code generation
 in project `laws`, then more compilation in project `init`, followed by more
@@ -60,7 +64,7 @@ Congratuations!  Your collections were quasi-comprehensively tested.
 If you prefer to separate the compilation and test-running phases, just run
 
 ```bash
-sbt -mem 4096 tests/compile
+sbt -J-Xmx4G tests/compile
 ```
 
 first.  This will compile the `laws` and `init` projects as necessary, and call
