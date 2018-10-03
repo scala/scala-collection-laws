@@ -314,7 +314,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // MUST use lower-camel-cased collection clasTs name for code generator to work properly!
     val bitSet = C(
       { a => val b = collection.immutable.BitSet.newBuilder; a.foreach{ x => if (x >= 0) b += x }; b.result },
-      SET, ORDERLY, SPECTYPE, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG, BITSET_MAP_BREAKS_BOUNDS
+      SET, ORDERLY, SPECTYPE, BITSET, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG
     )
     //val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
   }
@@ -340,7 +340,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // MUST use lower-camel-cased collection class name for code generator to work properly!
     val bitSet = C(
       { a => val b = new collection.mutable.BitSet; a.foreach{ x => if (x >= 0) b += x }; b },
-      SET, ORDERLY, SPECTYPE, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG, BITSET_MAP_BREAKS_BOUNDS
+      SET, ORDERLY, SPECTYPE, BITSET, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG
     )
   }
 

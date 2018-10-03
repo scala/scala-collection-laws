@@ -179,7 +179,9 @@ set - only holds for collections that remove duplicates
 
 "x.`map`(f) sameAs { val y = collection.mutable.ArrayBuffer.empty[A]; x.foreach(xi => y += f(xi)); y }".law(SEQ)
 
-"x.`map`(f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law(SET, BITSET_MAP_BREAKS_BOUNDS.!)
+"x.`map`(f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law(SET, BITSET.!)
+
+"x.`map`(bitset_f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(bitset_f)".law(BITSET)
 
 "x sameType x.`map`(f)".law(
   SUPER_ITREES.!, SUPER_MOPENHM.!, ORDERLY.!
@@ -343,19 +345,27 @@ oneStep sameAs twoStep
 
 "tryO{x.`max`} == tryO{ x.`reduce`(maxOf) }".law
 
-"tryO{x.`maxBy`(f)} == tryO{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }".law(BITSET_MAP_BREAKS_BOUNDS.!)
+"tryO{x.`maxBy`(f)} == tryO{ val fx = x.map(f).`max`; x.find(xi => f(xi)==fx).get }".law(BITSET.!)
+
+"tryO{x.`maxBy`(bitset_f)} == tryO{ val fx = x.map(bitset_f).`max`; x.find(xi => bitset_f(xi)==fx).get }".law(BITSET)
 
 "tryO{ x.`max` } == x.`maxOption`".law
 
-"tryO{ x.`maxBy`(f) } == x.`maxByOption`(f)".law(BITSET_MAP_BREAKS_BOUNDS.!)
+"tryO{ x.`maxBy`(f) } == x.`maxByOption`(f)".law(BITSET.!)
+
+"tryO{ x.`maxBy`(bitset_f) } == x.`maxByOption`(bitset_f)".law(BITSET)
 
 "tryO{x.`min`} == tryO{ x.`reduce`(minOf) }".law
 
-"tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law(BITSET_MAP_BREAKS_BOUNDS.!)
+"tryO{x.`minBy`(f)} == tryO{ val fx = x.map(f).`min`; x.find(xi => f(xi)==fx).get }".law(BITSET.!)
+
+"tryO{x.`minBy`(bitset_f)} == tryO{ val fx = x.map(bitset_f).`min`; x.find(xi => bitset_f(xi)==fx).get }".law(BITSET)
 
 "tryO{ x.`min` } == x.`minOption`".law
 
-"tryO{ x.`minBy`(f) } == x.`minByOption`(f)".law(BITSET_MAP_BREAKS_BOUNDS.!)
+"tryO{ x.`minBy`(f) } == x.`minByOption`(f)".law(BITSET.!)
+
+"tryO{ x.`minBy`(bitset_f) } == x.`minByOption`(bitset_f)".law(BITSET)
 
 
 
@@ -445,6 +455,10 @@ c sameAs x.filter(p)""".law(SET)
 "(x.`++`(y)).`take`(x.`size`) sameAs x".law(SEQ)
 
 "(x.`++`(y)).`drop`(x.`size`) sameAs y".law(SEQ)
+
+"x.`++`(y) sameAs (x.toSeq ++ y.toSeq).toMap".law(MAP)
+
+"x.`++`(y) sameAs (x.toSeq ++ y.toSeq).toSet".law(SET)
 
 "x.`--`(y).`size` >= x.size - y.size".law(MAP.!)
 
@@ -544,7 +558,9 @@ val (x1,x2) = x.`duplicate`
 
 "x.`length` == x.`size`".law
 
-"x.`mapResult`(_.`map`(f)).`addOne`(a).`result` sameAs x.`addOne`(a).`result`.`map`(f)".law
+"x.`mapResult`(_.`map`(f)).`addOne`(a).`result` sameAs x.`addOne`(a).`result`.`map`(f)".law(BITSET.!)
+
+"x.`mapResult`(_.`map`(bitset_f)).`addOne`(a).`result` sameAs x.`addOne`(a).`result`.`map`(bitset_f)".law(BITSET)
 
 "x.`padTo`(n, a).`size` == (n max x.size)".law
 
@@ -569,7 +585,14 @@ val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
 val ll = x.`filter`(p).`map`(f)
 val rr = x.`filterNot`(p)
 (l sameAs ll) && (r sameAs rr)
-""".law
+""".law(BITSET.!)
+
+"""
+val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(bitset_f) else Right(xi))
+val ll = x.`filter`(p).`map`(bitset_f)
+val rr = x.`filterNot`(p)
+(l sameAs ll) && (r sameAs rr)
+""".law(BITSET)
 
 """
 val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
@@ -628,23 +651,14 @@ val (x1, x2) = x.`span`(p)
 "x.`zipAll`(y, a, f(a)).map(_._2) sameAs y.`padTo`(x.`size` max y.size, f(a))".law
 
 """
-var nxy = 0
-var nxf = 0
-var nay = 0
-var naf = 0
-x.`zipAll`(y, a, f(a)).foreach{ case (xi, yi) =>
-  val inx = x.`exists`(_ == xi)
-  val iny = y.`exists`(_ == yi)
-  if (inx && iny) nxy += 1
-  else if (inx) nxf += 1
-  else if (iny) nay += 1
-  else naf += 1
-}
-naf == 0 && nay <= y.size - x.`size` && nxf <= x.size - y.size && nxy >= (x.size min y.size)
-""".law(
-  Tags.SelectTag(ti => if (ti.inst.values.xsize <= 10) None else Some(Outcome.Skip.x)),
-  Tags.SelectTag(ti => if (ti.inst.values.ysize <= 10) None else Some(Outcome.Skip.y))
-)
+val xlen = x.`size`
+val ylen = y.`size`
+val zip =
+  if (xlen == ylen) x.zip(y)
+  else if (xlen < ylen) (x.`++`(Iterator.continually(a).take(ylen-xlen))).zip(y)
+  else                   x.`zip`(y ++ Iterator.continually(f(a)).take(xlen-ylen))
+x.`zipAll`(y, a, f(a)) sameAs zip
+""".law(SEQ)
 
 "x sameType x.`zipAll`(y, a, f(a)).map(_._1)".law(MAP.!, ORDERLY.!)
 
@@ -660,6 +674,8 @@ naf == 0 && nay <= y.size - x.`size` && nxf <= x.size - y.size && nxy >= (x.size
 */
 
 "x.`++:`(y) sameAs y.`++`(x)".law
+
+"x.`++:`(y) sameType y.`++`(x)".law
 
 "x.`::`(a).`size` == x.size+1".law
 
@@ -998,7 +1014,12 @@ val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList
 
 """
 val x0 = x.`sorted`
-x0.`search`(a) == x0.`takeWhile`(_ < a).`size`  // TODO--test three-arg version
+val lt_n = x0.`takeWhile`(_ < a).`size`
+val lteq_n = x0.takeWhile(_ <= a).size
+x0.`search`(a) match {
+  case scala.collection.Searching.Found(i)          => i >= lt_n && i < lteq_n
+  case scala.collection.Searching.InsertionPoint(i) => i == lt_n && i == lteq_n
+}
 """.law
 
 """
@@ -1167,6 +1188,25 @@ x0.`remove`(n)
 x1.`remove`(n,1)
 x0 sameAs x1
 """.law(SET.!, MAP.!, Filt.xsize(_ > 0))
+
+/*
+"x0.`remove`(a) == x0.`contains`(a)".law(SET)
+
+"x0.`remove`(a._1) == x0.`contains`(a._1)".law(MAP)
+
+"""
+val x0 = x
+val had = x0.`remove`(a)
+if (had) (x0.`+`(a)) sameAs x else x0 sameAs x
+""".law(SET)
+
+"""
+val x0 = x
+val had = x0.`remove`(a._1)
+if (had) x0.`size` + 1 == x.`size` && (x0 partOf x) else x0 sameAs x
+""".law(MAP)
+*/
+
 
 
 "x.`result` sameAs x".law

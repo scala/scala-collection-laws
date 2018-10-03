@@ -100,6 +100,8 @@ with TestInfo {
 
   def name = nm.value.toString
 
+  val bitset_f = (i: Int) => i/2 + 999
+
   override lazy val toString =
     nm.value.toString + " @ " + source +
     f"\n  $num\n" +
