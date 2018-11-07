@@ -181,7 +181,7 @@ set - only holds for collections that remove duplicates
 
 "x.`map`(f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(f) }".law(SET, BITSET.!)
 
-"x.`map`(bitset_f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(bitset_f)".law(BITSET)
+"x.`map`(bitset_f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(bitset_f) }".law(BITSET)
 
 "x sameType x.`map`(f)".law(
   SUPER_ITREES.!, SUPER_MOPENHM.!, ORDERLY.!
@@ -588,7 +588,7 @@ val rr = x.`filterNot`(p)
 """.law(BITSET.!)
 
 """
-val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(bitset_f) else Right(xi))
+val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(bitset_f(xi)) else Right(xi))
 val ll = x.`filter`(p).`map`(bitset_f)
 val rr = x.`filterNot`(p)
 (l sameAs ll) && (r sameAs rr)
@@ -673,9 +673,9 @@ x.`zipAll`(y, a, f(a)) sameAs zip
 "x.`:++`(y) sameAs x.`++`(y)".law
 */
 
-"x.`++:`(y) sameAs y.`++`(x)".law
+"x.`++:`(y) sameAs y.`++`(x)".law(LEFT_JOIN_WRONG.!)
 
-"x.`++:`(y) sameType y.`++`(x)".law
+"x.`++:`(y) sameType y.`++`(x)".law(LEFT_JOIN_DETYPED.!, LEFT_JOIN_WRONG.!)
 
 "x.`::`(a).`size` == x.size+1".law
 
@@ -999,16 +999,16 @@ ordered
 
 "val x0 = x; x0.`sortInPlace`; x0 sameAs x.`sorted`".law
 
-"x.`sortBy`(f) sameAs x.`sortWith`((a,b) => f(a) < f(b))".law
+"x.`sortBy`(f) sameAs x.`sortWith`((a,b) => f(a) < f(b))".law(SORTWITH_MUTATES.!)
 
-"val x0 = x; x0.`sortInPlaceBy`(f); x0 sameAs x.`sortBy`(f)".law
+"val x0 = x; x0.`sortInPlaceBy`(f); x0 sameAs x.`sortBy`(f)".law(SORTWITH_MUTATES.!)
 
-"val x0 = x; x0.`sortInPlaceWith`((a, b) => f(a) < f(b)); x0 sameAs x.`sortWith`((a, b) => f(a) < f(b))".law
+"val x0 = x; x0.`sortInPlaceWith`((a, b) => f(a) < f(b)); x0 sameAs x.`sortWith`((a, b) => f(a) < f(b))".law(SORTWITH_MUTATES.!)
 
 """
 val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList
 (xx zip xx.drop(1)).forall{ case (a,b) => !(f(a) < f(b)) }
-""".law
+""".law(SORTWITH_MUTATES.!)
 
 "x.`sorted` sameAs x.`toArray`.sorted".law // Need to add a custom ordering here
 
@@ -1086,7 +1086,7 @@ y.`take`(xb.size) sameAs xb
 """
 x.map(a => (a,a)).`unzip` match {
   case (y1, y2) => List(y1, y2).forall(_ sameAs x)
-    case _ => false
+  case _ => false
 }
 """.law(BITSET_MAP_AMBIG.!)
 
@@ -1103,7 +1103,7 @@ val k = math.min(x.`size`, y.size)
 var i, j = -1
 (
   x.`forall`{ xi => i += 1; i >= k || z(i)._1 == xi } &&
-  y.forall{ yj => j += 1; j >= k || z(j)._2 == yj }
+  y.`forall`{ yj => j += 1; j >= k || z(j)._2 == yj }
 )
 """.law(SET.!, MAP.!)
 

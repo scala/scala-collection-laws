@@ -58,4 +58,7 @@ object Flag {
   val UNSAFE_COPY_ARRAY = F    // Array and some friends have an unsafe copyToArray method
   val PQ_RETURNS_NULL   = F    // Priority Queue can just give null when empty!
   val QUEUE_NORESIZE    = F    // Queue and ArrayStack and ArrayDeque don't resize properly on `insert`
+  val LEFT_JOIN_DETYPED = F    // Maps and a few other collections don't retain self-type with `++:`
+  val LEFT_JOIN_WRONG   = F    // Maps don't implement `++:` the right way: they actually produce different results
+  val SORTWITH_MUTATES  = F    // Array-based collections mutate themselves with `sortWith`!
 }
