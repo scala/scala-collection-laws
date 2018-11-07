@@ -193,6 +193,7 @@ object AllIntGenerators {
     val hashSet = register(io.Imm)(_.hashSet())
     val indexedSeq = register(io.Imm)(_.indexedSeq())
     val iterable = register(io.Imm)(_.iterable())
+    val lazyList = register(io.Imm)(_.lazyList())
     val linearSeq = register(io.Imm)(_.linearSeq())
     val list = register(io.Imm)(_.list())
     val queue = register(io.Imm)(_.queue())
@@ -215,6 +216,7 @@ object AllIntGenerators {
   object Mut {
     val array = register(io.Mut)(_.array(), "Array[Int]")
     val arrayBuffer = register(io.Mut)(_.arrayBuffer())
+    val arrayDeque = register(io.Mut)(_.arrayDeque())
     val arraySeq = register(io.Mut)(_.arraySeq())
     val arrayStack = register(io.Mut)(_.arrayStack())
     val buffer = register(io.Mut)(_.buffer())
@@ -297,6 +299,7 @@ object AllStrGenerators {
     val hashSet = register(io.Imm)(_.hashSet())
     val indexedSeq = register(io.Imm)(_.indexedSeq())
     val iterable = register(io.Imm)(_.iterable())
+    val lazyList = register(io.Imm)(_.lazyList())
     val linearSeq = register(io.Imm)(_.linearSeq())
     val list = register(io.Imm)(_.list())
     val queue = register(io.Imm)(_.queue())
@@ -319,6 +322,7 @@ object AllStrGenerators {
   object Mut {
     val array = register(io.Mut)(_.array(), "Array[String]")
     val arrayBuffer = register(io.Mut)(_.arrayBuffer())
+    val arrayDeque = register(io.Mut)(_.arrayDeque())
     val arraySeq = register(io.Mut)(_.arraySeq())
     val arrayStack = register(io.Mut)(_.arrayStack())
     val buffer = register(io.Mut)(_.buffer())
@@ -508,7 +512,7 @@ object GenerateAll {
       ) ++
       tests.zipWithIndex.flatMap{ case (t, i) => Array(
         f"  @org.junit.Test",
-        f"  def run_$t {",
+        f"  def run_$t: Unit = {",
         f"    val (n, test) = Test_Everything.runners($i).apply()",
         f"    $name.result.put(n, test.apply())",
         f"  }"
@@ -518,8 +522,8 @@ object GenerateAll {
         f"",
         f"object $name {",
         f"  val result = new java.util.concurrent.ConcurrentHashMap[String, Test.Tested]",
-        f"  @org.junit.BeforeClass def setup  { result.clear() }",
-        f"  @org.junit.AfterClass  def report { Report.junitReport(result) }",
+        f"  @org.junit.BeforeClass def setup: Unit =  { result.clear() }",
+        f"  @org.junit.AfterClass  def report: Unit = { Report.junitReport(result) }",
         f"}",
         f""
       )
@@ -527,7 +531,7 @@ object GenerateAll {
     (name, FileIO(target, lines.mkString("\n")))
   }
 
-  /** Write all tests and test-supervisors to the given dirrectory.
+  /** Write all tests and test-supervisors to the given directory.
     *
     * Returns a map that indicates whether or not each test file
     * was actually updated, and a `Vector` that names all the
@@ -561,7 +565,7 @@ object GenerateAll {
     */
   def run(args: Array[String]): Boolean = {
     val path = args match {
-      case Array() => "../tests"
+      case Array() => "tests"
       case Array(f) => f
       case _ => throw new IllegalArgumentException(f"Zero or one paths for output only (found ${args.length})")
     }
@@ -579,7 +583,7 @@ object GenerateAll {
     else true
   }
 
-  /** Writes all the tests into the default directory (which is `../tests`). */
+  /** Writes all the tests into the default directory (which is `tests`). */
   def default(): Unit = { 
     run(Array.empty)
   }

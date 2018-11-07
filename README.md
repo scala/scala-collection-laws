@@ -1,4 +1,4 @@
-scala-collections-laws
+# scala-collections-laws
 ======================
 
 Partially automatic generation of tests for the Scala collections library.  The
@@ -21,7 +21,8 @@ to produce meaningful automatic reports.
 
 ## Quick start
 
-Clone the repository and run
+Clone the repository, update `build.sbt` with the `scalaVersion` you want to test and
+a compatible `sourcecode`, and run
 
 ```bash
 bash run.sh
@@ -61,6 +62,26 @@ Untested methods in Root_Iterator:
 ```
 
 Congratuations!  Your collections were quasi-comprehensively tested.
+
+### Local testing quick start
+
+If you want to test changes to the compiler or standard library, you will presumably want to do something like the following.
+
+1. Fork the Scala compiler somewhere on your machine.  (You've probably done that already.)
+2. Publish the build locally by running `sbt publishLocal` and note what it's called (e.g. `2.13.0-pre-SNAPSHOT`)
+3. Fork [sourcecode](https://github.com/lihaoyi/sourcecode.git)
+4. Alter `sourcecode`'s `build.sbt` in the following ways:
+  a. In `baseSettings`, change `scalaVersion` to the locally built compiler
+  b. In `baseSettings`, you may also wish to change `version` to a custom name for your local build (e.g. I would change `"0.1.5-SNAPSHOT"` to `"0.1.5-local-SNAPSHOT"`)
+  c. Remove `NativePlatform` and maybe `JSPlatform` from `lazy val sourcecode = crossProject(...)`
+  d. Remove the `.nativeSettings` and maybe `.jsSettings` from the end of the definition of `lazy val sourcecode`
+  e. Remove `lazy val native` and maybe `lazy val js` from the end of the file
+  f. Run `sbt`, enter `project sourcecodeJVM` and then `publishLocal`, noting what it's called
+5. Alter `scala-collections-laws`'s `build.sbt` to request the local versions of the compiler and sourcecode
+
+Now you can run `bash run.sh` to commence testing.  (Note--this only tests the JVM build.)
+
+Each time you change the library or compiler, you'll need to publish both the compiler and `sourcecode` locally before running collections-laws again.
 
 ## Common tasks
 
@@ -397,6 +418,7 @@ _Note that `A` is identically `(K, V)` for maps._
 | Variable Name | Expected Values   | Meaning |
 |---------------|-------------------|---------|
 | `a`           | an element        | Some single instance of the collection's element type |
+| `b`           | an element        | Some single instance of the type that `A` is mapped to via `g`
 | `x`           | a collection      | May be empty or have one or more elements |
 | `xsize`       | `x.size`          | Contains the pre-computed size of `x` |
 | `y`           | another collection| In general is not the same as `x` (but can be) |
