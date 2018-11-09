@@ -15,8 +15,8 @@ case class Tags(positive: Set[Flag], negative: Set[Flag], select: Vector[TestInf
   val isEmpty = positive.isEmpty && negative.isEmpty && select.isEmpty
 
   /** Checks whether a certain set of flags is compatible for code generation (compile-time compatible) */
-  def compatible(flags: Set[Flag]) =
-    positive.forall(flags contains _) && !flags.exists(negative contains _)
+  def compatible(flags: Set[Flag]) = 
+    positive.forall(f => f.disabled || flags.contains(f)) && !flags.exists(f => !f.disabled && negative.contains(f))
 
   /** Checks whether a certain choice of parameters is suitable for testing at runtime */
   def validate(t: TestInfo): Option[Outcome.Skip] = select.iterator.map(p => p(t)).find(_.isDefined).flatten

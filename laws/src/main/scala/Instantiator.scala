@@ -99,7 +99,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
       SEQ, INDEF
     )
     val traversable = C(_.to(collection.immutable.Traversable))
-    val treeSet     = C(_.to(collection.immutable.TreeSet), SET, ORDERLY, SUPER_ITREES, LEFT_JOIN_DETYPED)
+    val treeSet     = C(_.to(collection.immutable.TreeSet), SET, ORDERLY, LEFT_JOIN_DETYPED)
     val vector      = C(_.toVector, SEQ)
   }
 
@@ -120,11 +120,11 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val array        = C(_.clone, SEQ, ARRAY, UNSAFE_COPY_ARRAY, SORTWITH_MUTATES).moreMethods(MethodChecker.from[collection.ArrayOps[A]])
+    val array        = C(_.clone, SEQ, ARRAY, SORTWITH_MUTATES).moreMethods(MethodChecker.from[collection.ArrayOps[A]])
     val arrayBuffer  = C(_.to(collection.mutable.ArrayBuffer), SEQ)
-    val arrayDeque   = C(_.to(collection.mutable.ArrayDeque), SEQ, QUEUE_PATCH_INDEX, QUEUE_SLIDING, QUEUE_NORESIZE, UNSAFE_COPY_ARRAY)
+    val arrayDeque   = C(_.to(collection.mutable.ArrayDeque), SEQ, QUEUE_SLIDING)
     val arraySeq     = C(_.to(collection.mutable.ArraySeq), SEQ, SORTWITH_MUTATES)
-    val arrayStack   = C(_.to(collection.mutable.ArrayStack), SEQ, QUEUE_PATCH_INDEX, QUEUE_SLIDING, QUEUE_NORESIZE, UNSAFE_COPY_ARRAY)
+    val arrayStack   = C(_.to(collection.mutable.ArrayStack), SEQ, QUEUE_SLIDING)
     val buffer       = C(_.to(collection.mutable.Buffer), SEQ)
     val hashSet      = C(_.to(collection.mutable.HashSet), SET)
     val indexedSeq   = C(_.to(collection.mutable.IndexedSeq), SEQ)
@@ -132,7 +132,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val linkedHashSet= C(_.to(collection.mutable.LinkedHashSet), SET)
     val listBuffer   = C(_.to(collection.mutable.ListBuffer), SEQ)
     val priorityQueue= C(_.to(collection.mutable.PriorityQueue), ORDERLY, PRIORITYQUEUE_IS_SPECIAL, PQ_RETURNS_NULL, LEFT_JOIN_DETYPED)
-    val queue        = C(_.to(collection.mutable.Queue), SEQ, QUEUE_PATCH_INDEX, QUEUE_SLIDING, QUEUE_NORESIZE, UNSAFE_COPY_ARRAY)
+    val queue        = C(_.to(collection.mutable.Queue), SEQ, QUEUE_SLIDING)
     val seq          = C(_.to(collection.mutable.Seq), SEQ)
     val treeSet      = C(_.to(collection.mutable.TreeSet), SET, ORDERLY, LEFT_JOIN_DETYPED)
     // val unrolledBuffer = C(_.to(collection.mutable.UnrolledBuffer), SEQ)  // Unrolled buffer is weird!
@@ -221,10 +221,10 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val hashMap =   C({ a => val mb = collection.immutable.HashMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG, MAP_CANT_MKSTRING, SUPER_IHASHM)
-    val listMap =   C({ a => val mb = collection.immutable.ListMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG, MAP_CANT_MKSTRING)
-    val sortedMap = C({ a => val mb = collection.immutable.SortedMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG, MAP_CANT_MKSTRING)
-    val treeMap =   C({ a => val mb = collection.immutable.TreeMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG, MAP_CANT_MKSTRING)
+    val hashMap =   C({ a => val mb = collection.immutable.HashMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
+    val listMap =   C({ a => val mb = collection.immutable.ListMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
+    val sortedMap = C({ a => val mb = collection.immutable.SortedMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
+    val treeMap =   C({ a => val mb = collection.immutable.TreeMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
   }
 
   object MutKV extends Instance.PackagePath {
@@ -244,13 +244,13 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val hashMap =       C({ a => val m = new collection.mutable.HashMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG, SUPER_MXMAP, MAP_CANT_MKSTRING)
-    val listMap =       C({ a => val m = new collection.mutable.ListMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG, SUPER_MXMAP, MAP_CANT_MKSTRING)
-    val linkedHashMap = C({ a => val m = new collection.mutable.LinkedHashMap[K, V]; for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG, SUPER_MXMAP, MAP_CANT_MKSTRING)
-    val openHashMap =   C({ a => val m = new collection.mutable.OpenHashMap[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG, SUPER_MXMAP, SUPER_MOPENHM, MAP_CANT_MKSTRING)
-    val sortedMap =     C({ a => val m = collection.mutable.SortedMap.empty[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG, MAP_CANT_MKSTRING)
-    val treeMap =       C({ a => val m = new collection.mutable.TreeMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG, SUPER_MXMAP, MAP_CANT_MKSTRING)
-    val weakHashMap =   C({ a => val m = new collection.mutable.WeakHashMap[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG, SUPER_MXMAP, MAP_CANT_MKSTRING)
+    val hashMap =       C({ a => val m = new collection.mutable.HashMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
+    val listMap =       C({ a => val m = new collection.mutable.ListMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
+    val linkedHashMap = C({ a => val m = new collection.mutable.LinkedHashMap[K, V]; for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
+    val openHashMap =   C({ a => val m = new collection.mutable.OpenHashMap[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
+    val sortedMap =     C({ a => val m = collection.mutable.SortedMap.empty[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
+    val treeMap =       C({ a => val m = new collection.mutable.TreeMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
+    val weakHashMap =   C({ a => val m = new collection.mutable.WeakHashMap[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
   }
 }
 
@@ -447,7 +447,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
     }
     val longMap = C(
       { a => val m = new collection.mutable.LongMap[String];     for (kv <- a) m += kv; m },
-      MAP_CANT_MKSTRING, SPEC_MAP_CANT_ADD, SPECTYPE, LEFT_JOIN_WRONG, LEFT_JOIN_DETYPED
+      SPECTYPE, LEFT_JOIN_WRONG, LEFT_JOIN_DETYPED
     )
   }
 
@@ -510,7 +510,7 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
     }
     val anyRefMap = C(
       { a => val m = new collection.mutable.AnyRefMap[String, Long]; for (kv <- a) m += kv; m },
-      MAP_CANT_MKSTRING, SPEC_MAP_CANT_ADD, SPECTYPE, LEFT_JOIN_WRONG, LEFT_JOIN_DETYPED
+      SPECTYPE, LEFT_JOIN_WRONG, LEFT_JOIN_DETYPED
     )
   }
 
