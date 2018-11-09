@@ -16,8 +16,8 @@ extends Ordered[Flag] {
   override val hashCode = toString.hashCode
 }
 object Flag {
-  def F(implicit nm: sourcecode.Name) = new Flag()(nm)
-  def X(implicit nm: sourcecode.Name) = new Flag(false)(nm)
+  def F(implicit nm: sourcecode.Name) = new Flag()(nm)       // This sets a flag
+  def X(implicit nm: sourcecode.Name) = new Flag(true)(nm)  // Use this to "comment out" a flag
 
   // Fundamental properties of sequences
   val INT = F     // Uses integers as the element type
@@ -35,29 +35,17 @@ object Flag {
   val INDEF   = F   // Collection's size is not yet fixed (lazy collections)
   val SPECTYPE= F   // Collection has constraints on element type, which makes some operations not work
   val BITSET  = F   // Collection is specificially a bitset (mutable or immutable)
-
-  // Everything below here is non-ideal but may reflect the best behavior we can get.
-  val SUPER_IHASHM  = F  // Some immutable.HashMap operations revert to the supertype
-  val SUPER_ITREES  = F  // Some immutable.TreeSet operations revert to the supertype 
-  val SUPER_MXMAP   = F  // Some mutable.Map subclass operations always revert to the supertype
-  val SUPER_MOPENHM = F  // mutable.OpenHashMap is especially bad with supertype reversion
-  val SUPER_ON_ZIP  = F  // Some collections lose their type when zipped (due to ordering or structure)
   
   // Everything down here is _highly_ dubious behavior but is included to get tests to pass
   val PRIORITYQUEUE_IS_SPECIAL = F  // Inconsistent behavior regarding what is dequeued (ordered) vs. not
 
   // Workarounds for identified bugs go here.
-  val MAP_CANT_MKSTRING = F    // Maps have ambiguous `mkString` with no args
   val BITSET_MAP_AMBIG  = F    // Bit maps don't know whether to use StrictOptimized or SortedSet ops for map.
   val BITSET_ZIP_AMBIG  = F    // Same problem with zipping
-  val SPEC_MAP_CANT_ADD = F    // AnyRefMap and LongMap lose their identity with `+`
 
   // Pure bugs that aren't fixed yet
-  val QUEUE_PATCH_INDEX = F    // Queue and ArrayStack have an off-by-one error in `patchInPlace`
   val QUEUE_SLIDING     = F    // Queue and ArrayStack will not give you an underfull sliding window (everything else does)
-  val UNSAFE_COPY_ARRAY = F    // Array and some friends have an unsafe copyToArray method
   val PQ_RETURNS_NULL   = F    // Priority Queue can just give null when empty!
-  val QUEUE_NORESIZE    = F    // Queue and ArrayStack and ArrayDeque don't resize properly on `insert`
   val LEFT_JOIN_DETYPED = F    // Maps and a few other collections don't retain self-type with `++:`
   val LEFT_JOIN_WRONG   = F    // Maps don't implement `++:` the right way: they actually produce different results
   val SORTWITH_MUTATES  = F    // Array-based collections mutate themselves with `sortWith`!

@@ -183,9 +183,7 @@ set - only holds for collections that remove duplicates
 
 "x.`map`(bitset_f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(bitset_f) }".law(BITSET)
 
-"x sameType x.`map`(f)".law(
-  SUPER_ITREES.!, SUPER_MOPENHM.!, ORDERLY.!
-)
+"x sameType x.`map`(f)".law(ORDERLY.!)
 
 """{
   val flat = x.`flatMap`(xi => y.toList.take(intFrom(xi)))
@@ -201,9 +199,7 @@ set - only holds for collections that remove duplicates
   flat sameAs ref
 }""".law(SET)
 
-"x sameType x.`flatMap`(xi => y.toList.take(intFrom(xi)%3))".law(
-  SUPER_ITREES.!, SUPER_MOPENHM.!, ORDERLY.!
-)
+"x sameType x.`flatMap`(xi => y.toList.take(intFrom(xi)%3))".law(ORDERLY.!)
 
 "x.`exists`(p) == x.`find`(p).isDefined".law
 
@@ -221,9 +217,9 @@ set - only holds for collections that remove duplicates
 
 "x.`mkString` == { val sb = new StringBuilder; x.foreach(sb ++= _.toString); sb.result }".law(SEQ)
 
-"x.`mkString` == { val sb = new StringBuilder; x.`addString`(sb); sb.result }".law(MAP_CANT_MKSTRING.!)
+"x.`mkString` == { val sb = new StringBuilder; x.`addString`(sb); sb.result }".law
 
-"""x.`mkString` == x.mkString("", "", "")""".law(MAP_CANT_MKSTRING.!)
+"""x.`mkString` == x.mkString("", "", "")""".law
 
 """x.`mkString`("!") == x.mkString("", "!", "")""".law
 
@@ -255,15 +251,7 @@ set - only holds for collections that remove duplicates
 val arr = new Array[A](nn)
 x.`copyToArray`(arr, n, m)
 (x.toList zip arr.drop(n).take(m)).forall{ case (x, y) => x == y }
-""".law(SET.!, MAP.!, UNSAFE_COPY_ARRAY.!, Filt.xsize(_ > 0))
-
-"""
-(!(n >= 0 && nn >= 0 && m >= 0 && x.`size` >= m && nn >= n+m)) || {
-  val arr = new Array[A](nn)
-  x.`copyToArray`(arr, n, m)
-  (x.toList zip arr.drop(n).take(m)).forall{ case (x, y) => x == y }
-}
-""".law(UNSAFE_COPY_ARRAY, Filt.xsize(_ > 0))
+""".law(SET.!, MAP.!, Filt.xsize(_ > 0))
 
 
 """
@@ -481,13 +469,13 @@ x.forall{ case (k, v) =>
 }
 """.law(MAP)
 
-"x sameType x.`++`(y)".law(SUPER_IHASHM.!, SUPER_MXMAP.!)
+"x sameType x.`++`(y)".law
 
 "x.`buffered` sameAs x".law
 
 "x.`collect`(pf) sameAs x.`filter`(pf.isDefinedAt).`map`(pf)".law(BITSET_MAP_AMBIG.!)
 
-"x sameType x.`collect`(pf)".law(SUPER_ITREES.!, SUPER_MXMAP.!, ORDERLY.!, BITSET_MAP_AMBIG.!)
+"x sameType x.`collect`(pf)".law(ORDERLY.!, BITSET_MAP_AMBIG.!)
 
 "x.`contains`(a) == x.`exists`(_ == a)".law(MAP.!)
 
@@ -701,7 +689,7 @@ x.`zipAll`(y, a, f(a)) sameAs zip
 
 "x.`+`(a).`contains`(a._1)".law(MAP)
 
-"x sameType x.`+`(a)".law(SUPER_MXMAP.!, SPEC_MAP_CANT_ADD.!)
+"x sameType x.`+`(a)".law
 
 "x.`:::`(y) sameAs y.`++`(x)".law
 
@@ -1225,7 +1213,7 @@ x0 sameAs x.map{ case (a, b) => a -> f((a, b))._2 }
 
 "x sameType x.`updated`(n,a)".law(SEQ, Filt.xsize(_ > 0))
 
-"x sameType x.`updated`(a._1, a._2)".law(MAP, SUPER_MXMAP.!, Filt.xsize(_ > 0))
+"x sameType x.`updated`(a._1, a._2)".law(MAP, Filt.xsize(_ > 0))
 
 "{ val x0 = x; x0.`update`(n, a); x0 sameAs x.`updated`(n,a) }".law(MAP.!, Filt.xsize(_ > 0))
 
@@ -1309,9 +1297,9 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 
 "x.`groupMap`(g)(f).map{ case (k, vs) => k -> vs.`reduceLeft`(op) } samePieces x.`groupMapReduce`(g)(f)(op)".law(Filt.sym)
 
-"val x0 = x; x0.`insert`(n max 0, a); x0 sameAs collectionFrom(x.toArray.patch(n max 0, Array(a), 0))".law(MAP.!, SET.!, QUEUE_NORESIZE.!)
+"val x0 = x; x0.`insert`(n max 0, a); x0 sameAs collectionFrom(x.toArray.patch(n max 0, Array(a), 0))".law(MAP.!, SET.!)
 
-"val x0 = x; val x1 = x; x0.`insertAll`(n max 0, y); y.`reverse`.foreach(yi => x1.`insert`(n max 0, yi)); x0 sameAs x1".law(MAP.!, QUEUE_NORESIZE.!)
+"val x0 = x; val x1 = x; x0.`insertAll`(n max 0, y); y.`reverse`.foreach(yi => x1.`insert`(n max 0, yi)); x0 sameAs x1".law(MAP.!)
 
 "val x0 = x; x0.`mapInPlace`(f); x0 sameAs x.`map`(f)".law(PQ_RETURNS_NULL.!)
 
@@ -1321,7 +1309,7 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 
 "val x0 = x; x0.`padToInPlace`(n, a); x0 sameAs x.`padTo`(n, a)".law
 
-"val x0 = x; x0.`patchInPlace`(n max 0, y, m); x0 sameAs x.`patch`(n max 0, y, m)".law(QUEUE_PATCH_INDEX.!)
+"val x0 = x; x0.`patchInPlace`(n max 0, y, m); x0 sameAs x.`patch`(n max 0, y, m)".law
 
 "x.`prepended`(a) sameAs x.`+:`(a)".law
 
