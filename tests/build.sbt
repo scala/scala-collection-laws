@@ -1,6 +1,6 @@
 name := "collections-laws-tests"
 
-libraryDependencies += "com.novocode" % "junit-interface" % "0.9"
+libraryDependencies += "com.novocode" % "junit-interface" % "0.11"
 
 /*
 // Old version.  Needs to be tweaked to work.
