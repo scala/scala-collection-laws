@@ -636,7 +636,18 @@ val (x1, x2) = x.`span`(p)
 
 "x.`zipAll`(y, a, f(a)).map(_._1) sameAs x.`padTo`(x.`size` max y.size, a)".law
 
+"x.`size` < y.size implies x.`zipAll`(y, a, f(a)).map(_._1).`exists`(_ == a)".law
+
 "x.`zipAll`(y, a, f(a)).map(_._2) sameAs y.`padTo`(x.`size` max y.size, f(a))".law
+
+"x.`size` > y.size implies x.`zipAll`(y, a, f(a)).map(_._2).`exists`(_ == f(a))".law
+
+"""
+val z = x.`zipAll`(y, a, f(a))
+val x0 = x.`++`(Vector.fill((y.size - x.`size`) max 0)(a))
+val y0 = y.`++`(Vector.fill((x.`size` - y.size) max 0)(f(a)))
+z sameAs x0.`zip`(y0)
+""".law(SEQ)
 
 """
 val xlen = x.`size`
@@ -1018,7 +1029,7 @@ val (x1,x2) = x.`splitAt`(n)
 """
 val (x1,x2) = x.`splitAt`(n)
 (x1 sameType x2) && (x sameType x1)
-""".law/*(CAMEL_WEAKMAP_SUPER.!)*/
+""".law
 
 "x.`startsWith`(y,n) implies (x.`drop`(n).`take`(y.`size`) sameAs y)".law(Filt.xsize(_ > 0))
 
@@ -1047,7 +1058,7 @@ val xtl = x.`tails`.toList
 
 "x.`takeRight`(n) sameAs { val m = x.`size` - math.max(0, n); x.`drop`(m) }".law
 
-"x sameType x.`takeRight`(n)".law/*(CAMEL_WEAKMAP_SUPER.!)*/
+"x sameType x.`takeRight`(n)".law
 
 """
 x.map(a => collectionFrom(Array.fill(n)(a))).`transpose`.`forall`(_ sameAs x)
@@ -1084,6 +1095,18 @@ x.map(a => (a,a,a)).`unzip3` match {
   case _ => false
 }
 """.law(BITSET_MAP_AMBIG.!)
+
+"""
+val v = Vector.newBuilder[A]
+x.`withFilter`(p).foreach(v += _)
+v.result sameAs x.`filter`(p).toVector
+""".law(SEQ)
+
+"""
+val v = Vector.newBuilder[A]
+x.`withFilter`(p).foreach(v += _)
+v.result samePieces x.`filter`(p).toVector
+""".law(SEQ.!)
 
 """
 val z = x.`zip`(y).toArray
@@ -1177,6 +1200,20 @@ x1.`remove`(n,1)
 x0 sameAs x1
 """.law(SET.!, MAP.!, Filt.xsize(_ > 0))
 
+"x.`filterKeys`(k => p((k, a._2))) sameAs x.toVector.filter{ case (k, v) => p((k, a._2)) }.toMap".law
+
+"x.`keySet` sameAs x.`iterator`.map{ case (k, v) => k }.toSet".law
+
+"x.`keySet` sameAs x.`keys`".law
+
+"x.`keysIterator`.toSet sameAs x.`keySet`".law
+
+"x.`values` samePieces x.`iterator`.map{ case(k, v) => v }.toVector".law
+
+"x.`valuesIterator`.toVector samePieces x.`iterator`.map{ case (k, v) => v }.toVector".law
+
+"(!x.`contains`(a._1) && !y.`contains`(a._1)) implies x.`withDefaultValue`(a._2).apply(a._1) == a._2".law
+
 /*
 "x0.`remove`(a) == x0.`contains`(a)".law(SET)
 
@@ -1241,6 +1278,10 @@ x0 sameAs x.map{ case (a, b) => a -> f((a, b))._2 }
 ///////////////////////////////////////
 // New laws for strawman collections //
 ///////////////////////////////////////
+
+"(x.`toVector` sameAs x.toVector.reverse) == (x.iterator sameAs x.toVector.reverse.iterator)".law(INSORD)
+
+"(!x.`contains`(a._1) && !y.contains(a._1)) implies (x.`+`(a).`++`(y).iterator.toVector.`drop`(x.`size`).headOption == Some(a))".law(INSORD, MAP)
 
 "x.`:++`(y) sameAs x.`++`(y)".law
 

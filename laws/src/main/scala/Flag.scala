@@ -35,6 +35,7 @@ object Flag {
   val INDEF   = F   // Collection's size is not yet fixed (lazy collections)
   val SPECTYPE= F   // Collection has constraints on element type, which makes some operations not work
   val BITSET  = F   // Collection is specificially a bitset (mutable or immutable)
+  val INSORD  = F   // Collection traverses itself in insertion order even though it's not intrinsically ordered
   
   // Everything down here is _highly_ dubious behavior but is included to get tests to pass
   val PRIORITYQUEUE_IS_SPECIAL = F  // Inconsistent behavior regarding what is dequeued (ordered) vs. not
