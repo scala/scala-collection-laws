@@ -225,6 +225,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
     val listMap =   C({ a => val mb = collection.immutable.ListMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
     val sortedMap = C({ a => val mb = collection.immutable.SortedMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
     val treeMap =   C({ a => val mb = collection.immutable.TreeMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
+    val vectorMap = C({ a => val mb = collection.immutable.VectorMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG, INSORD)
   }
 
   object MutKV extends Instance.PackagePath {
@@ -246,7 +247,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
     // MUST use lower-camel-cased collection class name for code generator to work properly!
     val hashMap =       C({ a => val m = new collection.mutable.HashMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
     val listMap =       C({ a => val m = new collection.mutable.ListMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
-    val linkedHashMap = C({ a => val m = new collection.mutable.LinkedHashMap[K, V]; for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
+    val linkedHashMap = C({ a => val m = new collection.mutable.LinkedHashMap[K, V]; for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG, INSORD)
     val openHashMap =   C({ a => val m = new collection.mutable.OpenHashMap[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
     val sortedMap =     C({ a => val m = collection.mutable.SortedMap.empty[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
     val treeMap =       C({ a => val m = new collection.mutable.TreeMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
