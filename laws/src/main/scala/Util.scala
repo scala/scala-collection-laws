@@ -178,13 +178,13 @@ object FileIO {
     * Returns true if replacement occured, false if not, and throws an exception if any I/O failed.
     */
   def apply(target: java.io.File, content: String): Boolean = {
-    val myLines: Array[String] = content.lines.toArray
+    val myLines = collection.immutable.ArraySeq.from(content.linesIterator)
     val different =
       if (target.exists) {
         val src = scala.io.Source.fromFile(target)
         try {
           val lines = src.getLines.toVector.map(trimRight)
-          lines != (myLines: Seq[String]).map(trimRight)
+          lines != myLines.map(trimRight)
         }
         finally src.close        
       }
