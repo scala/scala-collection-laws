@@ -1,4 +1,4 @@
-# scala-collections-laws
+# scala-collection-laws
 ======================
 
 Partially automatic generation of tests for the Scala collections library.  The
@@ -15,7 +15,7 @@ with results printed out, or can be invoked by JUnit as a standard test.
 
 ## Warning--this is a complete rewrite from earlier versions!
 
-Earlier versions of scala-collections-laws had several weird text-based DSLs.  This
+Earlier versions of scala-collection-laws had several weird text-based DSLs.  This
 has been abandoned in favor of plain Scala code with the `sourcecode` plugin helping
 to produce meaningful automatic reports.
 
@@ -77,7 +77,7 @@ If you want to test changes to the compiler or standard library, you will presum
   d. Remove the `.nativeSettings` and maybe `.jsSettings` from the end of the definition of `lazy val sourcecode`
   e. Remove `lazy val native` and maybe `lazy val js` from the end of the file
   f. Run `sbt`, enter `project sourcecodeJVM` and then `publishLocal`, noting what it's called
-5. Alter `scala-collections-laws`'s `build.sbt` to request the local versions of the compiler and sourcecode
+5. Alter `scala-collection-laws`'s `build.sbt` to request the local versions of the compiler and sourcecode
 
 Now you can run `bash run.sh` to commence testing.  (Note--this only tests the JVM build.)
 
@@ -88,7 +88,7 @@ Each time you change the library or compiler, you'll need to publish both the co
 ### Catching a regression
 
 Catching a regression typically does not require deep knowledge of the workings
-of scala-collections-laws.  Simply change the target version of Scala in the
+of scala-collection-laws.  Simply change the target version of Scala in the
 `tests/build.sbt` file (and in `laws/build.sbt` if the change is not binary
 compatible with the version already in `laws/build.sbt`) and use `run.sh` again.
 
