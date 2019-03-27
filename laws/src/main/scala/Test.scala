@@ -152,11 +152,11 @@ object Test {
       val usage = methods.toArray.map{ m => (m, (Mu(List.empty[Int]), Mu(List.empty[Int]))) }.toMap
       for {
         (_, Pass(law, _, _)) <- succeeded
-        m <- law.methods.right.getOrElse(Set.empty[String])
+        m <- law.methods.getOrElse(Set.empty[String])
       } usage.get(m).foreach(_._1.mutf(law.lineNumber :: _))
       for {
         (_, Fail(law, _, _, _)) <- failed
-        m <- law.methods.right.getOrElse(Set.empty[String])
+        m <- law.methods.getOrElse(Set.empty[String])
       } usage.get(m).foreach(_._2.mutf(law.lineNumber :: _))
       usage.map{ case (m, (mu1, mu2)) => (m, (mu1.value.sorted, mu2.value.sorted)) }
     }
@@ -246,11 +246,11 @@ object Test {
     object Conversions {
       implicit def onceViaString(string: String): Once[Char] = Once from string
       implicit def onceViaArray[A](array: Array[A]): Once[A] = Once from array
-      implicit def onceViaTraversableOnce[A, CC[A] <: collection.TraversableOnce[A]](me: CC[A]): Once[A] =
+      implicit def onceViaIterableOnce[A, CC[A] <: collection.IterableOnce[A]](me: CC[A]): Once[A] =
         me match {
           case iterator: Iterator[_] => Once from iterator.asInstanceOf[Iterator[A]]
           case iterable: Iterable[_] => Once from iterable.asInstanceOf[Iterable[A]]
-          case _                     => Once from me.toList
+          case _                     => Once from me.iterator.to(List)
         }
       implicit def onceViaIterableTuple[K, V, CC[K, V] <: collection.Iterable[(K, V)]](me: CC[K, V]): Once[(K, V)] = Once from me
     }

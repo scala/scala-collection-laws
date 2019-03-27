@@ -44,7 +44,7 @@ object Report {
         else (
           f"${unused.size} law${if (unused.size==1) "" else "s"} never used" +:
           unused.toVector.sortBy(_._1).map{ case (k, _) =>
-            f"  #$k%-6d${Laws.byLineNumber(k).code.lines.mkString("\u21B5 ").tldr(70)}"
+            f"  #$k%-6d${Laws.byLineNumber(k).code.linesIterator.mkString("\u21B5 ").tldr(70)}"
           }
         )
       ) ++
@@ -53,7 +53,7 @@ object Report {
         else (
           f"${onlyFailed.size} laws never succeeded on line${if (onlyFailed.size==1) "" else "s"}" +:
           onlyFailed.toVector.sortBy(_._1).map{ case (k, (_, nf)) =>
-            f"  #$k%-4d failed $nf time${if (nf == 1) "" else "s" }".padTo(28, ' ') + Laws.byLineNumber(k).code.lines.mkString("\u21B5 ").tldr(50)
+            f"  #$k%-4d failed $nf time${if (nf == 1) "" else "s" }".padTo(28, ' ') + Laws.byLineNumber(k).code.linesIterator.mkString("\u21B5 ").tldr(50)
           }
         )
       )
@@ -126,7 +126,7 @@ object Report {
         ) ++
         errs.value.
           map{ case (name, failure) => f"****** $name ******\n$failure\n" }.
-          mkString("\n").lines.toVector ++
+          mkString("\n").linesIterator.toVector ++
         Vector("", "")
       } ++
       Vector(

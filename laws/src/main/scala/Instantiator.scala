@@ -35,11 +35,11 @@ extends Exploratory[(A, Array[A], Array[A])] {
   protected implicit def classTagA: ClassTag[A]     // ClassTag that allows us to do things with arrays
 
   protected def allFlags: Array[Flag]
-  protected val inst = Instance.flagged[A](allFlags: _*)   // Add all the flags specified in `allFlags`
+  protected val inst = Instance.flagged[A](collection.immutable.ArraySeq.unsafeWrapArray(allFlags): _*)   // Add all the flags specified in `allFlags`
 
   // Ways to get sizes of different kinds of collections
   protected implicit def sizeOfSeq[A, S[A] <: collection.Seq[A]] = new Sizable[S[A]] { def sizeof(s: S[A]) = s.length }
-  protected implicit def sizeOfTraverse[A, O[A] <: collection.Traversable[A]] = new Sizable[O[A]] { def sizeof(o: O[A]) = o.size }
+  protected implicit def sizeOfIterable[A, O[A] <: collection.Iterable[A]] = new Sizable[O[A]] { def sizeof(o: O[A]) = o.size }
   protected implicit def sizeOfArray[A] = new Sizable[Array[A]] { def sizeof(a: Array[A]) = a.length }
   protected implicit val sizeOfString = new Sizable[String] { def sizeof(s: String) = s.length }
   protected implicit def sizeOfIterator[A] = new Sizable[Iterator[A]] { def sizeof(i: Iterator[A]) = i match {
@@ -81,6 +81,7 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
+    val arraySeq    = C(collection.immutable.ArraySeq unsafeWrapArray _, SEQ)
     val hashSet     = C(_.to(collection.immutable.HashSet), SET)
     val indexedSeq  = C(_.to(collection.immutable.IndexedSeq), SEQ)
     val iterable    = C(_.to(collection.immutable.Iterable))
@@ -93,13 +94,13 @@ extends Exploratory[(A, Array[A], Array[A])] {
     val queue       = C(_.to(collection.immutable.Queue), SEQ)
     val seq         = C(_.to(collection.immutable.Seq), SEQ)
     val set         = C(_.toSet, SET)
-    val sortedSet   = C(_.to(collection.immutable.SortedSet), SET, ORDERLY, LEFT_JOIN_DETYPED)
+    val sortedSet   = C(_.to(collection.immutable.SortedSet), SET, ORDERLY)
     val stream      = C(
       a => collection.immutable.Stream.from(0).takeWhile(_ < a.length).map(i => a(i)),
       SEQ, INDEF
     )
     val traversable = C(_.to(collection.immutable.Traversable))
-    val treeSet     = C(_.to(collection.immutable.TreeSet), SET, ORDERLY, LEFT_JOIN_DETYPED)
+    val treeSet     = C(_.to(collection.immutable.TreeSet), SET, ORDERLY)
     val vector      = C(_.toVector, SEQ)
   }
 
@@ -120,23 +121,24 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val array        = C(_.clone, SEQ, ARRAY, SORTWITH_MUTATES).moreMethods(MethodChecker.from[collection.ArrayOps[A]])
+    val array        = C(_.clone, SEQ, ARRAY, SORTWITH_INT_CCE).moreMethods(MethodChecker.from[collection.ArrayOps[A]])
     val arrayBuffer  = C(_.to(collection.mutable.ArrayBuffer), SEQ)
-    val arrayDeque   = C(_.to(collection.mutable.ArrayDeque), SEQ, QUEUE_SLIDING)
-    val arraySeq     = C(_.to(collection.mutable.ArraySeq), SEQ, SORTWITH_MUTATES)
-    val arrayStack   = C(_.to(collection.mutable.ArrayStack), SEQ, QUEUE_SLIDING)
+    val arrayDeque   = C(_.to(collection.mutable.ArrayDeque), SEQ, QUEUE_SLIDE_11440)
+    val arraySeq     = C(_.to(collection.mutable.ArraySeq), SEQ)
+    val arrayStack   = C(_.to(collection.mutable.ArrayStack), SEQ, QUEUE_SLIDE_11440)
     val buffer       = C(_.to(collection.mutable.Buffer), SEQ)
     val hashSet      = C(_.to(collection.mutable.HashSet), SET)
     val indexedSeq   = C(_.to(collection.mutable.IndexedSeq), SEQ)
     val iterable     = C(_.to(collection.mutable.Iterable))
     val linkedHashSet= C(_.to(collection.mutable.LinkedHashSet), SET)
-    val listBuffer   = C(_.to(collection.mutable.ListBuffer), SEQ)
-    val priorityQueue= C(_.to(collection.mutable.PriorityQueue), ORDERLY, PRIORITYQUEUE_IS_SPECIAL, PQ_RETURNS_NULL, LEFT_JOIN_DETYPED)
-    val queue        = C(_.to(collection.mutable.Queue), SEQ, QUEUE_SLIDING)
+    val listBuffer   = C(_.to(collection.mutable.ListBuffer), SEQ, LISTBUF_PIP_11438)
+    val priorityQueue= C(_.to(collection.mutable.PriorityQueue), ORDERLY, PRIORITYQUEUE_IS_SPECIAL, PQ_MIP_NPE_11439)
+    val queue        = C(_.to(collection.mutable.Queue), SEQ, QUEUE_SLIDE_11440)
     val seq          = C(_.to(collection.mutable.Seq), SEQ)
-    val treeSet      = C(_.to(collection.mutable.TreeSet), SET, ORDERLY, LEFT_JOIN_DETYPED)
+    val stack        = C(_.to(collection.mutable.Stack), QUEUE_SLIDE_11440)
+    val treeSet      = C(_.to(collection.mutable.TreeSet), SET, ORDERLY)
     // val unrolledBuffer = C(_.to(collection.mutable.UnrolledBuffer), SEQ)  // Unrolled buffer is weird!
-    val wrappedArray = C(_.clone: collection.mutable.WrappedArray[A], SEQ, SORTWITH_MUTATES)
+    val wrappedArray = C(_.clone: collection.mutable.WrappedArray[A], SEQ)
   }
 
   object Root extends Instance.PackagePath {
@@ -169,7 +171,12 @@ extends Exploratory[(A, Array[A], Array[A])] {
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val iterator = C(a => (new IteratorKnowsSize[A](a)): Iterator[A], ONCE, INDEF)
+    val iterator       = C(a => (new IteratorKnowsSize[A](a)): Iterator[A], ONCE, INDEF)
+    val view           = C(a => a.to(collection.immutable.Vector).view: scala.collection.View[A])
+
+    // These don't work because they take arguments of a different type than they are themselves
+    // val indexedSeqView = C(a => a.view: scala.collection.IndexedSeqView[A])
+    // val seqView        = C(a => a.to(collection.immutable.List).view: scala.collection.SeqView[A])
   }
 
   def possible_a: Array[A]
@@ -201,7 +208,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
 
   protected implicit def typeTagK: TypeTag[K]
   protected implicit def typeTagV: TypeTag[V]
-  protected val kvInst = Instance.flagged[(K, V)](allFlags: _*)
+  protected val kvInst = Instance.flagged[(K, V)](collection.immutable.ArraySeq.unsafeWrapArray(allFlags): _*)
   protected implicit def sizeOfMap[K, V, M[K, V] <: collection.Map[K, V]] = new Sizable[M[K, V]] { def sizeof(m: M[K, V]) = m.size }
 
   object ImmKV extends Instance.PackagePath {
@@ -221,11 +228,12 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val hashMap =   C({ a => val mb = collection.immutable.HashMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
-    val listMap =   C({ a => val mb = collection.immutable.ListMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
-    val sortedMap = C({ a => val mb = collection.immutable.SortedMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
-    val treeMap =   C({ a => val mb = collection.immutable.TreeMap.newBuilder[K, V];   for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG)
-    val vectorMap = C({ a => val mb = collection.immutable.VectorMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result }, LEFT_JOIN_WRONG, INSORD)
+    val hashMap =    C({ a => val mb = collection.immutable.HashMap.newBuilder[K, V];    for (kv <- a) mb += kv; mb.result })
+    val listMap =    C({ a => val mb = collection.immutable.ListMap.newBuilder[K, V];    for (kv <- a) mb += kv; mb.result })
+    val sortedMap =  C({ a => val mb = collection.immutable.SortedMap.newBuilder[K, V];  for (kv <- a) mb += kv; mb.result })
+    val treeMap =    C({ a => val mb = collection.immutable.TreeMap.newBuilder[K, V];    for (kv <- a) mb += kv; mb.result })
+    val treeSeqMap = C({ a => val mb = collection.immutable.TreeSeqMap.newBuilder[K, V]; for (kv <- a) mb += kv; mb.result }, INSORD)      
+    val vectorMap =  C({ a => val mb = collection.immutable.VectorMap.newBuilder[K, V];  for (kv <- a) mb += kv; mb.result }, INSORD)
   }
 
   object MutKV extends Instance.PackagePath {
@@ -245,13 +253,13 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
     }
 
     // MUST use lower-camel-cased collection class name for code generator to work properly!
-    val hashMap =       C({ a => val m = new collection.mutable.HashMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
-    val listMap =       C({ a => val m = new collection.mutable.ListMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
-    val linkedHashMap = C({ a => val m = new collection.mutable.LinkedHashMap[K, V]; for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG, INSORD)
-    val openHashMap =   C({ a => val m = new collection.mutable.OpenHashMap[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
-    val sortedMap =     C({ a => val m = collection.mutable.SortedMap.empty[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
-    val treeMap =       C({ a => val m = new collection.mutable.TreeMap[K, V];       for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
-    val weakHashMap =   C({ a => val m = new collection.mutable.WeakHashMap[K, V];   for (kv <- a) m += kv; m }, LEFT_JOIN_WRONG)
+    val hashMap =       C({ a => val m = new collection.mutable.HashMap[K, V];       for (kv <- a) m += kv; m })
+    val listMap =       C({ a => val m = new collection.mutable.ListMap[K, V];       for (kv <- a) m += kv; m })
+    val linkedHashMap = C({ a => val m = new collection.mutable.LinkedHashMap[K, V]; for (kv <- a) m += kv; m }, INSORD)
+    val openHashMap =   C({ a => val m = new collection.mutable.OpenHashMap[K, V];   for (kv <- a) m += kv; m })
+    val sortedMap =     C({ a => val m = collection.mutable.SortedMap.empty[K, V];   for (kv <- a) m += kv; m })
+    val treeMap =       C({ a => val m = new collection.mutable.TreeMap[K, V];       for (kv <- a) m += kv; m })
+    val weakHashMap =   C({ a => val m = new collection.mutable.WeakHashMap[K, V];   for (kv <- a) m += kv; m })
   }
 }
 
@@ -315,7 +323,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // MUST use lower-camel-cased collection clasTs name for code generator to work properly!
     val bitSet = C(
       { a => val b = collection.immutable.BitSet.newBuilder; a.foreach{ x => if (x >= 0) b += x }; b.result },
-      SET, ORDERLY, SPECTYPE, BITSET, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG, LEFT_JOIN_DETYPED
+      SET, ORDERLY, SPECTYPE, BITSET, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG
     )
     //val range = C({ a => if (a.length % 3 == 0) 0 until a.length else 0 to a.length })
   }
@@ -341,7 +349,7 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
     // MUST use lower-camel-cased collection class name for code generator to work properly!
     val bitSet = C(
       { a => val b = new collection.mutable.BitSet; a.foreach{ x => if (x >= 0) b += x }; b },
-      SET, ORDERLY, SPECTYPE, BITSET, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG, LEFT_JOIN_DETYPED
+      SET, ORDERLY, SPECTYPE, BITSET, BITSET_MAP_AMBIG, BITSET_ZIP_AMBIG
     )
   }
 
@@ -446,10 +454,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
       registry += ans
       ans
     }
-    val longMap = C(
-      { a => val m = new collection.mutable.LongMap[String];     for (kv <- a) m += kv; m },
-      SPECTYPE, LEFT_JOIN_WRONG, LEFT_JOIN_DETYPED
-    )
+    val longMap = C({ a => val m = new collection.mutable.LongMap[String];     for (kv <- a) m += kv; m }, SPECTYPE)
   }
 
   /** Very limited set of possible singletons */
@@ -509,10 +514,7 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
       registry += ans
       ans
     }
-    val anyRefMap = C(
-      { a => val m = new collection.mutable.AnyRefMap[String, Long]; for (kv <- a) m += kv; m },
-      SPECTYPE, LEFT_JOIN_WRONG, LEFT_JOIN_DETYPED
-    )
+    val anyRefMap = C({ a => val m = new collection.mutable.AnyRefMap[String, Long]; for (kv <- a) m += kv; m }, SPECTYPE)
   }
 
   lazy val possible_a = Array("wish" -> 3L)

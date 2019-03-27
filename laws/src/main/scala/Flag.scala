@@ -41,13 +41,14 @@ object Flag {
   val PRIORITYQUEUE_IS_SPECIAL = F  // Inconsistent behavior regarding what is dequeued (ordered) vs. not
 
   // Workarounds for identified bugs go here.
-  val BITSET_MAP_AMBIG  = F    // Bit maps don't know whether to use StrictOptimized or SortedSet ops for map.
+  val BITSET_MAP_AMBIG  = F   // Bit maps don't know whether to use StrictOptimized or SortedSet ops for map.
   val BITSET_ZIP_AMBIG  = F    // Same problem with zipping
 
   // Pure bugs that aren't fixed yet
-  val QUEUE_SLIDING     = F    // Queue and ArrayStack will not give you an underfull sliding window (everything else does)
-  val PQ_RETURNS_NULL   = F    // Priority Queue can just give null when empty!
-  val LEFT_JOIN_DETYPED = F    // Maps and a few other collections don't retain self-type with `++:`
-  val LEFT_JOIN_WRONG   = F    // Maps don't implement `++:` the right way: they actually produce different results
-  val SORTWITH_MUTATES  = F    // Array-based collections mutate themselves with `sortWith`!
+  val LISTBUF_PIP_11438 = F    // ListBuffer throws an exception on a no-op patchInPlace
+  val QUEUE_SLIDE_11440 = F    // Queue and ArrayStack will not give you an underfull sliding window (everything else does)
+  val PQ_MIP_NPE_11439  = F    // Priority Queue can just give null when empty!
+
+  // Mysterious bugs that can't easily be replciated
+  val SORTWITH_INT_CCE  = F   // Array (but nothing else) gives class cast error in `sortWith` on ints!  Can't reproduce in REPL.
 }

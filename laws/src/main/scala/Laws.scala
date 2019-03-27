@@ -373,7 +373,8 @@ Set(
 
 "x.`size` == x.`count`(_ => true)".law
 
-"math.signum(x.`sizeCompare`(y)) == math.signum(x.`size`.compare(y.`size`))".law
+"math.signum(x.`sizeCompare`(y)) == math.signum(x.`size`.compare(y.`size`))".law(ARRAY.!)
+"math.signum(x.`sizeCompare`(y.`size`)) == math.signum(x.`size`.compare(y.`size`))".law
 
 "x.`sizeIs` < m == x.`size` < m".law
 
@@ -569,21 +570,21 @@ val (t,f) = x.`partition`(p)
 """.law
 
 """
-val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
+val (l, r) = x.`partitionMap`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
 val ll = x.`filter`(p).`map`(f)
 val rr = x.`filterNot`(p)
 (l sameAs ll) && (r sameAs rr)
 """.law(BITSET.!)
 
 """
-val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(bitset_f(xi)) else Right(xi))
+val (l, r) = x.`partitionMap`(xi => if (p(xi)) Left(bitset_f(xi)) else Right(xi))
 val ll = x.`filter`(p).`map`(bitset_f)
 val rr = x.`filterNot`(p)
 (l sameAs ll) && (r sameAs rr)
 """.law(BITSET)
 
 """
-val (l, r) = x.`partitionWith`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
+val (l, r) = x.`partitionMap`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
 (x sameType l) && (x sameType r)
 """.law(MAP.!, SPECTYPE.!, ORDERLY.!)
 
@@ -672,9 +673,9 @@ x.`zipAll`(y, a, f(a)) sameAs zip
 "x.`:++`(y) sameAs x.`++`(y)".law
 */
 
-"x.`++:`(y) sameAs y.`++`(x)".law(LEFT_JOIN_WRONG.!)
+"x.`++:`(y) sameAs y.`++`(x)".law(SEQ)
 
-"x.`++:`(y) sameType y.`++`(x)".law(LEFT_JOIN_DETYPED.!, LEFT_JOIN_WRONG.!)
+"x.`++:`(y) sameType y.`++`(x)".law(SEQ)
 
 "x.`::`(a).`size` == x.size+1".law
 
@@ -891,7 +892,7 @@ x.`lastIndexWhere`(p,n) match {
 
 "x.`lastIndexWhere`(p) == x.lastIndexWhere(p,x.`size`-1)".law
 
-"x.`lastOption` == tryO{ x.`last` }".law(PQ_RETURNS_NULL.!)
+"x.`lastOption` == tryO{ x.`last` }".law
 
 "x.`lengthCompare`(n).signum == (x.`size` compare n).signum".law
 
@@ -956,7 +957,7 @@ val temp = x.`scan`("")((s,xi) => s.toString + xi.toString).toList.sortBy(_.toSt
 """
 x.`scan`("")((s,xi) => s.toString + xi.toString).toList.
   sortBy(_.toString.length).lastOption.
-  forall{ yN => yN.toString.groupBy(identity) == x.map(_.toString).mkString.groupBy(identity) }
+  forall{ yN => yN.toString.toSeq.groupBy(identity) == x.map(_.toString).mkString.toSeq.groupBy(identity) }
 """.law(BITSET_MAP_AMBIG.!)
 
 """
@@ -975,7 +976,7 @@ val temp = x.`scanRight`(Set[A]())((xi,s) => s + xi).toList.sortBy(_.size)
 
 "n <= 0 || x.`segmentLength`(p,n) == x.`drop`(n).`takeWhile`(p).`size`".law
 
-"r <= 0 || x.`sliding`(r).`size` == (if (x.nonEmpty) math.max(0,x.`size`-r)+1 else 0)".law(QUEUE_SLIDING.!)
+"r <= 0 || x.`sliding`(r).`size` == (if (x.nonEmpty) math.max(0,x.`size`-r)+1 else 0)".law(QUEUE_SLIDE_11440.!)
 
 """
 r <= 0 || 
@@ -998,16 +999,16 @@ ordered
 
 "val x0 = x; x0.`sortInPlace`; x0 sameAs x.`sorted`".law
 
-"x.`sortBy`(f) sameAs x.`sortWith`((a,b) => f(a) < f(b))".law(SORTWITH_MUTATES.!)
+"x.`sortBy`(f) sameAs x.`sortWith`((a,b) => f(a) < f(b))".law(SORTWITH_INT_CCE.!)
 
-"val x0 = x; x0.`sortInPlaceBy`(f); x0 sameAs x.`sortBy`(f)".law(SORTWITH_MUTATES.!)
+"val x0 = x; x0.`sortInPlaceBy`(f); x0 sameAs x.`sortBy`(f)".law
 
-"val x0 = x; x0.`sortInPlaceWith`((a, b) => f(a) < f(b)); x0 sameAs x.`sortWith`((a, b) => f(a) < f(b))".law(SORTWITH_MUTATES.!)
+"val x0 = x; x0.`sortInPlaceWith`((a, b) => f(a) < f(b)); x0 sameAs x.`sortWith`((a, b) => f(a) < f(b))".law
 
 """
 val xx = x.`sortWith`((a,b) => f(a) > f(b)).toList
 (xx zip xx.drop(1)).forall{ case (a,b) => !(f(a) < f(b)) }
-""".law(SORTWITH_MUTATES.!)
+""".law(SORTWITH_INT_CCE.!)
 
 "x.`sorted` sameAs x.`toArray`.sorted".law // Need to add a custom ordering here
 
@@ -1342,7 +1343,7 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 
 "val x0 = x; val x1 = x; x0.`insertAll`(n max 0, y); y.`reverse`.foreach(yi => x1.`insert`(n max 0, yi)); x0 sameAs x1".law(MAP.!)
 
-"val x0 = x; x0.`mapInPlace`(f); x0 sameAs x.`map`(f)".law(PQ_RETURNS_NULL.!)
+"val x0 = x; x0.`mapInPlace`(f); x0 sameAs x.`map`(f)".law(PQ_MIP_NPE_11439.!)
 
 "val x0 = x; x0.`mapValuesInPlace`((k: K, v: V) => f((k, v))._2); x0 sameAs x.`map`{ case (k, v) => k -> f((a._1, v))._2 }".law(MAP)
 
@@ -1350,7 +1351,7 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 
 "val x0 = x; x0.`padToInPlace`(n, a); x0 sameAs x.`padTo`(n, a)".law
 
-"val x0 = x; x0.`patchInPlace`(n max 0, y, m); x0 sameAs x.`patch`(n max 0, y, m)".law
+"val x0 = x; x0.`patchInPlace`(n max 0, y, m); x0 sameAs x.`patch`(n max 0, y, m)".law(LISTBUF_PIP_11438.!)
 
 "x.`prepended`(a) sameAs x.`+:`(a)".law
 

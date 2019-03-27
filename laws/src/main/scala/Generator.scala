@@ -190,6 +190,7 @@ object AllIntGenerators {
     * (You'll get a warning if you leave one out, though.)
     */
   object Imm {
+    val arraySeq = register(io.Imm)(_.arraySeq())
     val hashSet = register(io.Imm)(_.hashSet())
     val indexedSeq = register(io.Imm)(_.indexedSeq())
     val iterable = register(io.Imm)(_.iterable())
@@ -228,13 +229,19 @@ object AllIntGenerators {
     val priorityQueue = register(io.Mut)(_.priorityQueue())
     val queue = register(io.Mut)(_.queue())
     val seq = register(io.Mut)(_.seq())
+    val stack = register(io.Mut)(_.stack())
     val treeSet = register(io.Mut)(_.treeSet())
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
-  /** Generator for iterators. */
+  /** Generator for iterators and views. */
   object Root {
-    val iterator = register(io.Root)(_.iterator())
+    val iterator       = register(io.Root)(_.iterator())
+    val view           = register(io.Root)(_.view())
+
+    // These don't work because they require a different collection type for arguments
+    // val indexedSeqView = register(io.Root)(_.indexedSeqView())
+    // val seqView        = register(io.Root)(_.seqView())
   }
 
   /** Generator for immutable collections that take only ints (which belong here, since we're dealing with ints). */
@@ -296,6 +303,7 @@ object AllStrGenerators {
     * (You'll get a warning if you leave one out, though.)
     */
   object Imm {
+    val arraySeq = register(io.Imm)(_.arraySeq())
     val hashSet = register(io.Imm)(_.hashSet())
     val indexedSeq = register(io.Imm)(_.indexedSeq())
     val iterable = register(io.Imm)(_.iterable())
@@ -334,13 +342,19 @@ object AllStrGenerators {
     val priorityQueue = register(io.Mut)(_.priorityQueue())
     val queue = register(io.Mut)(_.queue())
     val seq = register(io.Mut)(_.seq())
+    val stack = register(io.Mut)(_.stack())
     val treeSet = register(io.Mut)(_.treeSet())
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
   /** Generator for iterators. */
   object Root {
-    val iterator = register(io.Root)(_.iterator())
+    val iterator       = register(io.Root)(_.iterator())
+    val view           = register(io.Root)(_.view())
+
+    // These don't work because they require a different collection type for arguments
+    // val indexedSeqView = register(io.Root)(_.indexedSeqView())
+    // val seqView        = register(io.Root)(_.seqView())
   }
 
   /** This line is needed to actually perform the registration of all generators! */
@@ -383,11 +397,12 @@ object AllLongStrGenerators {
   }
 
   object ImmKV {
-    val hashMap =   register(io.ImmKV)(_.hashMap())
-    val listMap =   register(io.ImmKV)(_.listMap())
-    val sortedMap = register(io.ImmKV)(_.sortedMap())
-    val treeMap =   register(io.ImmKV)(_.treeMap())
-    val vectorMap = register(io.ImmKV)(_.vectorMap())
+    val hashMap    = register(io.ImmKV)(_.hashMap())
+    val listMap    = register(io.ImmKV)(_.listMap())
+    val sortedMap  = register(io.ImmKV)(_.sortedMap())
+    val treeMap    = register(io.ImmKV)(_.treeMap())
+    val treeSeqMap = register(io.ImmKV)(_.treeSeqMap())
+    val vectorMap  = register(io.ImmKV)(_.vectorMap())
   }
 
   object MutKV {
@@ -439,11 +454,12 @@ object AllStrLongGenerators {
   }
 
   object ImmKV {
-    val hashMap =   register(io.ImmKV)(_.hashMap())
-    val listMap =   register(io.ImmKV)(_.listMap())
-    val sortedMap = register(io.ImmKV)(_.sortedMap())
-    val treeMap =   register(io.ImmKV)(_.treeMap())
-    val vectorMap = register(io.ImmKV)(_.vectorMap())
+    val hashMap    = register(io.ImmKV)(_.hashMap())
+    val listMap    = register(io.ImmKV)(_.listMap())
+    val sortedMap  = register(io.ImmKV)(_.sortedMap())
+    val treeMap    = register(io.ImmKV)(_.treeMap())
+    val treeSeqMap = register(io.ImmKV)(_.treeSeqMap())
+    val vectorMap  = register(io.ImmKV)(_.vectorMap())
   }
 
   object MutKV {
