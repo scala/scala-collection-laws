@@ -183,7 +183,7 @@ set - only holds for collections that remove duplicates
 
 "x.`map`(bitset_f) sameAs { val y = collection.mutable.HashSet.empty[A]; x.foreach(y += _); y.map(bitset_f) }".law(BITSET)
 
-"x sameType x.`map`(f)".law(ORDERLY.!)
+"x sameType x.`map`(f)".law(ORDERLY.!, SPECTYPE.!, CPMH_TYPE_11449.!)
 
 """{
   val flat = x.`flatMap`(xi => y.toList.take(intFrom(xi)))
@@ -199,7 +199,7 @@ set - only holds for collections that remove duplicates
   flat sameAs ref
 }""".law(SET)
 
-"x sameType x.`flatMap`(xi => y.toList.take(intFrom(xi)%3))".law(ORDERLY.!)
+"x sameType x.`flatMap`(xi => y.toList.take(intFrom(xi)%3))".law(ORDERLY.!, SPECTYPE.!, CPMH_TYPE_11449.!)
 
 "x.`exists`(p) == x.`find`(p).isDefined".law
 
@@ -470,13 +470,13 @@ x.forall{ case (k, v) =>
 }
 """.law(MAP)
 
-"x sameType x.`++`(y)".law
+"x sameType x.`++`(y)".law(ACC_SPEC.!, CPMH_TYPE_11449.!)
 
 "x.`buffered` sameAs x".law
 
 "x.`collect`(pf) sameAs x.`filter`(pf.isDefinedAt).`map`(pf)".law(BITSET_MAP_AMBIG.!)
 
-"x sameType x.`collect`(pf)".law(ORDERLY.!, BITSET_MAP_AMBIG.!)
+"x sameType x.`collect`(pf)".law(ORDERLY.!, BITSET_MAP_AMBIG.!, SPECTYPE.!, CPMH_TYPE_11449.!)
 
 "x.`contains`(a) == x.`exists`(_ == a)".law(MAP.!)
 
@@ -492,7 +492,7 @@ x.forall{ case (k, v) =>
 
 "x.`drop`(n) partOf x".law
 
-"x sameType x.`drop`(n)".law/*(CAMEL_WEAKMAP_SUPER.!)*/
+"x sameType x.`drop`(n)".law
 
 """
 val c = x.`dropWhile`(p);
@@ -509,8 +509,7 @@ y.nonEmpty implies y.exists(yi => !p(yi))
 
 """x.`dropWhile`(p) partOf x""".law
 
-"x sameType x.`dropWhile`(p)".law/*(CAMEL_WEAKMAP_SUPER.!)*/
-
+"x sameType x.`dropWhile`(p)".law
 """
 val (x1,x2) = x.`duplicate`
 x1.`corresponds`(x)(_ == _) && x2.corresponds(x)(_ == _)
@@ -523,7 +522,7 @@ val (x1,x2) = x.`duplicate`
 
 "x.`filterNot`(p) sameAs x.`filter`(xi => !p(xi))".law
 
-"x sameType x.`filterNot`(p)".law/*(CAMEL_WEAKMAP_SUPER.!)*/
+"x sameType x.`filterNot`(p)".law
 
 "x.`getOrElse`(a._1, a._2) == x.`get`(a._1).getOrElse(a._2)".law(MAP)
 
@@ -557,7 +556,7 @@ val (x1,x2) = x.`duplicate`
 
 "(n <= x.`size`) implies (x.`padTo`(n, a) sameAs x)".law
 
-"x sameType x.`padTo`(n,a)".law
+"x sameType x.`padTo`(n,a)".law(SPECTYPE.!)
 
 """
 val (t,f) = x.`partition`(p)
@@ -600,7 +599,7 @@ val (l, r) = x.`partitionMap`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
 
 "n < 0 || m >= x.size || { x.`slice`(n, m) sameAs x.`drop`(n).`take`((0 max m)-n) }".law(SET.!)
 
-"n < 0 || m >= x.size || (x sameType x.`slice`(n, m))".law/*(CAMEL_WEAKMAP_SUPER.!)*/
+"n < 0 || m >= x.size || (x sameType x.`slice`(n, m))".law
 
 "x.`span`(p)._1.`forall`(p)".law
 
@@ -613,7 +612,7 @@ val (l, r) = x.`partitionMap`(xi => if (p(xi)) Left(f(xi)) else Right(xi))
 """
 val (x1, x2) = x.`span`(p)
 (x1 sameType x2) && (x sameType x1)
-""".law/*(CAMEL_WEAKMAP_SUPER.!)*/
+""".law
 
 "x.`take`(n).`size` == ((0 max n) min x.size)".law
 
@@ -633,7 +632,7 @@ val (x1, x2) = x.`span`(p)
 
 "x.`zip`(y).map(_._2) sameAs y.take(x.size min y.size)".law(BITSET_ZIP_AMBIG.!)
 
-"x sameType x.`zip`(y).map(_._1)".law(MAP.!, ORDERLY.!)
+"x sameType x.`zip`(y).map(_._1)".law(MAP.!, ORDERLY.!, SPECTYPE.!)
 
 "x.`zipAll`(y, a, f(a)).map(_._1) sameAs x.`padTo`(x.`size` max y.size, a)".law
 
@@ -660,13 +659,13 @@ val zip =
 x.`zipAll`(y, a, f(a)) sameAs zip
 """.law(SEQ)
 
-"x sameType x.`zipAll`(y, a, f(a)).map(_._1)".law(MAP.!, ORDERLY.!)
+"x sameType x.`zipAll`(y, a, f(a)).map(_._1)".law(MAP.!, ORDERLY.!, SPECTYPE.!)
 
 "x.`zipWithIndex`.map(_._1) sameAs x".law
 
 "x.`zipWithIndex`.map(_._2) sameAs (0 until x.`size`)".law
 
-"x sameType x.`zipWithIndex`.map(_._1)".law(MAP.!, ORDERLY.!)
+"x sameType x.`zipWithIndex`.map(_._1)".law(MAP.!, ORDERLY.!, SPECTYPE.!)
 
 /* 
 // The :++ method does not actually exist
@@ -674,6 +673,8 @@ x.`zipAll`(y, a, f(a)) sameAs zip
 */
 
 "x.`++:`(y) sameAs y.`++`(x)".law(SEQ)
+
+"(x.`++:`(y) samePieces y.`++`(x)) || (x.`++:`(y) samePieces x.`++`(y))".law(SEQ.!)
 
 "x.`++:`(y) sameType y.`++`(x)".law(SEQ)
 
@@ -687,13 +688,13 @@ x.`zipAll`(y, a, f(a)) sameAs zip
 
 "x.`+:`(a).`head` == a".law
 
-"x sameType x.`+:`(a)".law
+"x sameType x.`+:`(a)".law(SPECTYPE.!)
 
 "x.`:+`(a).`size` == x.size+1".law
 
 "x.`:+`(a).`last` == a".law
 
-"x sameType x.`:+`(a)".law
+"x sameType x.`:+`(a)".law(SPECTYPE.!)
 
 "val s = x.`+`(a).`size` - x.size; 0 <= s && s <= 1".law
 
@@ -701,7 +702,7 @@ x.`zipAll`(y, a, f(a)) sameAs zip
 
 "x.`+`(a).`contains`(a._1)".law(MAP)
 
-"x sameType x.`+`(a)".law
+"x sameType x.`+`(a)".law(CPMH_TYPE_11449.!)
 
 "x.`:::`(y) sameAs y.`++`(x)".law
 
@@ -933,7 +934,7 @@ x.`reverse`.`forall`{ xi => ki += 1; xi == ix(k - ki) }
 
 "x.`reverseMap`(f) sameAs x.map(f).`reverse`".law(SEQ)
 
-"x sameType x.`reverseMap`(f)".law
+"x sameType x.`reverseMap`(f)".law(SPECTYPE.!)
 
 "x.`reverse_:::`(y) sameAs x.`:::`(y.`reverse`)".law(SEQ)
 
@@ -1071,7 +1072,7 @@ x.`unsorted`.map(a => collectionFrom(Array.fill(n)(a))).`transpose`.`forall`(_ s
 
 "x.`union`(y).`toSet` == (x.toSet union y.toSet)".law
 
-"x sameType x.`union`(y)".law
+"x sameType x.`union`(y)".law(ACC_SPEC.!)
 
 """
 val xa = x.`zip`(y).`unzip`._1.`toArray`
@@ -1249,9 +1250,9 @@ x0 sameAs x.map{ case (a, b) => a -> f((a, b))._2 }
 
 "x.`updated`(a._1, a._2).`forall`{ case (k,v) => if (k == a._1) v == a._2 else x.`get`(k).exists(_ == v) }".law(MAP)
 
-"x sameType x.`updated`(n,a)".law(SEQ, Filt.xsize(_ > 0))
+"x sameType x.`updated`(n,a)".law(SEQ, SPECTYPE.!, Filt.xsize(_ > 0))
 
-"x sameType x.`updated`(a._1, a._2)".law(MAP, Filt.xsize(_ > 0))
+"x sameType x.`updated`(a._1, a._2)".law(MAP, CPMH_TYPE_11449.!, Filt.xsize(_ > 0))
 
 "{ val x0 = x; x0.`update`(n, a); x0 sameAs x.`updated`(n,a) }".law(MAP.!, Filt.xsize(_ > 0))
 
@@ -1376,6 +1377,89 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 "val x0 = x; val x1 = x; if (n >= 0) { x0.`trimEnd`(n); x1.`dropRightInPlace`(n) }; x0 sameAs x1".law
 
 "x.`knownSize` match { case n if n >= 0 => n == x.`size`; case _ => true }".law
+
+"""
+var touched = 0
+var ll = LazyList.from(0).map{ i => touched += 1; i }
+(x.`lazyZip`(ll).take(n).map(_._1) samePieces x.`take`(n)) && (touched == (n max 0))
+""".law
+
+"""
+val i = x.`iterator`
+val s = x.`stepper`
+var same = true
+while (same && i.hasNext && s.hasStep) same = i.next == s.nextStep
+!i.hasNext && !s.hasStep && same
+""".law(STAGGER.!)
+
+"""
+val s = x.`stepper`
+val k = x.`keyStepper`
+var same = true
+while (same && s.hasStep && k.hasStep) same = s.nextStep._1 == k.nextStep
+!s.hasStep && !k.hasStep && same
+""".law(STAGGER.!)
+
+"""
+val s = x.`stepper`
+val v = x.`valueStepper`
+var same = true
+while (same && s.hasStep && v.hasStep) same = s.nextStep._2 == v.nextStep
+!s.hasStep && !v.hasStep && same
+""".law(STAGGER.!)
+
+
+"""
+val s = x.`stepper`
+val built = Array.newBuilder[A]
+while (s.hasStep) built += s.nextStep
+built.result samePieces x
+""".law
+
+"val s = x.`stepper`; val e: collection.Stepper.EfficientSplit = s; e ne null".law(SPLITS, INEFFICIENT_BUG.!)
+
+"""
+val s = x.`stepper`
+val ss = s.trySplit
+val built = Array.newBuilder[A]
+if (ss != null) while (ss.hasStep) built += ss.nextStep
+while (s.hasStep) built += s.nextStep
+built.result sameAs x
+""".law(SEQ)
+
+"""
+val s = x.`stepper`
+val ss = s.trySplit
+val built = Array.newBuilder[A]
+if (ss != null) while (ss.hasStep) built += ss.nextStep
+while (s.hasStep) built += s.nextStep
+built.result samePieces x
+""".law(SEQ.!)
+
+"""
+val s = x.`stepper`
+val ss = s.trySplit
+val built = Array.newBuilder[A]
+if (ss != null) while (ss.hasStep) built += ss.nextStep
+while (s.hasStep) built += s.nextStep
+built.result samePieces x
+""".law(SEQ.!)
+
+"""
+val built = Array.newBuilder[A]
+val xx = x.`tapEach`(built += _)
+xx sameAs built.result
+""".law(SEQ, ONCE.!, INDEF.!, VIEW.!)
+
+"""
+val built = Array.newBuilder[A]
+val xx = x.`tapEach`(built += _)
+xx samePieces built.result
+""".law(SEQ.!, ONCE.!, INDEF.!, VIEW.!)
+
+"x sameType x.`tapEach`(_ => ())".law
+
+"x.`findLast`(p) == x.`reverse`.`find`(p)".law
 
 
 /////////////////////////////

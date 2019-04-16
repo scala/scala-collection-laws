@@ -234,6 +234,13 @@ object AllIntGenerators {
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
+  /** Generator for accumulators and anything else used in conversions */
+  object Conv {
+    // TODO--get Ops-like abstractions to work; then this can be used
+    // val accumulator = register(io.Conv)(_.accumulator())
+    val anyAccumulator = register(io.Conv)(_.anyAccumulator())
+  }
+
   /** Generator for iterators and views. */
   object Root {
     val iterator       = register(io.Root)(_.iterator())
@@ -255,8 +262,13 @@ object AllIntGenerators {
     val bitSet = register(io.MutInt)(_.bitSet(), "collection.mutable.BitSet")
   }
 
+  /** Generator for Int-specialized accumulators */
+  object ConvInt {
+    val intAccumulator = register(io.ConvInt)(_.intAccumulator(), "scala.jdk.IntAccumulator")
+  }
+
   /** This line is needed to actually perform the registration of all generators! */
-  val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: Nil
+  val force = Imm :: Mut :: Conv :: Root :: ImmInt :: MutInt :: ConvInt :: Nil
 
   /** All registered generators */
   lazy val all = everyoneBuffer.result
@@ -347,6 +359,13 @@ object AllStrGenerators {
     val wrappedArray = register(io.Mut)(_.wrappedArray())
   }
 
+  /** Generator for accumulators and anything else used in conversions */
+  object Conv {
+    // TODO--get Ops-like abstractions to work; then this can be used
+    // val accumulator = register(io.Conv)(_.accumulator())
+    val anyAccumulator = register(io.Conv)(_.anyAccumulator())
+  }
+
   /** Generator for iterators. */
   object Root {
     val iterator       = register(io.Root)(_.iterator())
@@ -358,7 +377,7 @@ object AllStrGenerators {
   }
 
   /** This line is needed to actually perform the registration of all generators! */
-  val force = Imm :: Mut :: Root :: Nil
+  val force = Imm :: Mut :: Conv :: Root :: Nil
 
   /** All registered generators */
   lazy val all = everyoneBuffer.result
@@ -406,6 +425,8 @@ object AllLongStrGenerators {
   }
 
   object MutKV {
+    val collisionProofHashMap =
+                        register(io.MutKV)(_.collisionProofHashMap())
     val hashMap       = register(io.MutKV)(_.hashMap())
     val listMap       = register(io.MutKV)(_.listMap())
     val linkedHashMap = register(io.MutKV)(_.linkedHashMap())
@@ -463,6 +484,8 @@ object AllStrLongGenerators {
   }
 
   object MutKV {
+    val collisionProofHashMap =
+                        register(io.MutKV)(_.collisionProofHashMap())
     val hashMap       = register(io.MutKV)(_.hashMap())
     val listMap       = register(io.MutKV)(_.listMap())
     val linkedHashMap = register(io.MutKV)(_.linkedHashMap())
