@@ -4,7 +4,7 @@ jdk:
 
 language: scala
 scala:
-- 2.13.0-RC1
+- 2.13.0
 
 script:
 - sbt ++$TRAVIS_SCALA_VERSION laws/run test
