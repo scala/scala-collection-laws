@@ -1,12 +1,12 @@
 version in ThisBuild := "0.6.0"
 
-scalaVersion in ThisBuild := "2.13.0-RC1"
+scalaVersion in ThisBuild := "2.13.0"
 
 scalacOptions in ThisBuild ++= Seq("-unchecked", "-feature", "-deprecation")
 
 libraryDependencies in ThisBuild ++= Seq(
   "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-  "com.lihaoyi" %% "sourcecode" % "0.1.6"
+  "com.lihaoyi" %% "sourcecode" % "0.1.7"
 )
 
 val laws = project
