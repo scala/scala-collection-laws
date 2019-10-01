@@ -1,19 +1,21 @@
+language: scala
+
 jdk:
 - openjdk8
 - openjdk11
 
-language: scala
 scala:
-- 2.13.0
+- 2.13.1
 
 script:
 - sbt ++$TRAVIS_SCALA_VERSION laws/run test
 
 cache:
   directories:
-  - $HOME/.ivy2
   - $HOME/.sbt/boot
   - $HOME/.sbt/launchers
+  - $HOME/.ivy2
+  - $HOME/.cache/coursier
 
 before_cache:
   - find $HOME/.sbt -name "*.lock" | xargs rm
