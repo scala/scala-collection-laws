@@ -1,0 +1,14 @@
+version: ~> 1.0 # needed for imports
+import: scala/scala-dev:travis/default.yml
+
+language: scala
+
+env:
+- ADOPTOPENJDK=8
+- ADOPTOPENJDK=11
+
+scala:
+- 2.13.3
+
+script:
+- sbt ++$TRAVIS_SCALA_VERSION laws/run test
