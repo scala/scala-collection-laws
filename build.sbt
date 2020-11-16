@@ -1,14 +1,10 @@
-version in ThisBuild := "0.6.0"
-
-scalaVersion in ThisBuild := "2.13.1"
-
-scalacOptions in ThisBuild ++= Seq("-unchecked", "-feature", "-deprecation")
-
-libraryDependencies in ThisBuild ++= Seq(
+ThisBuild / version := "0.6.0"
+ThisBuild / scalaVersion := "2.13.3"
+ThisBuild / scalacOptions ++= Seq("-unchecked", "-feature", "-deprecation")
+ThisBuild / libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-reflect" % scalaVersion.value,
   "com.lihaoyi" %% "sourcecode" % "0.2.1"
 )
 
 val laws = project
-
 val tests = project.dependsOn(laws)
