@@ -6,6 +6,7 @@ language: scala
 env:
 - ADOPTOPENJDK=8
 - ADOPTOPENJDK=11
+- ADOPTOPENJDK=17
 
 scala:
 - 2.13.5
