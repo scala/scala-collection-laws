@@ -1,6 +1,6 @@
 name := "collections-laws-tests"
 
-libraryDependencies += "com.github.sbt" % "junit-interface" % "0.13.2"
+libraryDependencies += "com.github.sbt" % "junit-interface" % "0.13.3"
 
 /*
 // Old version.  Needs to be tweaked to work.
