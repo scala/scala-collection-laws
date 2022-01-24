@@ -243,7 +243,11 @@ object Test {
     }
     def from[A](iterable: Iterable[A]): Once[A] = from(iterable.iterator)
 
-    object Conversions {
+    trait LowPriorityConversions {
+      implicit def onceViaAccumulator[A, CC[X] <: collection.mutable.Seq[X]](acc: scala.jdk.Accumulator[A, CC, _]): Once[A] =
+        Once from acc.iterator      
+    }
+    object Conversions extends LowPriorityConversions {
       implicit def onceViaString(string: String): Once[Char] = Once from string
       implicit def onceViaArray[A](array: Array[A]): Once[A] = Once from array
       implicit def onceViaIterableOnce[A, CC[A] <: collection.IterableOnce[A]](me: CC[A]): Once[A] =
