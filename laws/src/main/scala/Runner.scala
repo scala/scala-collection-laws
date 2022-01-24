@@ -52,7 +52,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     */
   def runNums(inst: Instance[A, CC], oper: Ops[A, B]): Either[Outcome, Int] = {
     val mkNum = exploreNum(inst)
-    val exNum = mkNum.explore
+    val exNum = mkNum.explore()
     var progress = true
     var n = 0
     while (progress) {
@@ -84,7 +84,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     */
   def runOps(inst: Instance[A, CC]): Either[Outcome, Long] = {
     val mkOps = exploreOps()
-    val exOps = mkOps.explore
+    val exOps = mkOps.explore()
     var progress = true
     var n = 0L
     while (progress) {
@@ -116,7 +116,7 @@ class Runner[A, B, CC, T <: Test[A, B, CC, T]](
     */
   def run: Either[Outcome, Long] = {
     val mkInst = exploreInst()
-    val exInst = mkInst.explore
+    val exInst = mkInst.explore()
     var progress = true
     var n = 0L
     while (progress) {
@@ -169,7 +169,7 @@ trait AllRunner {
     var i = 0;
     var it = toRun.iterator
     while (i < slots.length && it.hasNext) {
-      val (name, test) = it.next
+      val (name, test) = it.next()
       slots(i) = name -> Future{ (name, test()) }
       if (!quiet) println(name + " started...")
       i += 1
@@ -192,7 +192,7 @@ trait AllRunner {
             }
             found = true
             if (it.hasNext) {
-              val (name, test) = it.next
+              val (name, test) = it.next()
               slots(j) = name -> Future{ (name, test()) }
               if (!quiet) println(name + " started...")
               j += 1

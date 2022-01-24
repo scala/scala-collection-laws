@@ -27,7 +27,7 @@ case class Law(name: String, tags: Tags, code: String, disabled: Boolean = false
         i = j+1
       }
     }
-    Right(b.result.toSet)
+    Right(b.result().toSet)
   }
 
   /** Methods in the law that are backtick-quoted, indicating that the collection should only be used if it has those methods */
@@ -1386,7 +1386,7 @@ gm.forall{ case (k, vs) => m(k).reverse sameAs vs }
 /////////////////////////////
 
   /** Complete listing of laws (including disabled ones that aren't used for code generation) */
-  val complete = b.result
+  val complete = b.result()
 
   /** Complete listing of laws that are not disabled */
   val all = complete.filterNot(_.disabled)
