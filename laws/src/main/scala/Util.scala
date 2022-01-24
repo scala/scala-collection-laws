@@ -183,10 +183,10 @@ object FileIO {
       if (target.exists) {
         val src = scala.io.Source.fromFile(target)
         try {
-          val lines = src.getLines.toVector.map(trimRight)
+          val lines = src.getLines().toVector.map(trimRight)
           lines != myLines.map(trimRight)
         }
-        finally src.close        
+        finally src.close
       }
       else true
     if (different) java.nio.file.Files.write(target.toPath, java.util.Arrays.asList(myLines: _*))

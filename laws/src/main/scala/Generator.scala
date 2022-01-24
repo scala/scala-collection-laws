@@ -29,10 +29,10 @@ trait Generator[A, B, CC] {
 
   /** Generates the code */
   def code: String = {
-    val instance = instanceExplorer.completeIterator.take(1).toList.head
+    val instance = instanceExplorer().completeIterator().take(1).toList.head
     val quotedMethods = instance.methods.methods.
       toList.sorted.
-      map{ s => "\"" + (if (s contains '\\') s.replaceAllLiterally("\\", "\\\\") else s) + "\"" }
+      map{ s => "\"" + (if (s contains '\\') s.replace("\\", "\\\\") else s) + "\"" }
     val appropriate = Laws.all.
       filter(law => law.checker passes instance.methods).
       filter(law => law.tags compatible (autoTags ++ instance.flags)).
@@ -259,7 +259,7 @@ object AllIntGenerators {
   val force = Imm :: Mut :: Root :: ImmInt :: MutInt :: Nil
 
   /** All registered generators */
-  lazy val all = everyoneBuffer.result
+  lazy val all = everyoneBuffer.result()
 
   /** Writes all the classes to the indicated directory.  Returns a map indicating which ones
     * actually changed.  (If the generated code is identical to the file, the file is not re-written.)
@@ -361,7 +361,7 @@ object AllStrGenerators {
   val force = Imm :: Mut :: Root :: Nil
 
   /** All registered generators */
-  lazy val all = everyoneBuffer.result
+  lazy val all = everyoneBuffer.result()
 
   /** Writes all the classes to the indicated directory.  Returns a map indicating which ones
     * actually changed.  (If the generated code is identical to the file, the file is not re-written.)
@@ -422,7 +422,7 @@ object AllLongStrGenerators {
   /** This line is needed to actually perform the registration of all generators! */
   val force = ImmKV :: MutKV :: MutLongV :: Nil
 
-  lazy val all = everyoneBuffer.result
+  lazy val all = everyoneBuffer.result()
 
   def write(targetDir: java.io.File): Map[String, Boolean] =
     all.map(g => g.className -> FileIO(new java.io.File(targetDir, g.className + ".scala"), g.code)).toMap
@@ -479,7 +479,7 @@ object AllStrLongGenerators {
   /** This line is needed to actually perform the registration of all generators! */
   val force = ImmKV :: MutKV :: MutKrefV :: Nil
 
-  lazy val all = everyoneBuffer.result
+  lazy val all = everyoneBuffer.result()
 
   def write(targetDir: java.io.File): Map[String, Boolean] =
     all.map(g => g.className -> FileIO(new java.io.File(targetDir, g.className + ".scala"), g.code)).toMap

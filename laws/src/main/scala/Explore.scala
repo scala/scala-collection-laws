@@ -31,7 +31,7 @@ class Explore(possibilities: Array[Int]) {
 
     if (itinerary.isEmpty) false
     else {
-      val old = itinerary.dequeue
+      val old = itinerary.dequeue()
       var i = 0
       var n = 0
       while (i < used.length) { if (used(i)) n += 1 ; i += 1 }
@@ -95,7 +95,7 @@ trait Exploratory[A] { self =>
       private[this] var maybeA: Option[A] = None
       @annotation.tailrec def hasNext =
         maybeA.isDefined || (e.itinerary.nonEmpty && e.advance(b) && { maybeA = e.current.flatMap(self.lookup); hasNext })
-      def next =
+      def next() =
         if (!hasNext) throw new NoSuchElementException("Empty exploratory iterator")
         else {
           val ans = maybeA.get

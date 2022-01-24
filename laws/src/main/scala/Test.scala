@@ -239,7 +239,7 @@ object Test {
     }
 
     def from[A](iterator: Iterator[A]): Once[A] = new Once[A] {
-      def step[U](f: A => U): Boolean = iterator.hasNext && { f(iterator.next); true }
+      def step[U](f: A => U): Boolean = iterator.hasNext && { f(iterator.next()); true }
     }
     def from[A](iterable: Iterable[A]): Once[A] = from(iterable.iterator)
 
@@ -272,8 +272,8 @@ object Test {
   implicit class EqualInCount[A, CC](me: CC)(implicit onceCC: CC => Once[A]) {
     def sameAs[DD](you: DD)(implicit onceDD: DD => Once[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
-      onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
-      onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
+      onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++())
+      onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++())
       meM.forall{ case (a, n) => youM.get(a).exists(_.count == n.count) } &&
       youM.forall{ case (a, n) => meM contains a }
     }
@@ -283,15 +283,15 @@ object Test {
   implicit class SubsetInCount[A, CC](me: CC)(implicit onceCC: CC => Once[A]) {
     def samePieces[DD](you: DD)(implicit onceDD: DD => Once[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
-      onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
-      onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
+      onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++())
+      onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++())
       meM.forall{ case (a, n) => youM.get(a).exists(_.count == n.count) } &&
       youM.forall{ case (a, n) => meM contains a }
     }
     def partOf[DD](you: DD)(implicit onceDD: DD => Once[A]) = {
       val meM, youM = collection.mutable.HashMap.empty[A, N]
-      onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++)
-      onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++)
+      onceCC(me).foreach(a => meM.getOrElseUpdate(a, new N).++())
+      onceDD(you).foreach(a => youM.getOrElseUpdate(a, new N).++())
       meM.forall{ case (a, n) => youM.get(a).exists(_.count >= n.count) }
     }
   }

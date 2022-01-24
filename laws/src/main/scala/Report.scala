@@ -14,8 +14,8 @@ object Report {
   def countLawUsage(ran: Map[String, Test.Tested]): Map[Int, (Int, Int)] = {
     val score = laws.Laws.all.map(law => law.lineNumber -> (N(0), N(0))).toMap
     ran.foreach{ case (_, t) =>
-      t.succeeded.keys.foreach(k => score(k)._1.++)
-      t.failed.keys.foreach(k => score(k)._2.++)
+      t.succeeded.keys.foreach(k => score(k)._1.++())
+      t.failed.keys.foreach(k => score(k)._2.++())
     }
     score.map{ case (k, (ns, nf)) => (k, (ns.count, nf.count)) }
   }
@@ -143,16 +143,16 @@ object Report {
     * Print out the results, throwing an error afterwards if any laws failed.
     */
   def junitReport(ran: java.util.concurrent.ConcurrentHashMap[String, Test.Tested]): Unit = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val m = ran.asScala.toMap
     reportUnusedMethods(m) match { case (summary, details) =>
       if (summary.nonEmpty) {
         summary.foreach(println)
-        println
+        println()
       }
       if (details.nonEmpty) {
         details.foreach(println)
-        println
+        println()
       }
     }
     reportUnusedLaws(m).foreach(println)
