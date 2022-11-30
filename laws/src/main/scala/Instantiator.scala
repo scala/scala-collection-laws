@@ -39,14 +39,19 @@ extends Exploratory[(A, Array[A], Array[A])] {
   protected val inst = Instance.flagged[A](collection.immutable.ArraySeq.unsafeWrapArray(allFlags): _*)   // Add all the flags specified in `allFlags`
 
   // Ways to get sizes of different kinds of collections
-  protected implicit def sizeOfSeq[A, S[A] <: collection.Seq[A]] = new Sizable[S[A]] { def sizeof(s: S[A]) = s.length }
-  protected implicit def sizeOfIterable[A, O[A] <: collection.Iterable[A]] = new Sizable[O[A]] { def sizeof(o: O[A]) = o.size }
-  protected implicit def sizeOfArray[A] = new Sizable[Array[A]] { def sizeof(a: Array[A]) = a.length }
-  protected implicit val sizeOfString = new Sizable[String] { def sizeof(s: String) = s.length }
-  protected implicit def sizeOfIterator[A] = new Sizable[Iterator[A]] { def sizeof(i: Iterator[A]) = i match {
-    case iks: Root.IteratorKnowsSize[_] => iks.knownSize
-    case _                              => throw new Exception("Actually, `Iterator` hasn't the foggiest idea what its size is.")
-  }}
+  protected implicit def sizeOfSeq[A, S[A] <: collection.Seq[A]]: Sizable[S[A]] =
+    new Sizable[S[A]] { def sizeof(s: S[A]) = s.length }
+  protected implicit def sizeOfIterable[A, O[A] <: collection.Iterable[A]]: Sizable[O[A]] =
+    new Sizable[O[A]] { def sizeof(o: O[A]) = o.size }
+  protected implicit def sizeOfArray[A]: Sizable[Array[A]] =
+    new Sizable[Array[A]] { def sizeof(a: Array[A]) = a.length }
+  protected implicit val sizeOfString: Sizable[String] =
+    new Sizable[String] { def sizeof(s: String) = s.length }
+  protected implicit def sizeOfIterator[A]: Sizable[Iterator[A]] =
+    new Sizable[Iterator[A]] { def sizeof(i: Iterator[A]) = i match {
+      case iks: Root.IteratorKnowsSize[_] => iks.knownSize
+      case _                              => throw new Exception("Actually, `Iterator` hasn't the foggiest idea what its size is.")
+    }}
 
   /** Marks when an instantiator is used (for completeness checking) */
   trait Deployed[A, CC] extends Function0[Instance.FromArray[A, CC]] with Instance.Deployed { self =>
@@ -214,7 +219,7 @@ trait InstantiatorsOfKV[K, V] extends Exploratory[((K, V), Array[(K, V)], Array[
   protected implicit def typeTagK: TypeTag[K]
   protected implicit def typeTagV: TypeTag[V]
   protected val kvInst = Instance.flagged[(K, V)](collection.immutable.ArraySeq.unsafeWrapArray(allFlags): _*)
-  protected implicit def sizeOfMap[K, V, M[K, V] <: collection.Map[K, V]] = new Sizable[M[K, V]] { def sizeof(m: M[K, V]) = m.size }
+  protected implicit def sizeOfMap[K, V, M[K, V] <: collection.Map[K, V]]: Sizable[M[K, V]] = new Sizable[M[K, V]] { def sizeof(m: M[K, V]) = m.size }
 
   object ImmKV extends Instance.PackagePath {
     def nickname = "ImmKV"
@@ -306,9 +311,12 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   protected implicit def classTagA = ClassTagSource.classTagInt
   protected def allFlags = Array(INT)
 
-  protected implicit val sizeOfRange = new Sizable[collection.immutable.Range] { def sizeof(r: collection.immutable.Range) = r.size }
-  protected implicit val sizeOfIBitSet = new Sizable[collection.immutable.BitSet] { def sizeof(s: collection.immutable.BitSet) = s.size }
-  protected implicit val sizeOfMBitSet = new Sizable[collection.mutable.BitSet] { def sizeof(s: collection.mutable.BitSet) = s.size }
+  protected implicit val sizeOfRange: Sizable[collection.immutable.Range] =
+    new Sizable[collection.immutable.Range] { def sizeof(r: collection.immutable.Range) = r.size }
+  protected implicit val sizeOfIBitSet: Sizable[collection.immutable.BitSet] =
+    new Sizable[collection.immutable.BitSet] { def sizeof(s: collection.immutable.BitSet) = s.size }
+  protected implicit val sizeOfMBitSet: Sizable[collection.mutable.BitSet] =
+    new Sizable[collection.mutable.BitSet] { def sizeof(s: collection.mutable.BitSet) = s.size }
 
   /** Extra instantiators specific to Ints in immutable collections */
   object ImmInt extends Instance.PackagePath {
@@ -440,7 +448,7 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
   protected implicit def classTagA = ClassTagSource.classTagLongString
   protected def allFlags = Array[Flag]()
 
-  protected implicit val sizeOfLongMap_Long_String = 
+  protected implicit val sizeOfLongMap_Long_String: Sizable[collection.mutable.LongMap[String]] =
     new Sizable[collection.mutable.LongMap[String]] { 
       def sizeof(m: collection.mutable.LongMap[String]) = m.size 
     }
@@ -501,7 +509,7 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
   protected implicit def classTagA = ClassTagSource.classTagStringLong
   protected def allFlags = Array[Flag]()
 
-  protected implicit val sizeOfAnyRefMap_String_Long = 
+  protected implicit val sizeOfAnyRefMap_String_Long: Sizable[collection.mutable.AnyRefMap[String, Long]] =
     new Sizable[collection.mutable.AnyRefMap[String, Long]] { 
       def sizeof(m: collection.mutable.AnyRefMap[String, Long]) = m.size 
     }
