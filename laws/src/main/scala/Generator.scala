@@ -82,7 +82,7 @@ trait Generator[A, B, CC] {
         f"  val lawTable: Map[Int, () => Boolean] = Map("
       ) ++
       appropriate.map(_.lineNumber).zipWithIndex.map{ case (n, i) =>
-        f"    $n -> (runLaw$n _)${if (i+1 < appropriate.length)"," else ""}"
+        f"    $n -> (() => runLaw$n)${if (i+1 < appropriate.length)"," else ""}"
       } ++
       Array(
         f"  )",
