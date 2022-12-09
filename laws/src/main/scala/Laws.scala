@@ -215,9 +215,9 @@ set - only holds for collections that remove duplicates
 
 /******** String generation ********/
 
-"x.`mkString` == { val sb = new StringBuilder; x.foreach(sb ++= _.toString); sb.result }".law(SEQ)
+"x.`mkString` == { val sb = new StringBuilder; x.foreach(sb ++= _.toString); sb.result() }".law(SEQ)
 
-"x.`mkString` == { val sb = new StringBuilder; x.`addString`(sb); sb.result }".law
+"x.`mkString` == { val sb = new StringBuilder; x.`addString`(sb); sb.result() }".law
 
 """x.`mkString` == x.mkString("", "", "")""".law
 
@@ -229,14 +229,14 @@ set - only holds for collections that remove duplicates
       val sb = new StringBuilder
       sb ++= "!"
       x.foreach(sb ++= _.toString + "@")
-      sb.result.dropRight(1) + "#"
+      sb.result().dropRight(1) + "#"
     }
   )
 }""".law(SEQ)
 
-"""x.`mkString`("*") == { val sb = new StringBuilder; x.`addString`(sb, "*"); sb.result }""".law(SEQ)
+"""x.`mkString`("*") == { val sb = new StringBuilder; x.`addString`(sb, "*"); sb.result() }""".law(SEQ)
 
-"""x.`mkString`("[", "|", "]") == { val sb = new StringBuilder; x.`addString`(sb, "[", "|", "]"); sb.result }""".law(SEQ)
+"""x.`mkString`("[", "|", "]") == { val sb = new StringBuilder; x.`addString`(sb, "[", "|", "]"); sb.result() }""".law(SEQ)
 
 
 /******** Everything else (roughly alphabetical) ********/
@@ -429,9 +429,9 @@ c sameAs x.filter(p)""".law(SET)
 
 "x.`hasNext` == x.`nonEmpty`".law
 
-"x.`hasNext` implies tryO{ x.`next` }.isDefined".law
+"x.`hasNext` implies tryO{ x.`next`() }.isDefined".law
 
-"x.`nextOption` == tryO{ x.`next` }".law
+"x.`nextOption`() == tryO{ x.`next`() }".law
 
 "x.`++`(y).`size` == x.size + y.size".law(SEQ)
 
@@ -547,9 +547,9 @@ val (x1,x2) = x.`duplicate`
 
 "x.`length` == x.`size`".law
 
-"x.`mapResult`(_.`map`(f)).`addOne`(a).`result` sameAs x.`addOne`(a).`result`.`map`(f)".law(BITSET.!)
+"x.`mapResult`(_.`map`(f)).`addOne`(a).`result`() sameAs x.`addOne`(a).`result`().`map`(f)".law(BITSET.!)
 
-"x.`mapResult`(_.`map`(bitset_f)).`addOne`(a).`result` sameAs x.`addOne`(a).`result`.`map`(bitset_f)".law(BITSET)
+"x.`mapResult`(_.`map`(bitset_f)).`addOne`(a).`result`() sameAs x.`addOne`(a).`result`().`map`(bitset_f)".law(BITSET)
 
 "x.`padTo`(n, a).`size` == (n max x.size)".law
 
@@ -990,14 +990,14 @@ var last: Option[A] = None
 val i = x.`sorted`.`iterator`
 var ordered = true
 while (ordered && i.hasNext) {
-  val a = i.next
+  val a = i.next()
   ordered = last.forall(_ <= a)
   last = Some(a)
 }
 ordered
 """.law
 
-"val x0 = x; x0.`sortInPlace`; x0 sameAs x.`sorted`".law
+"val x0 = x; x0.`sortInPlace`(); x0 sameAs x.`sorted`".law
 
 "x.`sortBy`(f) sameAs x.`sortWith`((a,b) => f(a) < f(b))".law(SORTWITH_INT_CCE.!)
 
@@ -1100,13 +1100,13 @@ x.map(a => (a,a,a)).`unzip3` match {
 """
 val v = Vector.newBuilder[A]
 x.`withFilter`(p).foreach(v += _)
-v.result sameAs x.`filter`(p).toVector
+v.result() sameAs x.`filter`(p).toVector
 """.law(SEQ)
 
 """
 val v = Vector.newBuilder[A]
 x.`withFilter`(p).foreach(v += _)
-v.result samePieces x.`filter`(p).toVector
+v.result() samePieces x.`filter`(p).toVector
 """.law(SEQ.!)
 
 """
@@ -1235,7 +1235,7 @@ if (had) x0.`size` + 1 == x.`size` && (x0 partOf x) else x0 sameAs x
 
 
 
-"x.`result` sameAs x".law
+"x.`result`() sameAs x".law
 
 "val x0 = x; x0.`transform`(f); x0 sameAs x.map(f)".law(MAP.!)
 
@@ -1294,7 +1294,7 @@ x0 sameAs x.map{ case (a, b) => a -> f((a, b))._2 }
 
 "x.`appendedAll`(y) sameAs x.`:++`(y)".law
 
-"val x0 = x; x0.`clear`; x0.`size` == 0".law
+"val x0 = x; x0.`clear`(); x0.`size` == 0".law
 
 "x.`concat`(y) sameAs x.`++`(y)".law
 
@@ -1311,7 +1311,7 @@ x.foreach{ xi =>
     built += xi
   }
 }
-direct samePieces built.result
+direct samePieces built.result()
 """.law
 
 "val x0 = x; x0.`dropInPlace`(n max 0); x0 sameAs x.`drop`(n)".law
