@@ -89,8 +89,7 @@ Each time you change the library or compiler, you'll need to publish both the co
 
 Catching a regression typically does not require deep knowledge of the workings
 of scala-collection-laws.  Simply change the target version of Scala in the
-`tests/build.sbt` file (and in `laws/build.sbt` if the change is not binary
-compatible with the version already in `laws/build.sbt`) and use `run.sh` again.
+`build.sbt` file and use `run.sh` again.
 
 #### Regression class 1: expected relationship fails.
 
