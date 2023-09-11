@@ -94,9 +94,9 @@ with TestInfo {
 
   def inst: Instance[_, _] = instance
 
-  protected def boxedRuntime = a.getClass
+  protected def boxedRuntime: Class[_] = a.getClass
 
-  def runtimeColl = x.getClass
+  def runtimeColl: Class[_] = x.getClass
 
   def name = nm.value.toString
 
