@@ -306,9 +306,9 @@ object ClassTagSource {
 object InstantiatorsOfInt extends InstantiatorsOf[Int] {
   import Flag._
 
-  protected implicit def orderingOfA = OrderingSource.orderingOfInt
-  protected implicit def typeTagA = TypeTagSource.typeTagInt
-  protected implicit def classTagA = ClassTagSource.classTagInt
+  protected implicit def orderingOfA: Ordering[Int] = OrderingSource.orderingOfInt
+  protected implicit def typeTagA: TypeTag[Int] = TypeTagSource.typeTagInt
+  protected implicit def classTagA: ClassTag[Int] = ClassTagSource.classTagInt
   protected def allFlags = Array(INT)
 
   protected implicit val sizeOfRange: Sizable[collection.immutable.Range] =
@@ -406,9 +406,9 @@ object InstantiatorsOfInt extends InstantiatorsOf[Int] {
 object InstantiatorsOfStr extends InstantiatorsOf[String] {
   import Flag._
 
-  protected implicit def orderingOfA = OrderingSource.orderingOfString
-  protected implicit def typeTagA = TypeTagSource.typeTagString
-  protected implicit def classTagA = ClassTagSource.classTagString
+  protected implicit def orderingOfA: Ordering[String] = OrderingSource.orderingOfString
+  protected implicit def typeTagA: TypeTag[String] = TypeTagSource.typeTagString
+  protected implicit def classTagA: ClassTag[String] = ClassTagSource.classTagString
   protected def allFlags = Array(STR)
 
   /** Singleton `String` values to test */
@@ -440,12 +440,12 @@ object InstantiatorsOfStr extends InstantiatorsOf[String] {
 object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with InstantiatorsOfKV[Long, String] {
   import Flag._
 
-  protected implicit def orderingOfA = OrderingSource.orderingOfLongString
-  protected implicit def orderingOfK = OrderingSource.orderingOfLong
-  protected implicit def typeTagA = TypeTagSource.typeTagLongString
-  protected implicit def typeTagK = TypeTagSource.typeTagLong
-  protected implicit def typeTagV = TypeTagSource.typeTagString
-  protected implicit def classTagA = ClassTagSource.classTagLongString
+  protected implicit def orderingOfA: Ordering[(Long, String)] = OrderingSource.orderingOfLongString
+  protected implicit def orderingOfK: Ordering[Long] = OrderingSource.orderingOfLong
+  protected implicit def typeTagA: TypeTag[(Long, String)] = TypeTagSource.typeTagLongString
+  protected implicit def typeTagK: TypeTag[Long] = TypeTagSource.typeTagLong
+  protected implicit def typeTagV: TypeTag[String] = TypeTagSource.typeTagString
+  protected implicit def classTagA: ClassTag[(Long, String)] = ClassTagSource.classTagLongString
   protected def allFlags = Array[Flag]()
 
   protected implicit val sizeOfLongMap_Long_String: Sizable[collection.mutable.LongMap[String]] =
@@ -501,12 +501,12 @@ object InstantiatorsOfLongStr extends InstantiatorsOf[(Long, String)] with Insta
 object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with InstantiatorsOfKV[String, Long] {
   import Flag._
 
-  protected implicit def orderingOfA = OrderingSource.orderingOfStringLong
-  protected implicit def orderingOfK = OrderingSource.orderingOfString
-  protected implicit def typeTagA = TypeTagSource.typeTagStringLong
-  protected implicit def typeTagK = TypeTagSource.typeTagString
-  protected implicit def typeTagV = TypeTagSource.typeTagLong
-  protected implicit def classTagA = ClassTagSource.classTagStringLong
+  protected implicit def orderingOfA: Ordering[(String, Long)] = OrderingSource.orderingOfStringLong
+  protected implicit def orderingOfK: Ordering[String] = OrderingSource.orderingOfString
+  protected implicit def typeTagA: TypeTag[(String, Long)] = TypeTagSource.typeTagStringLong
+  protected implicit def typeTagK: TypeTag[String] = TypeTagSource.typeTagString
+  protected implicit def typeTagV: TypeTag[Long] = TypeTagSource.typeTagLong
+  protected implicit def classTagA: ClassTag[(String, Long)] = ClassTagSource.classTagStringLong
   protected def allFlags = Array[Flag]()
 
   protected implicit val sizeOfAnyRefMap_String_Long: Sizable[collection.mutable.AnyRefMap[String, Long]] =
