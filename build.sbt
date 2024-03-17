@@ -7,6 +7,6 @@ ThisBuild / libraryDependencies ++= Seq(
 
 val laws = project.settings(
   scalacOptions += "-Werror",
-  scalacOptions += "-Xsource:3",
+  scalacOptions += "-Xsource:3-cross",
 )
 val tests = project.dependsOn(laws)
