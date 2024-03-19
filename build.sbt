@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "2.13.12"
+ThisBuild / scalaVersion := "2.13.13"
 ThisBuild / scalacOptions ++= Seq("-unchecked", "-feature", "-deprecation")
 ThisBuild / libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-reflect" % scalaVersion.value,
@@ -7,6 +7,6 @@ ThisBuild / libraryDependencies ++= Seq(
 
 val laws = project.settings(
   scalacOptions += "-Werror",
-  scalacOptions += "-Xsource:3",
+  scalacOptions += "-Xsource:3-cross",
 )
 val tests = project.dependsOn(laws)
