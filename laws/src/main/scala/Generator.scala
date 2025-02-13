@@ -472,12 +472,8 @@ object AllStrLongGenerators {
     val weakHashMap   = register(io.MutKV)(_.weakHashMap())
   }
 
-  object MutKrefV {
-    val anyRefMap     = register(io.MutKrefV)(_.anyRefMap())
-  }
-
   /** This line is needed to actually perform the registration of all generators! */
-  val force = ImmKV :: MutKV :: MutKrefV :: Nil
+  val force = ImmKV :: MutKV :: Nil
 
   lazy val all = everyoneBuffer.result()
 
