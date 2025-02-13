@@ -164,7 +164,7 @@ trait AllRunner {
     import scala.concurrent.duration._
     import scala.concurrent.ExecutionContext.Implicits.global   // Maybe make a fixed-size thread pool?
     val toRun = runners.map(_())
-    val ans = collection.mutable.AnyRefMap.empty[String, Test.Tested]
+    val ans = collection.mutable.Map.empty[String, Test.Tested]
     val slots = new Array[(String, Future[(String, Test.Tested)])](1 max (atOnce min toRun.length))
     var i = 0;
     var it = toRun.iterator

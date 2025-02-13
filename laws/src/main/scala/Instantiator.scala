@@ -509,30 +509,6 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
   protected implicit def classTagA: ClassTag[(String, Long)] = ClassTagSource.classTagStringLong
   protected def allFlags = Array[Flag]()
 
-  protected implicit val sizeOfAnyRefMap_String_Long: Sizable[collection.mutable.AnyRefMap[String, Long]] =
-    new Sizable[collection.mutable.AnyRefMap[String, Long]] { 
-      def sizeof(m: collection.mutable.AnyRefMap[String, Long]) = m.size 
-    }
-
-  object MutKrefV extends Instance.PackagePath {
-    // If we have other (String, _) types, move this out into a trait
-    def nickname = "MutKrefV"
-    def fullyQualified = "scala.collection.mutable"
-    def C[CC: TypeTag: Sizable](ccf: Array[(String, Long)] => CC, flags: Flag*)(implicit nm: sourcecode.Name): Deployed[(String, Long), CC] = {
-      val gen = kvInst.makeWith(ccf, (MAP +: flags): _*)(nm, implicitly[TypeTag[CC]], implicitly[Sizable[CC]])
-      val ans = new Deployed[(String, Long), CC]{
-        val secretly = gen
-        var accesses: Int = 0
-        val name = nm.value.toString
-        def group = typeTagA.tpe.toString + " in " + nickname
-        def apply(): Instance.FromArray[(String, Long), CC] = { accesses += 1; secretly }
-      }
-      registry += ans
-      ans
-    }
-    val anyRefMap = C({ a => val m = new collection.mutable.AnyRefMap[String, Long]; for (kv <- a) m += kv; m }, SPECTYPE)
-  }
-
   lazy val possible_a = Array("wish" -> 3L)
   lazy val possible_x = Array(
     Array.empty[(String, Long)],
@@ -547,5 +523,5 @@ object InstantiatorsOfStrLong extends InstantiatorsOf[(String, Long)] with Insta
     *
     * In particular, notice that we're only taking the key-value instantiators, so we only register maps, not all collections.
     */
-  val force = ImmKV :: MutKV :: MutKrefV :: Nil
+  val force = ImmKV :: MutKV :: Nil
 }
