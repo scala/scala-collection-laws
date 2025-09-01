@@ -2,7 +2,7 @@ ThisBuild / scalaVersion := "2.13.16"
 ThisBuild / scalacOptions ++= Seq("-unchecked", "-feature", "-deprecation")
 ThisBuild / libraryDependencies ++= Seq(
   "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-  "com.lihaoyi" %% "sourcecode" % "0.4.2"
+  "com.lihaoyi" %% "sourcecode" % "0.4.4"
 )
 
 val laws = project.settings(
